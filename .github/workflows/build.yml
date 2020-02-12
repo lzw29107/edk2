@@ -19,10 +19,6 @@ jobs:
       with:
             submodules: 'true'
 
-    - uses: LizardByte/setup-python-action@master
-      with:
-        python-version: '2.7'
-
     - name: Build
       run: |
         make -C BaseTools

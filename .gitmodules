@@ -1,3 +1,9 @@
 [submodule "CryptoPkg/Library/OpensslLib/openssl"]
 	path = CryptoPkg/Library/OpensslLib/openssl
 	url = https://github.com/openssl/openssl
+[submodule "MdeModulePkg/Library/BrotliCustomDecompressLib/brotli"]
+	path = MdeModulePkg/Library/BrotliCustomDecompressLib/brotli
+	url = https://github.com/google/brotli
+[submodule "BaseTools/Source/C/BrotliCompress/brotli"]
+	path = BaseTools/Source/C/BrotliCompress/brotli
+	url = https://github.com/google/brotli

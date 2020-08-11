@@ -217,7 +217,7 @@ def LaunchCommand(Command, WorkingDir):
         EndOfProcedure = Event()
         EndOfProcedure.clear()
         if Proc.stdout:
-            StdOutThread = Thread(target=ReadMessage, args=(Proc.stdout, EdkLogger.info, EndOfProcedure,Proc.ProcOut))
+            StdOutThread = Thread(target=ReadMessage, args=(Proc.stdout, EdkLogger.info, EndOfProcedure))
             StdOutThread.name = "STDOUT-Redirector"
             StdOutThread.daemon = False
             StdOutThread.start()

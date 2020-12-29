@@ -26,7 +26,7 @@ from Common.TargetTxtClassObject import TargetTxtClassObject
 from Common.ToolDefClassObject import ToolDefClassObject, ToolDefDict
 from AutoGen.BuildEngine import BuildRule
 import Common.DataType as DataType
-from Common.Misc import PathClass
+from Common.Misc import PathClass,CreateDirectory
 from Common.LongFilePathSupport import OpenLongFilePath as open
 from Common.MultipleWorkspace import MultipleWorkspace as mws
 
@@ -468,12 +468,28 @@ class GenFdsGlobalVariable:
                     GenFdsGlobalVariable.SecCmdList.append(' '.join(Cmd).strip())
             else:
                 SectionData = array('B', [0, 0, 0, 0])
-                SectionData.fromstring(Ui.encode("utf_16_le"))
+                SectionData.fromlist(array('B',Ui.encode('utf-16-le')).tolist())
                 SectionData.append(0)
                 SectionData.append(0)
                 Len = len(SectionData)
                 GenFdsGlobalVariable.SectionHeader.pack_into(SectionData, 0, Len & 0xff, (Len >> 8) & 0xff, (Len >> 16) & 0xff, 0x15)
-                SaveFileOnChange(Output, SectionData.tostring())
+
+
+                DirName = os.path.dirname(Output)
+                if not CreateDirectory(DirName):
+                    EdkLogger.error(None, FILE_CREATE_FAILURE, "Could not create directory %s" % DirName)
+                else:
+                    if DirName == '':
+                        DirName = os.getcwd()
+                    if not os.access(DirName, os.W_OK):
+                        EdkLogger.error(None, PERMISSION_FAILURE, "Do not have write permission on directory %s" % DirName)
+
+                try:
+                    with open(Output, "wb") as Fd:
+                        SectionData.tofile(Fd)
+                        Fd.flush()
+                except IOError as X:
+                    EdkLogger.error(None, FILE_CREATE_FAILURE, ExtraData='IOError %s' % X)
 
         elif Ver:
             Cmd += ("-n", Ver)

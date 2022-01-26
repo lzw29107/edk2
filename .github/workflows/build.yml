@@ -15,7 +15,10 @@ jobs:
     - name: Install software package
       run: sudo apt-get install gcc-arm-linux-gnueabihf acpica-tools uuid-dev libsqlite3-dev
       
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@main
+      with:
+            submodules: 'true'
+
     - uses: LizardByte/setup-python-action@master
       with:
         python-version: '2.7'

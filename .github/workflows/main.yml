@@ -15,7 +15,11 @@ jobs:
       run: sudo apt-get install gcc-arm-linux-gnueabihf 
       
     - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5.1.0
+    
+    - name: Install python
+      uses: actions/setup-python@v5.1.0
+      with:
+          python-version: 3.11
           
     - name: step1
       run: make -C BaseTools

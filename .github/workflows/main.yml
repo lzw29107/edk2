@@ -31,7 +31,7 @@ jobs:
       run: export GCC5_ARM_PREFIX=arm-linux-gnueabihf-
 
     - name: step4
-      run:  export GCC5_ARM_PREFIX=arm-linux-gnueabihf-&& export WORKSPACE=/home/runner/work/edk2-winrt/edk2-winrt && export EDK_TOOLS_PATH=/home/runner/work/edk2-winrt/edk2-winrt/BaseTools && export CONF_PATH=/home/runner/work/edk2-winrt/edk2-winrt/Conf && cd ./BaseTools/BinWrappers/PosixLike && export PATH=$PATH:/home/runner/work/edk2-winrt/edk2-winrt/BaseTools/BinWrappers/PosixLike && ./build -a ARM -t GCC5 -b RELEASE -p ArmVirtPkg/ArmVirtQemuWinRt.dsc && cd ../../../
+      run:  export GCC5_ARM_PREFIX=arm-linux-gnueabihf-&& export WORKSPACE=/home/runner/work/edk2/edk2 && export EDK_TOOLS_PATH=/home/runner/work/edk2/edk2/BaseTools && export CONF_PATH=/home/runner/work/edk2/edk2/Conf && cd ./BaseTools/BinWrappers/PosixLike && export PATH=$PATH:/home/runner/work/edk2/edk2/BaseTools/BinWrappers/PosixLike && ./build -a ARM -t GCC5 -b RELEASE -p ArmVirtPkg/ArmVirtQemuWinRt.dsc && cd ../../../
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3.1.2
       with:

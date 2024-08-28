@@ -2420,6 +2420,10 @@ VariableServiceGetVariable (
     return EFI_INVALID_PARAMETER;
   }
 
+  if (mVariableModuleGlobal == NULL) {
+    return EFI_INVALID_PARAMETER;
+  }
+
   if (VariableName[0] == 0) {
     return EFI_NOT_FOUND;
   }

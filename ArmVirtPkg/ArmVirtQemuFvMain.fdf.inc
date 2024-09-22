@@ -1,4 +1,4 @@
-#
+a#
 #  Copyright (c) 2011-2015, ARM Limited. All rights reserved.
 #  Copyright (c) 2014-2016, Linaro Limited. All rights reserved.
 #  Copyright (c) 2015 - 2017, Intel Corporation. All rights reserved.
@@ -165,6 +165,7 @@ READ_LOCK_STATUS   = TRUE
   # Video support
   #
   INF OvmfPkg/QemuRamfbDxe/QemuRamfbDxe.inf
+  INF OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf
   INF OvmfPkg/VirtioGpuDxe/VirtioGpu.inf
   INF OvmfPkg/PlatformDxe/Platform.inf
 

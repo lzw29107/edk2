@@ -37,8 +37,7 @@ PlatformHasAcpiDt (
   // unbootable anyway (due to lacking hardware description), so tolerate no
   // errors here.
   //
-  if (MAX_UINTN == MAX_UINT64 &&
-      !PcdGetBool (PcdForceNoAcpi) &&
+  if (!PcdGetBool (PcdForceNoAcpi) &&
       !EFI_ERROR (
          QemuFwCfgFindFile (
            "etc/table-loader",
@@ -47,8 +46,7 @@ PlatformHasAcpiDt (
            )
          )) {
     //
-    // Only make ACPI available on 64-bit systems, and only if QEMU generates
-    // (a subset of) the ACPI tables.
+    // Only make ACPI available if QEMU generates (a subset of) the ACPI tables.
     //
     Status = gBS->InstallProtocolInterface (
                     &ImageHandle,

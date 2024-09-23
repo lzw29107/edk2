@@ -490,6 +490,13 @@
 !include OvmfPkg/Include/Dsc/UsbComponents.dsc.inc
 
   #
+  # SD/eMMC Support
+  #
+  MdeModulePkg/Bus/Pci/SdMmcPciHcDxe/SdMmcPciHcDxe.inf
+  MdeModulePkg/Bus/Sd/EmmcDxe/EmmcDxe.inf
+  MdeModulePkg/Bus/Sd/SdDxe/SdDxe.inf
+
+  #
   # Hash2 Protocol Support
   #
   SecurityPkg/Hash2DxeCrypto/Hash2DxeCrypto.inf

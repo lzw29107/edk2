@@ -438,7 +438,6 @@
       gEfiMdePkgTokenSpaceGuid.PcdUefiLibMaxPrintBufferSize|8000
   }
 
-[Components.AARCH64]
   #
   # ACPI Support
   #

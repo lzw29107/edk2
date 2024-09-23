@@ -2342,5 +2342,9 @@
   # @Prompt 64bit VPD base address.
   gEfiMdeModulePkgTokenSpaceGuid.PcdVpdBaseAddress64|0x0|UINT64|0x00030006
 
+[PcdsFixedAtBuild.ARM, PcdsPatchableInModule.ARM, PcdsDynamic.ARM, PcdsDynamicEx.ARM]
+  # @Prompt Publish UEFI PropertiesTable.
+  gEfiMdeModulePkgTokenSpaceGuid.PcdPropertiesTableEnable|TRUE|BOOLEAN|0x0000006e
+
 [UserExtensions.TianoCore."ExtraFiles"]
   MdeModulePkgExtra.uni

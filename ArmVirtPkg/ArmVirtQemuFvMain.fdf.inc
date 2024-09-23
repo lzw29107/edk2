@@ -188,6 +188,10 @@ READ_LOCK_STATUS   = TRUE
   INF MdeModulePkg/Bus/Sd/EmmcDxe/EmmcDxe.inf
   INF MdeModulePkg/Bus/Sd/SdDxe/SdDxe.inf
 
+  # NonDiscoverableDevices
+  INF ArmVirtPkg/VirtPlatformDxe/VirtPlatformDxe.inf
+  INF MdeModulePkg/Bus/Pci/NonDiscoverablePciDeviceDxe/NonDiscoverablePciDeviceDxe.inf
+
   #
   # Hash2 Protocol producer
   #

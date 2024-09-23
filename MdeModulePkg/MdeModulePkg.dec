@@ -2462,5 +2462,9 @@
   # @Prompt FFA Exit Boot Event Registered
   gEfiMdeModulePkgTokenSpaceGuid.PcdFfaExitBootEventRegistered|FALSE|BOOLEAN|0x0003000C
 
+[PcdsFixedAtBuild.ARM, PcdsPatchableInModule.ARM, PcdsDynamic.ARM, PcdsDynamicEx.ARM]
+  # @Prompt Publish UEFI PropertiesTable.
+  gEfiMdeModulePkgTokenSpaceGuid.PcdPropertiesTableEnable|TRUE|BOOLEAN|0x0000006e
+
 [UserExtensions.TianoCore."ExtraFiles"]
   MdeModulePkgExtra.uni

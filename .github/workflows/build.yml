@@ -1,0 +1,81 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs: 
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { system: 24.04, platform: ArmVirtQemu, arch: ARM, target: RELEASE }
+          - { system: 24.04, platform: ArmVirtQemu, arch: ARM, target: DEBUG }
+          - { system: 24.04, platform: ArmVirtQemu, arch: ARM, target: NOOPT }
+          - { system: 24.04, platform: ArmVirtQemu, arch: AARCH64, target: RELEASE }
+          - { system: 24.04, platform: ArmVirtQemu, arch: AARCH64, target: DEBUG }
+          - { system: 24.04, platform: ArmVirtQemu, arch: AARCH64, target: NOOPT }
+          - { system: devel, platform: ArmVirtQemu, arch: ARM, target: RELEASE }
+          - { system: devel, platform: ArmVirtQemu, arch: ARM, target: DEBUG }
+          - { system: devel, platform: ArmVirtQemu, arch: ARM, target: NOOPT }
+          - { system: devel, platform: ArmVirtQemu, arch: AARCH64, target: RELEASE }
+          - { system: devel, platform: ArmVirtQemu, arch: AARCH64, target: DEBUG }
+          - { system: devel, platform: ArmVirtQemu, arch: AARCH64, target: NOOPT }
+    env:
+        artifact_fd_path: ${{ format('{0}/QEMU_EFI_{1}_{2}{3}.fd', github.workspace, matrix.arch, matrix.target, matrix.system == 'devel' && '_devel' || '') }}
+
+    steps:
+    - uses: actions/setup-python@main
+      if: ${{ matrix.system == 'devel' }}
+      with:
+          python-version: 3.14-dev
+
+    - name: 'Update system to devel'
+      if: ${{ matrix.system == 'devel' }}
+      run: |
+        sudo sed -i 's/noble/devel/g' /etc/apt/sources.list.d/ubuntu.sources
+
+    - name: 'Install software packages'
+      run: |
+        sudo apt update
+        sudo apt full-upgrade
+        sudo apt install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu acpica-tools uuid-dev
+      
+    - uses: actions/checkout@main
+      with: 
+          submodules: 'true'
+
+    - name: 'Build ${{ matrix.arch }}'
+      env:
+        fd_path:  ${{ format('{0}/Build/{1}-{2}/{3}_GCC/FV/QEMU_EFI.fd', github.workspace, matrix.platform, matrix.arch, matrix.target) }}
+      run: |
+        make -C BaseTools
+        source edksetup.sh
+        export GCC_ARM_PREFIX=arm-linux-gnueabihf-
+        export GCC_AARCH64_PREFIX=aarch64-linux-gnu-
+        export WORKSPACE=${{ github.workspace }}
+        export EDK_TOOLS_PATH=${{ github.workspace }}/BaseTools
+        export CONF_PATH=${{ github.workspace }}/Conf
+        cd BaseTools/BinWrappers/PosixLike
+        export PATH=$PATH:${{ github.workspace }}/BaseTools/BinWrappers/PosixLike
+        ./build -a ${{ matrix.arch }} -t GCC -b ${{ matrix.target }} -p ArmVirtPkg/${{ matrix.platform }}.dsc
+        echo "version=$(date +%Y%m%d)-$(git rev-parse --short HEAD)" > $GITHUB_ENV
+        mv $fd_path $artifact_fd_path
+
+    - name: 'Upload artifact'
+      uses: actions/upload-artifact@main
+      with:
+        name: ${{ format('{0} {1} {2} (Ubuntu {3} Build)', matrix.platform, matrix.arch, matrix.target, matrix.system) }}
+        path:  ${{ env.artifact_fd_path }}
+        compression-level: 9
+
+    - name: 'Create a Release'
+      uses: ncipollo/release-action@main
+      with:
+        allowUpdates	: true
+        commit: main
+        tag: 'edk2-${{ env.version }}'
+        artifacts: '${{ env.artifact_fd_path }}'

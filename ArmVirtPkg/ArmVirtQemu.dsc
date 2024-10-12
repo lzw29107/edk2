@@ -323,8 +323,8 @@
   gEfiSecurityPkgTokenSpaceGuid.PcdTpmBaseAddress|0x0
 !endif
 
-!if ${TF_A_SUPPORT} == TRUE
-  gArmTokenSpaceGuid.PcdFvBaseAddress|0x60001000
+!if $(TF_A_SUPPORT) == TRUE
+  gArmTokenSpaceGuid.PcdFvBaseAddress|0x00100000
 !endif
 
 [PcdsDynamicHii]

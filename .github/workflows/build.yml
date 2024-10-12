@@ -61,7 +61,7 @@ jobs:
         export CONF_PATH=${{ github.workspace }}/Conf
         cd BaseTools/BinWrappers/PosixLike
         export PATH=$PATH:${{ github.workspace }}/BaseTools/BinWrappers/PosixLike
-        ./build -a ${{ matrix.arch }} -t GCC -b ${{ matrix.target }} -p ArmVirtPkg/${{ matrix.platform }}.dsc
+        ./build -a ${{ matrix.arch }} -t GCC -b ${{ matrix.target }} -p ArmVirtPkg/${{ matrix.platform }}.dsc -D TF_A_SUPPORT=TRUE
         echo "version=$(date +%Y%m%d)-$(git rev-parse --short HEAD)" > $GITHUB_ENV
         mv $fd_path $artifact_fd_path
 

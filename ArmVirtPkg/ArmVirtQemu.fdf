@@ -28,8 +28,14 @@
   DEFINE FVMAIN_COMPACT_SIZE  = 0x2ff000
 !endif
 
+!if $(TF_A_SUPPORT) == TRUE
+  DEFINE BASE_ADDRESS  = 0x00100000
+!else
+  DEFINE BASE_ADDRESS  = 0x00000000
+!endif
+
 [FD.QEMU_EFI]
-BaseAddress   = 0x60000000|gArmTokenSpaceGuid.PcdFdBaseAddress  # QEMU assigns 0 - 0x8000000 for a BootROM
+BaseAddress   = $(BASE_ADDRESS)|gArmTokenSpaceGuid.PcdFdBaseAddress  # QEMU assigns 0 - 0x8000000 for a BootROM
 Size          = $(FD_SIZE)|gArmTokenSpaceGuid.PcdFdSize         # The size in bytes of the FLASH Device
 ErasePolarity = 1
 

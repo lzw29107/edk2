@@ -67,7 +67,7 @@ DATA = {
 !endif
 }
 
-0x00001000|$(FVMAIN_COMPACT_SIZE)
+0x60001000|$(FVMAIN_COMPACT_SIZE)
 gArmTokenSpaceGuid.PcdFvBaseAddress|gArmTokenSpaceGuid.PcdFvSize
 FV = FVMAIN_COMPACT
 

@@ -234,6 +234,10 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize   | 0x40000
   gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize | 0x40000
 
+!if $(TF_A_SUPPORT) == TRUE
+  gArmTokenSpaceGuid.PcdFvBaseAddress|0x00100000
+!endif
+
 [PcdsFixedAtBuild.AARCH64]
   # Clearing BIT0 in this PCD prevents installing a 32-bit SMBIOS entry point,
   # if the entry point version is >= 3.0. AARCH64 OSes cannot assume the
@@ -314,17 +318,11 @@
   gEfiSecurityPkgTokenSpaceGuid.PcdTpmBaseAddress|0x0
   gEfiSecurityPkgTokenSpaceGuid.PcdTpmInstanceGuid|{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
   gEfiSecurityPkgTokenSpaceGuid.PcdTpm2HashMask|0
-!endif
-
+!else
 [PcdsPatchableInModule]
-!if $(TPM2_ENABLE) == FALSE
   # make this PCD patchable instead of dynamic when TPM support is not enabled
   # this permits setting the PCD in unreachable code without pulling in dynamic PCD support
   gEfiSecurityPkgTokenSpaceGuid.PcdTpmBaseAddress|0x0
-!endif
-
-!if $(TF_A_SUPPORT) == TRUE
-  gArmTokenSpaceGuid.PcdFvBaseAddress|0x00100000
 !endif
 
 [PcdsDynamicHii]

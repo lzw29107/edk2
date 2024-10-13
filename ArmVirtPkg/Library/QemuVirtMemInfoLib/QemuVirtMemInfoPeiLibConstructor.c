@@ -104,12 +104,14 @@ QemuVirtMemInfoPeiLibConstructor (
   // chance of marking its location as reserved or copy it to a freshly
   // allocated block in the permanent PEI RAM in the platform PEIM.
   //
-  // ASSERT (NewSize >= SIZE_128MB);
-  // ASSERT (
+  /*
+   ASSERT (NewSize >= SIZE_128MB);
+   ASSERT (
     (((UINT64)PcdGet64 (PcdFdBaseAddress) +
       (UINT64)PcdGet32 (PcdFdSize)) <= NewBase) ||
     ((UINT64)PcdGet64 (PcdFdBaseAddress) >= (NewBase + NewSize))
     );
+  */
 
   return RETURN_SUCCESS;
 }

@@ -30,10 +30,6 @@
 
 !if $(TF_A_SUPPORT) == TRUE
   DEFINE BASE_ADDRESS         = 0x04000000 # Flash1 Base
-  DEFINE FD_SIZE              = 0x04000000
-  DEFINE FD_SIZE_IN_MB        = 64
-  DEFINE FD_NUM_BLOCKS        = 16384
-  DEFINE FVMAIN_COMPACT_SIZE  = 0x03fff000
 !else
   DEFINE BASE_ADDRESS         = 0x00000000 # Flash0 Base
 !endif

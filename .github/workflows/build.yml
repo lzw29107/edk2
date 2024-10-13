@@ -12,20 +12,32 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { system: 24.04, platform: ArmVirtQemu, arch: ARM, target: RELEASE }
-          - { system: 24.04, platform: ArmVirtQemu, arch: ARM, target: DEBUG }
-          - { system: 24.04, platform: ArmVirtQemu, arch: ARM, target: NOOPT }
-          - { system: 24.04, platform: ArmVirtQemu, arch: AARCH64, target: RELEASE }
-          - { system: 24.04, platform: ArmVirtQemu, arch: AARCH64, target: DEBUG }
-          - { system: 24.04, platform: ArmVirtQemu, arch: AARCH64, target: NOOPT }
-          - { system: devel, platform: ArmVirtQemu, arch: ARM, target: RELEASE }
-          - { system: devel, platform: ArmVirtQemu, arch: ARM, target: DEBUG }
-          - { system: devel, platform: ArmVirtQemu, arch: ARM, target: NOOPT }
-          - { system: devel, platform: ArmVirtQemu, arch: AARCH64, target: RELEASE }
-          - { system: devel, platform: ArmVirtQemu, arch: AARCH64, target: DEBUG }
-          - { system: devel, platform: ArmVirtQemu, arch: AARCH64, target: NOOPT }
+          - { system: 24.04, platform: ArmVirtQemu, arch: ARM, target: RELEASE, TF-A_support: true }
+          - { system: 24.04, platform: ArmVirtQemu, arch: ARM, target: DEBUG, TF-A_support: true }
+          - { system: 24.04, platform: ArmVirtQemu, arch: ARM, target: NOOPT, TF-A_support: true }
+          - { system: 24.04, platform: ArmVirtQemu, arch: AARCH64, target: RELEASE, TF-A_support: true }
+          - { system: 24.04, platform: ArmVirtQemu, arch: AARCH64, target: DEBUG, TF-A_support: true }
+          - { system: 24.04, platform: ArmVirtQemu, arch: AARCH64, target: NOOPT, TF-A_support: true }
+          - { system: devel, platform: ArmVirtQemu, arch: ARM, target: RELEASE, TF-A_support: true }
+          - { system: devel, platform: ArmVirtQemu, arch: ARM, target: DEBUG, TF-A_support: true }
+          - { system: devel, platform: ArmVirtQemu, arch: ARM, target: NOOPT, TF-A_support: true }
+          - { system: devel, platform: ArmVirtQemu, arch: AARCH64, target: RELEASE, TF-A_support: true }
+          - { system: devel, platform: ArmVirtQemu, arch: AARCH64, target: DEBUG, TF-A_support: true }
+          - { system: devel, platform: ArmVirtQemu, arch: AARCH64, target: NOOPT, TF-A_support: true }
+          - { system: 24.04, platform: ArmVirtQemu, arch: ARM, target: RELEASE, TF-A_support: false }
+          - { system: 24.04, platform: ArmVirtQemu, arch: ARM, target: DEBUG, TF-A_support: false }
+          - { system: 24.04, platform: ArmVirtQemu, arch: ARM, target: NOOPT, TF-A_support: false }
+          - { system: 24.04, platform: ArmVirtQemu, arch: AARCH64, target: RELEASE, TF-A_support: false }
+          - { system: 24.04, platform: ArmVirtQemu, arch: AARCH64, target: DEBUG, TF-A_support: false }
+          - { system: 24.04, platform: ArmVirtQemu, arch: AARCH64, target: NOOPT, TF-A_support: false }
+          - { system: devel, platform: ArmVirtQemu, arch: ARM, target: RELEASE, TF-A_support: false }
+          - { system: devel, platform: ArmVirtQemu, arch: ARM, target: DEBUG, TF-A_support: false }
+          - { system: devel, platform: ArmVirtQemu, arch: ARM, target: NOOPT, TF-A_support: false }
+          - { system: devel, platform: ArmVirtQemu, arch: AARCH64, target: RELEASE, TF-A_support: false }
+          - { system: devel, platform: ArmVirtQemu, arch: AARCH64, target: DEBUG, TF-A_support: false }
+          - { system: devel, platform: ArmVirtQemu, arch: AARCH64, target: NOOPT, TF-A_support: false }
     env:
-        artifact_fd_path: ${{ format('{0}/QEMU_EFI_{1}_{2}{3}.fd', github.workspace, matrix.arch, matrix.target, matrix.system == 'devel' && '_devel' || '') }}
+        artifact_fd_path: ${{ format('{0}/QEMU_EFI_{1}_{2}{3}{4}.fd', github.workspace, matrix.arch, matrix.target, matrix.system == 'devel' && '_devel' || '', matrix.TF-A_support && '_pflash1' || '') }}
 
     steps:
     - uses: actions/setup-python@main
@@ -51,6 +63,7 @@ jobs:
     - name: 'Build ${{ matrix.arch }}'
       env:
         fd_path:  ${{ format('{0}/Build/{1}-{2}/{3}_GCC/FV/QEMU_EFI.fd', github.workspace, matrix.platform, matrix.arch, matrix.target) }}
+        TF-A_flags: ${{ matrix.TF-A_support && '-D TF_A_SUPPORT=TRUE' || '' }}
       run: |
         make -C BaseTools
         source edksetup.sh
@@ -61,14 +74,19 @@ jobs:
         export CONF_PATH=${{ github.workspace }}/Conf
         cd BaseTools/BinWrappers/PosixLike
         export PATH=$PATH:${{ github.workspace }}/BaseTools/BinWrappers/PosixLike
-        ./build -a ${{ matrix.arch }} -t GCC -b ${{ matrix.target }} -p ArmVirtPkg/${{ matrix.platform }}.dsc -D TF_A_SUPPORT=TRUE
+        ./build -a ${{ matrix.arch }} -t GCC -b ${{ matrix.target }} -p ArmVirtPkg/${{ matrix.platform }}.dsc ${{ env.TF-A_flags }}
         echo "version=$(date +%Y%m%d)-$(git rev-parse --short HEAD)" > $GITHUB_ENV
         mv $fd_path $artifact_fd_path
+
+    - name: Extend FD Size (pflash1)
+      if: ${{ matrix.TF-A_support }}
+      run: |
+        truncate -s 64M $artifact_fd_path
 
     - name: 'Upload artifact'
       uses: actions/upload-artifact@main
       with:
-        name: ${{ format('{0} {1} {2} (Ubuntu {3} Build)', matrix.platform, matrix.arch, matrix.target, matrix.system) }}
+        name: ${{ format('{0} {1} {2}{3} (Ubuntu {4} Build)', matrix.platform, matrix.arch, matrix.target, matrix.TF-A_support && ' (pflash1)' || '', matrix.system) }}
         path:  ${{ env.artifact_fd_path }}
         compression-level: 9
 

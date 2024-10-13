@@ -24,6 +24,7 @@ QemuVirtMemInfoPeiLibConstructor (
   UINT64        NewBase, CurBase;
   UINT64        NewSize, CurSize;
   CONST CHAR8   *Type;
+  CONST CHAR8   *Status;
   INT32         Len;
   CONST UINT64  *RegProp;
   VOID          *Hob;
@@ -62,6 +63,18 @@ QemuVirtMemInfoPeiLibConstructor (
         CurBase = fdt64_to_cpu (ReadUnaligned64 (RegProp));
         CurSize = fdt64_to_cpu (ReadUnaligned64 (RegProp + 1));
 
+        Status = fdt_getprop (DeviceTreeBase, Node, "status", &Len);
+        if (Status && (AsciiStrnCmp (Status, "disabled", Len) == 0)) {
+          DEBUG ((
+            DEBUG_INFO,
+            "%a: System RAM (Disabled) @ 0x%lx - 0x%lx\n",
+            __func__,
+            CurBase,
+            CurBase + CurSize - 1
+            ));
+          continue;
+        }
+        
         DEBUG ((
           DEBUG_INFO,
           "%a: System RAM @ 0x%lx - 0x%lx\n",
@@ -87,7 +100,7 @@ QemuVirtMemInfoPeiLibConstructor (
   //
   // Make sure the start of DRAM matches our expectation
   //
-  // ASSERT (FixedPcdGet64 (PcdSystemMemoryBase) == NewBase);
+  ASSERT (FixedPcdGet64 (PcdSystemMemoryBase) == NewBase);
 
   Hob = BuildGuidDataHob (
           &gArmVirtSystemMemorySizeGuid,
@@ -104,14 +117,12 @@ QemuVirtMemInfoPeiLibConstructor (
   // chance of marking its location as reserved or copy it to a freshly
   // allocated block in the permanent PEI RAM in the platform PEIM.
   //
-  /*
-   ASSERT (NewSize >= SIZE_128MB);
-   ASSERT (
+  ASSERT (NewSize >= SIZE_128MB);
+  ASSERT (
     (((UINT64)PcdGet64 (PcdFdBaseAddress) +
       (UINT64)PcdGet32 (PcdFdSize)) <= NewBase) ||
     ((UINT64)PcdGet64 (PcdFdBaseAddress) >= (NewBase + NewSize))
     );
-  */
 
   return RETURN_SUCCESS;
 }

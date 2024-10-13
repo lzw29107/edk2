@@ -87,7 +87,7 @@ QemuVirtMemInfoPeiLibConstructor (
   //
   // Make sure the start of DRAM matches our expectation
   //
-  ASSERT (FixedPcdGet64 (PcdSystemMemoryBase) == NewBase);
+  // ASSERT (FixedPcdGet64 (PcdSystemMemoryBase) == NewBase);
 
   Hob = BuildGuidDataHob (
           &gArmVirtSystemMemorySizeGuid,

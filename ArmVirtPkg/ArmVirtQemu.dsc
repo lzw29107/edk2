@@ -235,7 +235,7 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize | 0x40000
 
 !if $(TF_A_SUPPORT) == TRUE
-  gArmTokenSpaceGuid.PcdFvBaseAddress|0x00100000
+  gArmTokenSpaceGuid.PcdFvBaseAddress|0x00101000
 !endif
 
 [PcdsFixedAtBuild.AARCH64]

@@ -90,6 +90,14 @@ jobs:
         path:  ${{ env.artifact_fd_path }}
         compression-level: 9
 
+
+    - name: 'Upload artifact'
+      uses: actions/upload-artifact@main
+      with:
+        name: ${{ format('{0} {1} {2}{3} (Ubuntu {4} Build) logs', matrix.platform, matrix.arch, matrix.target, matrix.TF-A_support && ' (pflash1)' || '', matrix.system) }}
+        path:  ${{ github.workspace }}/Build
+        compression-level: 9
+
     - name: 'Create a Release'
       uses: ncipollo/release-action@main
       with:

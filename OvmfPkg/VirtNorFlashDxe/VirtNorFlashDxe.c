@@ -335,7 +335,8 @@ NorFlashInitialise (
         (PcdGet32 (PcdFlashNvStorageVariableBase) + PcdGet32 (PcdFlashNvStorageVariableSize) <=
          NorFlashDevices[Index].RegionBaseAddress + NorFlashDevices[Index].Size);
     }
-
+    
+    DEBUG ((DEBUG_INFO, "DeviceBaseAddress 0x%08x, RegionBaseAddress 0x%08x, Size 0x%08x.\n", NorFlashDevices[Index].DeviceBaseAddress, NorFlashDevices[Index].RegionBaseAddress, NorFlashDevices[Index].Size));
     Status = NorFlashCreateInstance (
                NorFlashDevices[Index].DeviceBaseAddress,
                NorFlashDevices[Index].RegionBaseAddress,

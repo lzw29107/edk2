@@ -24,6 +24,7 @@ QemuVirtMemInfoPeiLibConstructor (
   UINT64        NewBase, CurBase;
   UINT64        NewSize, CurSize;
   CONST CHAR8   *Type;
+  CONST CHAR8   *Status;
   INT32         Len;
   CONST UINT64  *RegProp;
   VOID          *Hob;
@@ -61,6 +62,18 @@ QemuVirtMemInfoPeiLibConstructor (
       if ((RegProp != 0) && (Len == (2 * sizeof (UINT64)))) {
         CurBase = fdt64_to_cpu (ReadUnaligned64 (RegProp));
         CurSize = fdt64_to_cpu (ReadUnaligned64 (RegProp + 1));
+
+        Status = fdt_getprop (DeviceTreeBase, Node, "status", &Len);
+        if (Status && (AsciiStrnCmp (Status, "disabled", Len) == 0)) {
+          DEBUG ((
+            DEBUG_INFO,
+            "%a: System RAM (Disabled) @ 0x%lx - 0x%lx\n",
+            __func__,
+            CurBase,
+            CurBase + CurSize - 1
+            ));
+          continue;
+        }
 
         DEBUG ((
           DEBUG_INFO,

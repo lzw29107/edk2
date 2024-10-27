@@ -74,7 +74,7 @@ jobs:
         export CONF_PATH=${{ github.workspace }}/Conf
         cd BaseTools/BinWrappers/PosixLike
         export PATH=$PATH:${{ github.workspace }}/BaseTools/BinWrappers/PosixLike
-        ./build -a ${{ matrix.arch }} -t GCC -b ${{ matrix.target }} -p ArmVirtPkg/${{ matrix.platform }}.dsc ${{ env.TF-A_flags }}
+        ./build -a ${{ matrix.arch }} -t GCC -b ${{ matrix.target }} -p ArmVirtPkg/${{ matrix.platform }}.dsc -D SECURE_BOOT_ENABLE=TRUE ${{ env.TF-A_flags }}
         echo "version=$(date +%Y%m%d)-$(git rev-parse --short HEAD)" > $GITHUB_ENV
         mv $fd_path $artifact_fd_path
 
@@ -99,9 +99,10 @@ jobs:
         compression-level: 9
 
     - name: 'Create a Release'
+      if: ${{ github.event_name == 'push' && github.event.ref_name == 'main' }}
       uses: ncipollo/release-action@main
       with:
         allowUpdates	: true
-        commit: main
+        commit: ${{ github.event.ref_name }}
         tag: 'edk2-${{ env.version }}'
         artifacts: '${{ env.artifact_fd_path }}'

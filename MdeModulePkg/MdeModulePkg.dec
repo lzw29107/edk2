@@ -1738,5 +1738,9 @@
   # @Prompt If there is any test key used by the platform.
   gEfiMdeModulePkgTokenSpaceGuid.PcdTestKeyUsed|FALSE|BOOLEAN|0x00030003
 
+[PcdsFixedAtBuild.ARM, PcdsPatchableInModule.ARM, PcdsDynamic.ARM, PcdsDynamicEx.ARM]
+  # @Prompt Publish UEFI PropertiesTable.
+  gEfiMdeModulePkgTokenSpaceGuid.PcdPropertiesTableEnable|TRUE|BOOLEAN|0x0000006e
+
 [UserExtensions.TianoCore."ExtraFiles"]
   MdeModulePkgExtra.uni

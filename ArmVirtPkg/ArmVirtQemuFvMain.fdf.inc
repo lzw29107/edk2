@@ -140,13 +140,13 @@ READ_LOCK_STATUS   = TRUE
   INF MdeModulePkg/Universal/SmbiosDxe/SmbiosDxe.inf
   INF OvmfPkg/SmbiosPlatformDxe/SmbiosPlatformDxe.inf
 
-!if $(ARCH) == AARCH64
   #
   # ACPI Support
   #
   INF MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
   INF OvmfPkg/AcpiPlatformDxe/QemuFwCfgAcpiPlatformDxe.inf
 
+!if $(ARCH) == AARCH64
   #
   # EBC support
   #
@@ -177,7 +177,18 @@ READ_LOCK_STATUS   = TRUE
   INF MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe.inf
   INF MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
   INF MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf
+  INF MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
 
+  #
+  # SD/eMMC Support
+  #
+  INF MdeModulePkg/Bus/Pci/SdMmcPciHcDxe/SdMmcPciHcDxe.inf
+  INF MdeModulePkg/Bus/Sd/EmmcDxe/EmmcDxe.inf
+  INF MdeModulePkg/Bus/Sd/SdDxe/SdDxe.inf
+
+  # NonDiscoverableDevices
+  INF ArmVirtPkg/VirtPlatformDxe/VirtPlatformDxe.inf
+  INF MdeModulePkg/Bus/Pci/NonDiscoverablePciDeviceDxe/NonDiscoverablePciDeviceDxe.inf
   #
   # TianoCore logo (splash screen)
   #

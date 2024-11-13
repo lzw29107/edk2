@@ -4339,7 +4339,7 @@ DEFINE GCC_ALL_CC_FLAGS            = -g -Os -fshort-wchar -fno-strict-aliasing -
 DEFINE GCC_IA32_CC_FLAGS           = DEF(GCC_ALL_CC_FLAGS) -m32 -malign-double -freorder-blocks -freorder-blocks-and-partition -O2 -mno-stack-arg-probe
 DEFINE GCC_X64_CC_FLAGS            = DEF(GCC_ALL_CC_FLAGS) -mno-red-zone -Wno-address -mno-stack-arg-probe
 DEFINE GCC_IPF_CC_FLAGS            = DEF(GCC_ALL_CC_FLAGS) -minline-int-divide-min-latency
-DEFINE GCC_ARM_CC_FLAGS            = DEF(GCC_ALL_CC_FLAGS) -mlittle-endian -mabi=aapcs -fno-short-enums -funsigned-char -ffunction-sections -fdata-sections -fomit-frame-pointer -fno-builtin -Wno-address -mthumb -mfloat-abi=soft
+DEFINE GCC_ARM_CC_FLAGS            = DEF(GCC_ALL_CC_FLAGS) -mlittle-endian -mabi=aapcs -fno-short-enums -funsigned-char -ffunction-sections -fdata-sections -fomit-frame-pointer -fno-builtin -Wno-address -mthumb -mfloat-abi=soft -fno-pic -fno-pie
 DEFINE GCC_ARM_CC_XIPFLAGS         = -mno-unaligned-access
 DEFINE GCC_AARCH64_CC_FLAGS        = DEF(GCC_ALL_CC_FLAGS) -mlittle-endian -fno-short-enums -fverbose-asm -funsigned-char  -ffunction-sections -fdata-sections -fno-builtin -Wno-address -fno-asynchronous-unwind-tables
 DEFINE GCC_AARCH64_CC_XIPFLAGS     = -mstrict-align
@@ -4438,7 +4438,7 @@ DEFINE GCC48_X64_DLINK2_FLAGS        = DEF(GCC47_X64_DLINK2_FLAGS)
 DEFINE GCC48_ASM_FLAGS               = DEF(GCC47_ASM_FLAGS)
 DEFINE GCC48_ARM_ASM_FLAGS           = DEF(GCC47_ARM_ASM_FLAGS)
 DEFINE GCC48_AARCH64_ASM_FLAGS       = DEF(GCC47_AARCH64_ASM_FLAGS)
-DEFINE GCC48_ARM_CC_FLAGS            = DEF(GCC47_ARM_CC_FLAGS)
+DEFINE GCC48_ARM_CC_FLAGS            = DEF(GCC47_ARM_CC_FLAGS) -fno-stack-protector
 DEFINE GCC48_ARM_CC_XIPFLAGS         = DEF(GCC47_ARM_CC_XIPFLAGS)
 DEFINE GCC48_AARCH64_CC_FLAGS        = DEF(GCC47_AARCH64_CC_FLAGS)
 DEFINE GCC48_AARCH64_CC_XIPFLAGS     = DEF(GCC47_AARCH64_CC_XIPFLAGS)

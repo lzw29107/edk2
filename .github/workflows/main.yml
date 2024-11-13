@@ -1,0 +1,49 @@
+name: Build
+
+on:
+  push:
+    branches: [ "merge-test" ]
+  pull_request:
+    branches: [ "merge-test" ]
+
+jobs: 
+  build:
+
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Install software package
+      run: sudo apt-get install gcc-arm-linux-gnueabihf acpica-tools uuid-dev libsqlite3-dev
+      
+    - uses: actions/checkout@v4
+    - uses: LizardByte/setup-python-action@master
+      with:
+        python-version: '2.7'
+
+    - name: Build
+      run: |
+        make -C BaseTools
+        source edksetup.sh
+        export GCC5_ARM_PREFIX=arm-linux-gnueabihf-
+        export WORKSPACE=/home/runner/work/edk2/edk2
+        export EDK_TOOLS_PATH=/home/runner/work/edk2/edk2/BaseTools
+        export CONF_PATH=/home/runner/work/edk2/edk2/Conf
+        cd ./BaseTools/BinWrappers/PosixLike
+        export PATH=$PATH:/home/runner/work/edk2/edk2/BaseTools/BinWrappers/PosixLike
+        ./build -a ARM -t GCC5 -b DEBUG -p ArmVirtPkg/ArmVirtQemu.dsc
+        ./build -a ARM -t GCC5 -b RELEASE -p ArmVirtPkg/ArmVirtQemu.dsc
+        cd ../../../
+
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@main
+      with:
+        name: 'ARM Debug'
+        path: ./Build/ArmVirtQemu-ARM/DEBUG_GCC5/FV/QEMU_EFI.fd
+        compression-level: 9
+ 
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@main
+      with:
+        name: 'ARM Release'
+        path: ./Build/ArmVirtQemu-ARM/RELEASE_GCC5/FV/QEMU_EFI.fd
+        compression-level: 9

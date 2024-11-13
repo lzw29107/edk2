@@ -647,7 +647,12 @@ AddTableToList (
       }
       if ((UINT64)(UINTN)AcpiTableInstance->Dsdt3 < BASE_4GB) {
         AcpiTableInstance->Fadt3->Dsdt  = (UINT32) (UINTN) AcpiTableInstance->Dsdt3;
-        ZeroMem (&AcpiTableInstance->Fadt3->XDsdt, sizeof (UINT64));
+        Buffer64                          = (UINT64) (UINTN) AcpiTableInstance->Dsdt3;
+        CopyMem (
+          &AcpiTableInstance->Fadt3->XDsdt,
+          &Buffer64,
+          sizeof (UINT64)
+          );
       } else {
         Buffer64                          = (UINT64) (UINTN) AcpiTableInstance->Dsdt3;
         CopyMem (

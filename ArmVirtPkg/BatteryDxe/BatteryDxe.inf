@@ -1,0 +1,29 @@
+[Defines]
+  INF_VERSION                    = 0x00010006
+  BASE_NAME                      = BatteryDxe
+  FILE_GUID                      = 550e8400-e29b-41d4-a716-446655440000
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = BatteryDxeEntry
+  UNLOAD_IMAGE                   = BatteryDxeUnload
+
+[Packages]
+  ArmVirtPkg/ArmVirtPkg.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  UefiLib
+  DebugLib
+  UefiDriverEntryPoint
+
+[Protocols]
+  gEfiBatteryChargingProtocolGuid
+  gEfiDisplayPowerProtocolGuid
+
+[Sources]
+  BatteryDxe.c
+
+[Depex]
+  TRUE

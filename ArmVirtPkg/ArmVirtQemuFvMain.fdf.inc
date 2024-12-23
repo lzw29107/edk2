@@ -212,3 +212,8 @@ READ_LOCK_STATUS   = TRUE
   # Ramdisk support
   #
   INF MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
+
+  #
+  # Battery
+  #
+  INF ArmVirtPkg/BatteryDxe/BatteryDxe.inf

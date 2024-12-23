@@ -617,3 +617,8 @@
     <LibraryClasses>
       NULL|OvmfPkg/Fdt/FdtPciPcdProducerLib/FdtPciPcdProducerLib.inf
   }
+
+  #
+  # Battery
+  #
+  OvmfPkg/BatteryDxe/BatteryDxe.inf

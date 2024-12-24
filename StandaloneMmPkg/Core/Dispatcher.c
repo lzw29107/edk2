@@ -766,6 +766,11 @@ MmDriverDispatchHandler (
 
   MmiHandlerUnRegister (DispatchHandle);
 
+  //
+  // Free shadowed MM Fvs
+  //
+  MmFreeShadowedFvs ();
+
   return EFI_SUCCESS;
 }
 

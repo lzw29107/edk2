@@ -99,10 +99,10 @@ jobs:
         compression-level: 9
 
     - name: 'Create a Release'
-      if: ${{ github.event_name == 'push' && github.event.ref_name == 'main' }}
+      if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
       uses: ncipollo/release-action@main
       with:
         allowUpdates	: true
-        commit: ${{ github.event.ref_name }}
+        commit: ${{ github.ref_name }}
         tag: 'edk2-${{ env.version }}'
         artifacts: '${{ env.artifact_fd_path }}'

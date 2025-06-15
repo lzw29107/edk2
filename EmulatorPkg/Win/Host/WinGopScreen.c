@@ -423,7 +423,7 @@ WinNtWndBlt (
     return (EFI_STATUS)RStatus;
   }
 
-  if (BltOperation != EfiBltVideoToBltBuffer) {
+  if (BltOperation != EfiUgaVideoToBltBuffer) {
     //
     // Mark the area we just blted as Invalid so WM_PAINT will update.
     //
@@ -808,6 +808,7 @@ WinNtGraphicsWindowOpen (
 
   GopPrivateCreateQ (Private, &Private->QueueForRead);
 
+  Private->Signature                          = GRAPHICS_PRIVATE_DATA_SIGNATURE;
   Private->GraphicsWindowIo.Size              = WinNtWndSize;
   Private->GraphicsWindowIo.CheckKey          = WinNtWndCheckKey;
   Private->GraphicsWindowIo.GetKey            = WinNtWndGetKey;

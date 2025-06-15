@@ -620,7 +620,7 @@ FreeGopModes:
 
   @param[in]  GopModes      Array of resolutions retrieved from the GOP.
 
-  @retval EFI_SUCESS  Opcodes have been successfully produced.
+  @retval EFI_SUCCESS Opcodes have been successfully produced.
 
   @return             Status codes from underlying functions. PackageList may
                       have been extended with new strings. OpCodeBuffer is
@@ -697,7 +697,7 @@ FreeOutputBuffer:
   The drop down list of video resolutions is generated from (NumGopModes,
   GopModes).
 
-  @retval EFI_SUCESS  Form successfully updated.
+  @retval EFI_SUCCESS Form successfully updated.
   @return             Status codes from underlying functions.
 
 **/
@@ -852,7 +852,19 @@ ExecutePlatformConfig (
     ASSERT_RETURN_ERROR (PcdStatus);
 
     PcdStatus = PcdSet32S (
+                  PcdSetupVideoHorizontalResolution,
+                  PlatformConfig.HorizontalResolution
+                  );
+    ASSERT_RETURN_ERROR (PcdStatus);
+
+    PcdStatus = PcdSet32S (
                   PcdVideoVerticalResolution,
+                  PlatformConfig.VerticalResolution
+                  );
+    ASSERT_RETURN_ERROR (PcdStatus);
+
+    PcdStatus = PcdSet32S (
+                  PcdSetupVideoVerticalResolution,
                   PlatformConfig.VerticalResolution
                   );
     ASSERT_RETURN_ERROR (PcdStatus);
@@ -937,7 +949,7 @@ GopInstalled (
   @param[in] ImageHandle  Image handle of this driver.
   @param[in] SystemTable  Pointer to SystemTable.
 
-  @retval EFI_SUCESS            Driver has loaded successfully.
+  @retval EFI_SUCCESS           Driver has loaded successfully.
   @retval EFI_OUT_OF_RESOURCES  Failed to install HII packages.
   @return                       Error codes from lower level functions.
 

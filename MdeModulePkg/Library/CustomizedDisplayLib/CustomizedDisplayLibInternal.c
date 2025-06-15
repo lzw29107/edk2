@@ -378,7 +378,7 @@ ProcessExternedOpcode (
 }
 
 /**
-  Validate the input screen diemenstion info.
+  Validate the input screen dimension info.
 
   @param  FormData               The input form data info.
 
@@ -387,7 +387,7 @@ ProcessExternedOpcode (
 
 **/
 EFI_STATUS
-ScreenDiemensionInfoValidate (
+ScreenDimensionInfoValidate (
   IN FORM_DISPLAY_ENGINE_FORM  *FormData
   )
 {
@@ -598,7 +598,7 @@ PrintHotKeyHelpString (
     ColumnIndex = Index % 3;
     if (ColumnIndex == 0) {
       CurrentCol       = LocalScreen.LeftColumn + 2 * ColumnWidth;
-      ColumnIndexWidth = ColumnWidth - 1;
+      ColumnIndexWidth = LocalScreen.RightColumn - CurrentCol - 1;
     } else if (ColumnIndex == 1) {
       CurrentCol       = LocalScreen.LeftColumn + ColumnWidth;
       ColumnIndexWidth = ColumnWidth;
@@ -646,7 +646,7 @@ PrintHotKeyHelpString (
     ColumnIndex = Index % 3;
     if (ColumnIndex == 0) {
       CurrentCol       = LocalScreen.LeftColumn + 2 * ColumnWidth;
-      ColumnIndexWidth = ColumnWidth - 1;
+      ColumnIndexWidth = LocalScreen.RightColumn - CurrentCol - 1;
       ColumnIndex++;
       PrintStringAtWithWidth (CurrentCol, CurrentRow, gLibEmptyString, ColumnIndexWidth);
     }

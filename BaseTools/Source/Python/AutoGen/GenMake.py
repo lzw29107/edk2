@@ -98,10 +98,18 @@ class BuildFile(object):
 #
     '''
 
+    ## Fixed header string for makefile
+    _GMAKE_MAKEFILE_HEADER = '''
+ifeq (Windows, $(findstring Windows,$(OS)))
+  SHELL := cmd.exe
+endif
+    '''
+
+
     ## Header string for each type of build file
     _FILE_HEADER_ = {
         NMAKE_FILETYPE :   _MAKEFILE_HEADER % _FILE_NAME_[NMAKE_FILETYPE],
-        GMAKE_FILETYPE :   _MAKEFILE_HEADER % _FILE_NAME_[GMAKE_FILETYPE]
+        GMAKE_FILETYPE :   (_MAKEFILE_HEADER + _GMAKE_MAKEFILE_HEADER) % _FILE_NAME_[GMAKE_FILETYPE]
     }
 
     ## shell commands which can be used in build file in the form of macro
@@ -447,19 +455,14 @@ cleanlib:
         self.ResultFileList = []
         self.IntermediateDirectoryList = ["$(DEBUG_DIR)", "$(OUTPUT_DIR)"]
 
-        self.FileBuildTargetList = []       # [(src, target string)]
         self.BuildTargetList = []           # [target string]
-        self.PendingBuildTargetList = []    # [FileBuildRule objects]
         self.CommonFileDependency = []
         self.FileListMacros = {}
         self.ListFileMacros = {}
         self.ObjTargetDict = OrderedDict()
         self.FileCache = {}
-        self.LibraryBuildCommandList = []
-        self.LibraryFileList = []
         self.LibraryMakefileList = []
         self.LibraryBuildDirectoryList = []
-        self.SystemLibraryList = []
         self.Macros = OrderedDict()
         self.Macros["OUTPUT_DIR"      ] = self._AutoGenObject.Macros["OUTPUT_DIR"]
         self.Macros["DEBUG_DIR"       ] = self._AutoGenObject.Macros["DEBUG_DIR"]
@@ -1157,21 +1160,6 @@ cleanlib:
             if not LibraryAutoGen.IsBinaryModule:
                 self.LibraryBuildDirectoryList.append(self.PlaceMacro(LibraryAutoGen.BuildDir, self.Macros))
 
-    ## Return a list containing source file's dependencies
-    #
-    #   @param      FileList        The list of source files
-    #   @param      ForceInculeList The list of files which will be included forcely
-    #   @param      SearchPathList  The list of search path
-    #
-    #   @retval     dict            The mapping between source file path and its dependencies
-    #
-    def GetFileDependency(self, FileList, ForceInculeList, SearchPathList):
-        Dependency = {}
-        for F in FileList:
-            Dependency[F] = GetDependencyList(self._AutoGenObject, self.FileCache, F, ForceInculeList, SearchPathList)
-        return Dependency
-
-
 ## CustomMakefile class
 #
 #  This class encapsules makefie and its generation for module. It uses template to generate
@@ -1463,7 +1451,6 @@ cleanlib:
     #
     def __init__(self, PlatformAutoGen):
         BuildFile.__init__(self, PlatformAutoGen)
-        self.ModuleBuildCommandList = []
         self.ModuleMakefileList = []
         self.IntermediateDirectoryList = []
         self.ModuleBuildDirectoryList = []

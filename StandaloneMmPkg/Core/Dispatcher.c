@@ -125,7 +125,7 @@ BOOLEAN  gDispatcherRunning = FALSE;
 BOOLEAN  gRequestDispatch = FALSE;
 
 /**
-  Loads an EFI image into SMRAM.
+  Loads an EFI image into MMRAM.
 
   @param  DriverEntry             EFI_MM_DRIVER_ENTRY instance
   @param  ImageContext            Allocated ImageContext to be filled out by this function
@@ -143,6 +143,9 @@ MmLoadImage (
   UINTN                 PageCount;
   EFI_STATUS            Status;
   EFI_PHYSICAL_ADDRESS  DstBuffer;
+  UINTN                 Index;
+  UINTN                 StartIndex;
+  CHAR8                 EfiFileName[512];
 
   DEBUG ((DEBUG_INFO, "MmLoadImage - %g\n", &DriverEntry->FileName));
 
@@ -222,7 +225,7 @@ MmLoadImage (
 
   //
   // Fill in the remaining fields of the Loaded Image Protocol instance.
-  // Note: ImageBase is an SMRAM address that can not be accessed outside of SMRAM if SMRAM window is closed.
+  // Note: ImageBase is an MMRAM address that can not be accessed outside of MMRAM if MMRAM window is closed.
   //
   DriverEntry->LoadedImage.Revision     = EFI_LOADED_IMAGE_PROTOCOL_REVISION;
   DriverEntry->LoadedImage.ParentHandle = NULL;
@@ -254,11 +257,6 @@ MmLoadImage (
   //
   // Print the load address and the PDB file name if it is available
   //
-  DEBUG_CODE_BEGIN ();
-
-  UINTN  Index;
-  UINTN  StartIndex;
-  CHAR8  EfiFileName[256];
 
   DEBUG ((
     DEBUG_INFO | DEBUG_LOAD,
@@ -307,8 +305,6 @@ MmLoadImage (
   }
 
   DEBUG ((DEBUG_INFO | DEBUG_LOAD, "\n"));
-
-  DEBUG_CODE_END ();
 
   return Status;
 }

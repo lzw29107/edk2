@@ -580,6 +580,10 @@ BdsFormalizeOSIndicationVariable (
     OsIndicationSupport |= EFI_OS_INDICATIONS_FILE_CAPSULE_DELIVERY_SUPPORTED;
   }
 
+  if (PcdGetBool (PcdCapsuleFmpSupport)) {
+    OsIndicationSupport |= EFI_OS_INDICATIONS_FMP_CAPSULE_SUPPORTED;
+  }
+
   Status = gRT->SetVariable (
                   EFI_OS_INDICATIONS_SUPPORT_VARIABLE_NAME,
                   &gEfiGlobalVariableGuid,
@@ -828,24 +832,31 @@ BdsEntry (
   // file path for removable media if the platform supports Platform Recovery.
   //
   if (PlatformDefaultBootOptionValid && PcdGetBool (PcdPlatformRecoverySupport)) {
+    //
+    // Get the current PlatformRecovery options. Check if the platform recovery already exists, or
+    // find the next unused platform recovery option number so it can be created
+    //
+    Index       = 0;
     LoadOptions = EfiBootManagerGetLoadOptions (&LoadOptionCount, LoadOptionTypePlatformRecovery);
-    if (EfiBootManagerFindLoadOption (&PlatformDefaultBootOption, LoadOptions, LoadOptionCount) == -1) {
-      for (Index = 0; Index < LoadOptionCount; Index++) {
-        //
-        // The PlatformRecovery#### options are sorted by OptionNumber.
-        // Find the the smallest unused number as the new OptionNumber.
-        //
-        if (LoadOptions[Index].OptionNumber != Index) {
-          break;
+    if (LoadOptions != NULL) {
+      if (EfiBootManagerFindLoadOption (&PlatformDefaultBootOption, LoadOptions, LoadOptionCount) == -1) {
+        for ( ; Index < LoadOptionCount; Index++) {
+          //
+          // The PlatformRecovery#### options are sorted by OptionNumber.
+          // Find the the smallest unused number as the new OptionNumber.
+          //
+          if (LoadOptions[Index].OptionNumber != Index) {
+            break;
+          }
         }
       }
 
-      PlatformDefaultBootOption.OptionNumber = Index;
-      Status                                 = EfiBootManagerLoadOptionToVariable (&PlatformDefaultBootOption);
-      ASSERT_EFI_ERROR (Status);
+      EfiBootManagerFreeLoadOptions (LoadOptions, LoadOptionCount);
     }
 
-    EfiBootManagerFreeLoadOptions (LoadOptions, LoadOptionCount);
+    PlatformDefaultBootOption.OptionNumber = Index;
+    Status                                 = EfiBootManagerLoadOptionToVariable (&PlatformDefaultBootOption);
+    ASSERT_EFI_ERROR (Status);
   }
 
   FreePool (FilePath);
@@ -897,8 +908,10 @@ BdsEntry (
   // Execute Driver Options
   //
   LoadOptions = EfiBootManagerGetLoadOptions (&LoadOptionCount, LoadOptionTypeDriver);
-  ProcessLoadOptions (LoadOptions, LoadOptionCount);
-  EfiBootManagerFreeLoadOptions (LoadOptions, LoadOptionCount);
+  if (LoadOptions != NULL) {
+    ProcessLoadOptions (LoadOptions, LoadOptionCount);
+    EfiBootManagerFreeLoadOptions (LoadOptions, LoadOptionCount);
+  }
 
   //
   // Connect consoles
@@ -1033,8 +1046,10 @@ BdsEntry (
     // Execute SysPrep####
     //
     LoadOptions = EfiBootManagerGetLoadOptions (&LoadOptionCount, LoadOptionTypeSysPrep);
-    ProcessLoadOptions (LoadOptions, LoadOptionCount);
-    EfiBootManagerFreeLoadOptions (LoadOptions, LoadOptionCount);
+    if (LoadOptions != NULL) {
+      ProcessLoadOptions (LoadOptions, LoadOptionCount);
+      EfiBootManagerFreeLoadOptions (LoadOptions, LoadOptionCount);
+    }
 
     //
     // Execute Key####
@@ -1090,9 +1105,12 @@ BdsEntry (
       //
       // Retry to boot if any of the boot succeeds
       //
+      BootSuccess = FALSE;
       LoadOptions = EfiBootManagerGetLoadOptions (&LoadOptionCount, LoadOptionTypeBoot);
-      BootSuccess = BootBootOptions (LoadOptions, LoadOptionCount, (BootManagerMenuStatus != EFI_NOT_FOUND) ? &BootManagerMenu : NULL);
-      EfiBootManagerFreeLoadOptions (LoadOptions, LoadOptionCount);
+      if (LoadOptions != NULL) {
+        BootSuccess = BootBootOptions (LoadOptions, LoadOptionCount, (BootManagerMenuStatus != EFI_NOT_FOUND) ? &BootManagerMenu : NULL);
+        EfiBootManagerFreeLoadOptions (LoadOptions, LoadOptionCount);
+      }
     } while (BootSuccess);
   }
 
@@ -1103,8 +1121,10 @@ BdsEntry (
   if (!BootSuccess) {
     if (PcdGetBool (PcdPlatformRecoverySupport)) {
       LoadOptions = EfiBootManagerGetLoadOptions (&LoadOptionCount, LoadOptionTypePlatformRecovery);
-      ProcessLoadOptions (LoadOptions, LoadOptionCount);
-      EfiBootManagerFreeLoadOptions (LoadOptions, LoadOptionCount);
+      if (LoadOptions != NULL) {
+        ProcessLoadOptions (LoadOptions, LoadOptionCount);
+        EfiBootManagerFreeLoadOptions (LoadOptions, LoadOptionCount);
+      }
     } else if (PlatformDefaultBootOptionValid) {
       //
       // When platform recovery is not enabled, still boot to platform default file path.

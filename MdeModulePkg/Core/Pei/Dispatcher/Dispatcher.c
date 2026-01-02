@@ -134,9 +134,15 @@ PeiDelayedDispatchRegister (
   }
 
   // Check for available entry slots
-  ASSERT (DelayedDispatchTable->Count <= DELAYED_DISPATCH_MAX_ENTRIES);
-  if (DelayedDispatchTable->Count == DELAYED_DISPATCH_MAX_ENTRIES) {
-    DEBUG ((DEBUG_ERROR, "%a Too many entries requested\n", __func__));
+  if (DelayedDispatchTable->Count >= PcdGet32 (PcdDelayedDispatchMaxEntries)) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a DelayedDispatchTable->Count = %d. PcdDelayedDispatchMaxEntries (%d) is too small.\n",
+      __func__,
+      DelayedDispatchTable->Count,
+      PcdGet32 (PcdDelayedDispatchMaxEntries)
+      ));
+    ASSERT (DelayedDispatchTable->Count < PcdGet32 (PcdDelayedDispatchMaxEntries));
     Status = EFI_OUT_OF_RESOURCES;
     goto Exit;
   }
@@ -442,7 +448,11 @@ DiscoverPeimsAndOrderWithApriori (
         TempFileHandles = AllocatePool (
                             sizeof (EFI_PEI_FILE_HANDLE) * (Private->TempPeimCount + TEMP_FILE_GROWTH_STEP)
                             );
-        ASSERT (TempFileHandles != NULL);
+        if (TempFileHandles == NULL) {
+          ASSERT (TempFileHandles != NULL);
+          return;
+        }
+
         CopyMem (
           TempFileHandles,
           Private->TempFileHandles,
@@ -452,7 +462,11 @@ DiscoverPeimsAndOrderWithApriori (
         TempFileGuid             = AllocatePool (
                                      sizeof (EFI_GUID) * (Private->TempPeimCount + TEMP_FILE_GROWTH_STEP)
                                      );
-        ASSERT (TempFileGuid != NULL);
+        if (TempFileGuid == NULL) {
+          ASSERT (TempFileGuid != NULL);
+          return;
+        }
+
         CopyMem (
           TempFileGuid,
           Private->TempFileGuid,
@@ -1807,7 +1821,7 @@ PeiDispatcher (
     if (GuidHob != NULL) {
       Private->DelayedDispatchTable = (DELAYED_DISPATCH_TABLE *)(GET_GUID_HOB_DATA (GuidHob));
     } else {
-      TableSize                     = sizeof (DELAYED_DISPATCH_TABLE) + ((DELAYED_DISPATCH_MAX_ENTRIES - 1) * sizeof (DELAYED_DISPATCH_ENTRY));
+      TableSize                     = sizeof (DELAYED_DISPATCH_TABLE) + (PcdGet32 (PcdDelayedDispatchMaxEntries) * sizeof (DELAYED_DISPATCH_ENTRY));
       Private->DelayedDispatchTable = BuildGuidHob (&gEfiDelayedDispatchTableGuid, TableSize);
       if (Private->DelayedDispatchTable != NULL) {
         ZeroMem (Private->DelayedDispatchTable, TableSize);
@@ -1904,7 +1918,10 @@ PeiDispatcher (
 
     for (FvCount = Private->CurrentPeimFvCount; FvCount < Private->FvCount; FvCount++) {
       CoreFvHandle = FindNextCoreFvHandle (Private, FvCount);
-      ASSERT (CoreFvHandle != NULL);
+      if (CoreFvHandle == NULL) {
+        ASSERT (CoreFvHandle != NULL);
+        continue;
+      }
 
       //
       // If the FV has corresponding EFI_PEI_FIRMWARE_VOLUME_PPI instance, then dispatch it.

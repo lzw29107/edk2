@@ -54,7 +54,8 @@
             "EmbeddedPkg/EmbeddedPkg.dec",
             "DynamicTablesPkg/DynamicTablesPkg.dec",
             "MdeModulePkg/MdeModulePkg.dec",
-            "MdePkg/MdePkg.dec"
+            "MdePkg/MdePkg.dec",
+            "SecurityPkg/SecurityPkg.dec"
         ],
         # For host based unit tests
         "AcceptableDependencies-HOST_APPLICATION":[
@@ -102,6 +103,7 @@
            "AMLDBG",
            "EISAID",
            "cacheablity",
+           "cavium",
            "CCIDX",
            "CCSIDR",
            "cfmws",
@@ -109,7 +111,9 @@
            "deviceid",
            "EArch",
            "edynamic",
+           "eventq",
            "EOBJECT",
+           "gerror",
            "invoc",
            "ITARGETSR",
            "GTBLOCK",
@@ -117,6 +121,7 @@
            "lless",
            "MPIDR",
            "NAMESPACEID",
+           "NUVIA",
            "PASID",
            "PERIPHBASE",
            "phandle",
@@ -127,6 +132,7 @@
            "sapic",
            "ssdtcmn",
            "ssdtserialporttemplate",
+           "SMCCC",
            "SMMUV",
            "ssdtpcieosctemplate",
            "SSDTPC",
@@ -135,7 +141,16 @@
            "TNSID",
            "Vatos",
            "WBINVD",
-           "xapic"
+           "xapic",
+           "aplic",
+           "aplics",
+           "eriscv",
+           "gmode",
+           "imsic",
+           "imsics",
+           "plics",
+           "rintc",
+           "smcbios"
            ],           # words to extend to the dictionary for this package
         "IgnoreStandardPaths": [],   # Standard Plugin defined paths that
                                      # should be ignore

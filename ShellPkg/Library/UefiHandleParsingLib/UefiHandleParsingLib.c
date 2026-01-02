@@ -4,6 +4,7 @@
   Copyright (c) 2010 - 2017, Intel Corporation. All rights reserved.<BR>
   (C) Copyright 2013-2015 Hewlett-Packard Development Company, L.P.<BR>
   (C) Copyright 2015-2021 Hewlett Packard Enterprise Development LP<BR>
+  Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -2028,7 +2029,7 @@ FirmwareManagementDumpInformation (
           if (ImageInfoV1[Index].ImageId == ImageInfoV1[Index1].ImageId) {
             Found = TRUE;
             //
-            // At least one match found indicating presense of non unique ImageId values so no more comparisons needed
+            // At least one match found indicating presence of non unique ImageId values so no more comparisons needed
             //
             goto ENDLOOP;
           }
@@ -2036,7 +2037,7 @@ FirmwareManagementDumpInformation (
           if (ImageInfoV2[Index].ImageId == ImageInfoV2[Index1].ImageId) {
             Found = TRUE;
             //
-            // At least one match found indicating presense of non unique ImageId values so no more comparisons needed
+            // At least one match found indicating presence of non unique ImageId values so no more comparisons needed
             //
             goto ENDLOOP;
           }
@@ -2044,7 +2045,7 @@ FirmwareManagementDumpInformation (
           if (ImageInfo[Index].ImageId == ImageInfo[Index1].ImageId) {
             Found = TRUE;
             //
-            // At least one match found indicating presense of non unique ImageId values so no more comparisons needed
+            // At least one match found indicating presence of non unique ImageId values so no more comparisons needed
             //
             goto ENDLOOP;
           }
@@ -2248,11 +2249,9 @@ STATIC CONST GUID_INFO_BLOCK  mGuidStringList[] = {
   { STRING_TOKEN (STR_TAPE_IO),             &gEfiTapeIoProtocolGuid,                           NULL                                             },
   { STRING_TOKEN (STR_DISK_IO),             &gEfiDiskIoProtocolGuid,                           NULL                                             },
   { STRING_TOKEN (STR_BLK_IO),              &gEfiBlockIoProtocolGuid,                          BlockIoProtocolDumpInformation                   },
-  { STRING_TOKEN (STR_UC),                  &gEfiUnicodeCollationProtocolGuid,                 NULL                                             },
   { STRING_TOKEN (STR_UC2),                 &gEfiUnicodeCollation2ProtocolGuid,                NULL                                             },
   { STRING_TOKEN (STR_PCIRB_IO),            &gEfiPciRootBridgeIoProtocolGuid,                  PciRootBridgeIoDumpInformation                   },
   { STRING_TOKEN (STR_PCI_IO),              &gEfiPciIoProtocolGuid,                            PciIoProtocolDumpInformation                     },
-  { STRING_TOKEN (STR_SCSI_PT),             &gEfiScsiPassThruProtocolGuid,                     NULL                                             },
   { STRING_TOKEN (STR_SCSI_IO),             &gEfiScsiIoProtocolGuid,                           NULL                                             },
   { STRING_TOKEN (STR_SCSI_PT_EXT),         &gEfiExtScsiPassThruProtocolGuid,                  NULL                                             },
   { STRING_TOKEN (STR_ISCSI),               &gEfiIScsiInitiatorNameProtocolGuid,               NULL                                             },
@@ -2279,7 +2278,6 @@ STATIC CONST GUID_INFO_BLOCK  mGuidStringList[] = {
   { STRING_TOKEN (STR_TCPV4),               &gEfiTcp4ProtocolGuid,                             NULL                                             },
   { STRING_TOKEN (STR_IPV4_SB),             &gEfiIp4ServiceBindingProtocolGuid,                NULL                                             },
   { STRING_TOKEN (STR_IPV4),                &gEfiIp4ProtocolGuid,                              NULL                                             },
-  { STRING_TOKEN (STR_IPV4_CFG),            &gEfiIp4ConfigProtocolGuid,                        NULL                                             },
   { STRING_TOKEN (STR_IPV4_CFG2),           &gEfiIp4Config2ProtocolGuid,                       NULL                                             },
   { STRING_TOKEN (STR_UDPV4_SB),            &gEfiUdp4ServiceBindingProtocolGuid,               NULL                                             },
   { STRING_TOKEN (STR_UDPV4),               &gEfiUdp4ProtocolGuid,                             NULL                                             },
@@ -2306,9 +2304,6 @@ STATIC CONST GUID_INFO_BLOCK  mGuidStringList[] = {
   { STRING_TOKEN (STR_SHELL_INTERFACE),     &gEfiShellInterfaceGuid,                           NULL                                             },
   { STRING_TOKEN (STR_SHELL_ENV2),          &gEfiShellEnvironment2Guid,                        NULL                                             },
   { STRING_TOKEN (STR_SHELL_ENV),           &gEfiShellEnvironment2Guid,                        NULL                                             },
-  { STRING_TOKEN (STR_DEVICE_IO),           &gEfiDeviceIoProtocolGuid,                         NULL                                             },
-  { STRING_TOKEN (STR_UGA_DRAW),            &gEfiUgaDrawProtocolGuid,                          NULL                                             },
-  { STRING_TOKEN (STR_UGA_IO),              &gEfiUgaIoProtocolGuid,                            NULL                                             },
   { STRING_TOKEN (STR_ESP),                 &gEfiPartTypeSystemPartGuid,                       NULL                                             },
   { STRING_TOKEN (STR_GPT_NBR),             &gEfiPartTypeLegacyMbrGuid,                        NULL                                             },
   { STRING_TOKEN (STR_DRIVER_CONFIG),       &gEfiDriverConfigurationProtocolGuid,              NULL                                             },

@@ -1,6 +1,8 @@
 /** @file
 
   Copyright (c) 2014 - 2021, Intel Corporation. All rights reserved.<BR>
+  Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -42,7 +44,7 @@ MemInfoCallbackMmio (
   EFI_PHYSICAL_ADDRESS         Base;
   EFI_RESOURCE_TYPE            Type;
   UINT64                       Size;
-  EFI_RESOURCE_ATTRIBUTE_TYPE  Attribue;
+  EFI_RESOURCE_ATTRIBUTE_TYPE  Attribute;
   ACPI_BOARD_INFO              *AcpiBoardInfo;
 
   AcpiBoardInfo = (ACPI_BOARD_INFO *)Params;
@@ -79,15 +81,15 @@ MemInfoCallbackMmio (
   Base = MemoryMapEntry->Base;
   Size = MemoryMapEntry->Size;
 
-  Attribue = EFI_RESOURCE_ATTRIBUTE_PRESENT |
-             EFI_RESOURCE_ATTRIBUTE_INITIALIZED |
-             EFI_RESOURCE_ATTRIBUTE_TESTED |
-             EFI_RESOURCE_ATTRIBUTE_UNCACHEABLE |
-             EFI_RESOURCE_ATTRIBUTE_WRITE_COMBINEABLE |
-             EFI_RESOURCE_ATTRIBUTE_WRITE_THROUGH_CACHEABLE |
-             EFI_RESOURCE_ATTRIBUTE_WRITE_BACK_CACHEABLE;
+  Attribute = EFI_RESOURCE_ATTRIBUTE_PRESENT |
+              EFI_RESOURCE_ATTRIBUTE_INITIALIZED |
+              EFI_RESOURCE_ATTRIBUTE_TESTED |
+              EFI_RESOURCE_ATTRIBUTE_UNCACHEABLE |
+              EFI_RESOURCE_ATTRIBUTE_WRITE_COMBINEABLE |
+              EFI_RESOURCE_ATTRIBUTE_WRITE_THROUGH_CACHEABLE |
+              EFI_RESOURCE_ATTRIBUTE_WRITE_BACK_CACHEABLE;
 
-  BuildResourceDescriptorHob (Type, Attribue, (EFI_PHYSICAL_ADDRESS)Base, Size);
+  BuildResourceDescriptorHob (Type, Attribute, (EFI_PHYSICAL_ADDRESS)Base, Size);
   DEBUG ((DEBUG_INFO, "buildhob: base = 0x%lx, size = 0x%lx, type = 0x%x\n", Base, Size, Type));
 
   if ((MemoryMapEntry->Type == E820_UNUSABLE) ||
@@ -289,7 +291,7 @@ MemInfoCallback (
   EFI_PHYSICAL_ADDRESS         Base;
   EFI_RESOURCE_TYPE            Type;
   UINT64                       Size;
-  EFI_RESOURCE_ATTRIBUTE_TYPE  Attribue;
+  EFI_RESOURCE_ATTRIBUTE_TYPE  Attribute;
 
   //
   // Skip everything not known to be usable DRAM.
@@ -305,15 +307,15 @@ MemInfoCallback (
   Base = MemoryMapEntry->Base;
   Size = MemoryMapEntry->Size;
 
-  Attribue = EFI_RESOURCE_ATTRIBUTE_PRESENT |
-             EFI_RESOURCE_ATTRIBUTE_INITIALIZED |
-             EFI_RESOURCE_ATTRIBUTE_TESTED |
-             EFI_RESOURCE_ATTRIBUTE_UNCACHEABLE |
-             EFI_RESOURCE_ATTRIBUTE_WRITE_COMBINEABLE |
-             EFI_RESOURCE_ATTRIBUTE_WRITE_THROUGH_CACHEABLE |
-             EFI_RESOURCE_ATTRIBUTE_WRITE_BACK_CACHEABLE;
+  Attribute = EFI_RESOURCE_ATTRIBUTE_PRESENT |
+              EFI_RESOURCE_ATTRIBUTE_INITIALIZED |
+              EFI_RESOURCE_ATTRIBUTE_TESTED |
+              EFI_RESOURCE_ATTRIBUTE_UNCACHEABLE |
+              EFI_RESOURCE_ATTRIBUTE_WRITE_COMBINEABLE |
+              EFI_RESOURCE_ATTRIBUTE_WRITE_THROUGH_CACHEABLE |
+              EFI_RESOURCE_ATTRIBUTE_WRITE_BACK_CACHEABLE;
 
-  BuildResourceDescriptorHob (Type, Attribue, (EFI_PHYSICAL_ADDRESS)Base, Size);
+  BuildResourceDescriptorHob (Type, Attribute, (EFI_PHYSICAL_ADDRESS)Base, Size);
   DEBUG ((DEBUG_INFO, "buildhob: base = 0x%lx, size = 0x%lx, type = 0x%x\n", Base, Size, Type));
 
   if (MemoryMapEntry->Type == E820_ACPI) {
@@ -340,6 +342,8 @@ BuildHobFromBl (
   ACPI_BOARD_INFO                   *AcpiBoardInfo;
   SMMSTORE_INFO                     SmmStoreInfo;
   SMMSTORE_INFO                     *NewSmmStoreInfo;
+  FIRMWARE_INFO                     FirmwareInfo;
+  FIRMWARE_INFO                     *NewFirmwareInfo;
   EFI_PEI_GRAPHICS_INFO_HOB         GfxInfo;
   EFI_PEI_GRAPHICS_INFO_HOB         *NewGfxInfo;
   EFI_PEI_GRAPHICS_DEVICE_INFO_HOB  GfxDeviceInfo;
@@ -398,7 +402,18 @@ BuildHobFromBl (
   }
 
   //
-  // Creat SmBios table Hob
+  // Create guid hob for firmware information
+  //
+  Status = ParseFirmwareInfo (&FirmwareInfo);
+  if (!EFI_ERROR (Status)) {
+    NewFirmwareInfo = BuildGuidHob (&gEfiFirmwareInfoHobGuid, sizeof (FirmwareInfo));
+    ASSERT (NewFirmwareInfo != NULL);
+    CopyMem (NewFirmwareInfo, &FirmwareInfo, sizeof (FirmwareInfo));
+    DEBUG ((DEBUG_INFO, "Created firmware info hob\n"));
+  }
+
+  //
+  // Create SmBios table Hob
   //
   SmBiosTableHob = BuildGuidHob (&gUniversalPayloadSmbiosTableGuid, sizeof (UNIVERSAL_PAYLOAD_SMBIOS_TABLE));
   ASSERT (SmBiosTableHob != NULL);
@@ -411,7 +426,7 @@ BuildHobFromBl (
   }
 
   //
-  // Creat ACPI table Hob
+  // Create ACPI table Hob
   //
   AcpiTableHob = BuildGuidHob (&gUniversalPayloadAcpiTableGuid, sizeof (UNIVERSAL_PAYLOAD_ACPI_TABLE));
   ASSERT (AcpiTableHob != NULL);
@@ -452,6 +467,15 @@ BuildHobFromBl (
   Status = ParsePlatformInfo ();
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "Error when parsing platform info, Status = %r\n", Status));
+    return Status;
+  }
+
+  //
+  // Import update capsules, if there are any.
+  //
+  Status = ParseCapsules (BuildCvHob);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "Error when importing update capsules, Status = %r\n", Status));
     return Status;
   }
 
@@ -510,6 +534,7 @@ _ModuleEntryPoint (
   EFI_PEI_HOB_POINTERS                Hob;
   SERIAL_PORT_INFO                    SerialPortInfo;
   UNIVERSAL_PAYLOAD_SERIAL_PORT_INFO  *UniversalSerialPort;
+  EFI_HOB_HANDOFF_INFO_TABLE          *HobInfo;
 
   Status = PcdSet64S (PcdBootloaderParameter, BootloaderParameter);
   ASSERT_EFI_ERROR (Status);
@@ -533,7 +558,7 @@ _ModuleEntryPoint (
 
   HobMemTop = HobMemBase + FixedPcdGet32 (PcdSystemMemoryUefiRegionSize);
 
-  HobConstructor ((VOID *)MemBase, (VOID *)HobMemTop, (VOID *)HobMemBase, (VOID *)HobMemTop);
+  HobInfo = HobConstructor ((VOID *)MemBase, (VOID *)HobMemTop, (VOID *)HobMemBase, (VOID *)HobMemTop);
 
   //
   // Build serial port info
@@ -588,6 +613,13 @@ _ModuleEntryPoint (
   ASSERT_EFI_ERROR (Status);
 
   DEBUG ((DEBUG_INFO, "DxeCoreEntryPoint = 0x%lx\n", DxeCoreEntryPoint));
+
+  //
+  // Switch to update mode if there is at least one capsule.
+  //
+  if (GetFirstHob (EFI_HOB_TYPE_UEFI_CAPSULE) != NULL) {
+    HobInfo->BootMode = BOOT_ON_FLASH_UPDATE;
+  }
 
   //
   // Mask off all legacy 8259 interrupt sources

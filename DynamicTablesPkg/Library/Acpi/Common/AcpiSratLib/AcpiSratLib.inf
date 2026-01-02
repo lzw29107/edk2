@@ -21,11 +21,14 @@
   SratGenerator.c
   SratGenerator.h
 
-[Sources.ARM, Sources.AARCH64]
+[Sources.AARCH64]
   Arm/ArmSratGenerator.c
 
 [Sources.IA32, Sources.X64]
   X64/X64SratGenerator.c
+
+[Sources.RISCV64]
+  RiscV/RiscVSratGenerator.c
 
 [Packages]
   EmbeddedPkg/EmbeddedPkg.dec

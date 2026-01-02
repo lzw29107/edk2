@@ -2,7 +2,7 @@
 #  UefiCpuPkg Package
 #
 #  Copyright (c) 2007 - 2024, Intel Corporation. All rights reserved.<BR>
-#  Copyright (C) 2023 - 2024, Advanced Micro Devices, Inc. All rights reserved.<BR>
+#  Copyright (C) 2023 - 2025, Advanced Micro Devices, Inc. All rights reserved.<BR>
 #
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
@@ -191,6 +191,7 @@
     <LibraryClasses>
       SmmCpuFeaturesLib|UefiCpuPkg/Library/SmmCpuFeaturesLib/AmdSmmCpuFeaturesLib.inf
       MmSaveStateLib|UefiCpuPkg/Library/MmSaveStateLib/AmdMmSaveStateLib.inf
+      AmdSysCallLib|UefiCpuPkg/Library/AmdSysCallLibNull/AmdSysCallLibNull.inf
   }
   UefiCpuPkg/Universal/Acpi/S3Resume2Pei/S3Resume2Pei.inf
   UefiCpuPkg/ResetVector/Vtf0/Vtf0.inf
@@ -208,8 +209,10 @@
       UnitTestResultReportLib|UnitTestFrameworkPkg/Library/UnitTestResultReportLib/UnitTestResultReportLibConOut.inf
   }
   UefiCpuPkg/Library/MmSaveStateLib/AmdMmSaveStateLib.inf
+  UefiCpuPkg/Library/AmdSysCallLibNull/AmdSysCallLibNull.inf
   UefiCpuPkg/Library/MmSaveStateLib/IntelMmSaveStateLib.inf
   UefiCpuPkg/Library/SmmCpuFeaturesLib/AmdSmmCpuFeaturesLib.inf
+  UefiCpuPkg/Library/SmmCpuFeaturesLib/AmdStandaloneMmCpuFeaturesLib.inf
   UefiCpuPkg/Library/SmmRelocationLib/SmmRelocationLib.inf
   UefiCpuPkg/Library/SmmRelocationLib/AmdSmmRelocationLib.inf
 
@@ -218,15 +221,15 @@
   UefiCpuPkg/Library/CpuExceptionHandlerLib/UnitTest/DxeCpuExceptionHandlerLibUnitTest.inf
 
 [Components.RISCV64]
-  UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/BaseRiscV64CpuExceptionHandlerLib.inf
   UefiCpuPkg/Library/BaseRiscV64CpuTimerLib/BaseRiscV64CpuTimerLib.inf
-  UefiCpuPkg/Library/BaseRiscVFpuLib/BaseRiscVFpuLib.inf
   UefiCpuPkg/Library/BaseRiscVMmuLib/BaseRiscVMmuLib.inf
   UefiCpuPkg/CpuTimerDxeRiscV64/CpuTimerDxeRiscV64.inf
   UefiCpuPkg/CpuDxeRiscV64/CpuDxeRiscV64.inf
   UefiCpuPkg/CpuMmio2Dxe/CpuMmio2Dxe.inf
 
 [Components.AARCH64]
+  UefiCpuPkg/Library/ArmMmuLib/ArmMmuBaseLib.inf
+  UefiCpuPkg/Library/ArmMmuLib/ArmMmuPeiLib.inf
   UefiCpuPkg/Library/BaseArchSupportLib/BaseArchSupportLib.inf
 
 [Components.LOONGARCH64]

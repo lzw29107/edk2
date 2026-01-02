@@ -9,7 +9,7 @@ on the TianoCore wiki.
 
 ## Basic Status
 
-| Package              | Windows VS2022 (IA32/X64)| Ubuntu GCC (IA32/X64/ARM/AARCH64) | Known Issues |
+| Package              | Windows VS2022 (IA32/X64)| Ubuntu GCC (IA32/X64/AARCH64) | Known Issues |
 | :----                | :-----                   | :----                             | :---         |
 | ArmPkg               |                    | :heavy_check_mark: |
 | ArmPlatformPkg       |                    | :heavy_check_mark: |
@@ -86,8 +86,10 @@ per package configuration which comes from this file.
 
 The EDKII Tools environment (and by extension the ci) is designed to support
 easily and consistently running locally and in a cloud ci environment.  To do
-that a few steps should be followed.  Details of EDKII Tools can be found in the
-[docs folder here](https://github.com/tianocore/edk2-pytool-extensions/tree/master/docs)
+that a few steps should be followed. These steps are detailed on the
+[How to Build With Stuart](https://github.com/tianocore/tianocore.github.io/wiki/How-to-Build-With-Stuart)
+page. Details of EDKII Tools can be found in the
+[docs folder here](https://github.com/tianocore/edk2-pytool-extensions/tree/master/docs).
 
 ### Running CI
 
@@ -272,7 +274,7 @@ few standard scopes.
 * PatchCheck tests as plugins
 * MacOS/xcode support
 * Clang/LLVM support
-* Visual Studio AARCH64 and ARM support
+* Visual Studio AARCH64 support
 * BaseTools C tools CI/PR and binary release process
 * BaseTools Python tools CI/PR process
 * Extensible private/closed source platform reporting

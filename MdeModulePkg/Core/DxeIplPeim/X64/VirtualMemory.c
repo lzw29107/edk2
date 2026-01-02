@@ -32,72 +32,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 PAGE_TABLE_POOL  *mPageTablePool = NULL;
 
 /**
-  Clear legacy memory located at the first 4K-page, if available.
-
-  This function traverses the whole HOB list to check if memory from 0 to 4095
-  exists and has not been allocated, and then clear it if so.
-
-  @param HobStart                  The start of HobList passed to DxeCore.
-
-**/
-VOID
-ClearFirst4KPage (
-  IN  VOID  *HobStart
-  )
-{
-  EFI_PEI_HOB_POINTERS  RscHob;
-  EFI_PEI_HOB_POINTERS  MemHob;
-  BOOLEAN               DoClear;
-
-  RscHob.Raw = HobStart;
-  MemHob.Raw = HobStart;
-  DoClear    = FALSE;
-
-  //
-  // Check if page 0 exists and free
-  //
-  while ((RscHob.Raw = GetNextHob (
-                         EFI_HOB_TYPE_RESOURCE_DESCRIPTOR,
-                         RscHob.Raw
-                         )) != NULL)
-  {
-    if ((RscHob.ResourceDescriptor->ResourceType == EFI_RESOURCE_SYSTEM_MEMORY) &&
-        (RscHob.ResourceDescriptor->PhysicalStart == 0))
-    {
-      DoClear = TRUE;
-      //
-      // Make sure memory at 0-4095 has not been allocated.
-      //
-      while ((MemHob.Raw = GetNextHob (
-                             EFI_HOB_TYPE_MEMORY_ALLOCATION,
-                             MemHob.Raw
-                             )) != NULL)
-      {
-        if (MemHob.MemoryAllocation->AllocDescriptor.MemoryBaseAddress
-            < EFI_PAGE_SIZE)
-        {
-          DoClear = FALSE;
-          break;
-        }
-
-        MemHob.Raw = GET_NEXT_HOB (MemHob);
-      }
-
-      break;
-    }
-
-    RscHob.Raw = GET_NEXT_HOB (RscHob);
-  }
-
-  if (DoClear) {
-    DEBUG ((DEBUG_INFO, "Clearing first 4K-page!\r\n"));
-    SetMem (NULL, EFI_PAGE_SIZE, 0);
-  }
-
-  return;
-}
-
-/**
   Return configure status of NULL pointer detection feature.
 
   @return TRUE   NULL pointer detection feature is enabled
@@ -372,7 +306,10 @@ Split2MPageTo4K (
   AddressEncMask = PcdGet64 (PcdPteMemoryEncryptionAddressOrMask) & PAGING_1G_ADDRESS_MASK_64;
 
   PageTableEntry = AllocatePageTableMemory (1);
-  ASSERT (PageTableEntry != NULL);
+  if (PageTableEntry == NULL) {
+    ASSERT (PageTableEntry != NULL);
+    return;
+  }
 
   //
   // Fill in 2M page entry.
@@ -454,7 +391,10 @@ Split1GPageTo2M (
   AddressEncMask = PcdGet64 (PcdPteMemoryEncryptionAddressOrMask) & PAGING_1G_ADDRESS_MASK_64;
 
   PageDirectoryEntry = AllocatePageTableMemory (1);
-  ASSERT (PageDirectoryEntry != NULL);
+  if (PageDirectoryEntry == NULL) {
+    ASSERT (PageDirectoryEntry != NULL);
+    return;
+  }
 
   //
   // Fill in 1G page entry.
@@ -583,7 +523,10 @@ SetPageTablePoolReadOnly (
       ASSERT (Level > 1);
 
       NewPageTable = AllocatePageTableMemory (1);
-      ASSERT (NewPageTable != NULL);
+      if (NewPageTable == NULL) {
+        ASSERT (NewPageTable != NULL);
+        return;
+      }
 
       PhysicalAddress = PageAttr & LevelMask[Level];
       for (EntryIndex = 0;
@@ -828,7 +771,10 @@ CreateIdentityMappingPageTables (
     ));
 
   BigPageAddress = (UINTN)AllocatePageTableMemory (TotalPagesNum);
-  ASSERT (BigPageAddress != 0);
+  if (BigPageAddress == 0) {
+    ASSERT (BigPageAddress != 0);
+    return 0;
+  }
 
   //
   // By architecture only one PageMapLevel4 exists - so lets allocate storage for it.

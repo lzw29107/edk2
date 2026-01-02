@@ -22,7 +22,6 @@ ARCH_UNKNOWN = 'Unknown'
 ARCH_IA32 = 'IA32'
 ARCH_X64 = 'X64'
 ARCH_AARCH64 = 'AARCH64'
-ARCH_ARM = 'ARM'
 ARCH_RISCV64 = 'RISCV64'
 ARCH_LOONGARCH64 = 'LOONGARCH64'
 _Process = namedtuple('Process', ['process_id', 'parent_process_id', 'exe_filename'])
@@ -203,21 +202,10 @@ def get_host_arch():
             host_arch = ARCH_IA32
         elif 'aarch64' in uname_m or 'arm64' in uname_m:
             host_arch = ARCH_AARCH64
-        elif 'arm' in uname_m:
-            host_arch = ARCH_ARM
         elif 'riscv64' in uname_m:
             host_arch = ARCH_RISCV64
         elif 'loongarch64' in uname_m:
             host_arch = ARCH_LOONGARCH64
-        # There is a corner case for the Raspberry Pi. Sometimes it has a 64-bit
-        # kernel paired with an exclusively 32-bit user mode. Check for this case.
-        if shutil.which("lsb_release") is not None:
-            res = subprocess.run(["lsb_release", "-i"], universal_newlines=True,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                check=True)
-            distributor = res.stdout.strip()
-            if distributor == "Distributor ID:\tRaspbian":
-                host_arch = ARCH_ARM
     print(host_arch)
     return 0
 
@@ -241,18 +229,18 @@ def main():
                 if os.path.isfile(file):
                     os.remove(file)
                 else:
-                    sys.stderr.writelines(['{} is not a file.'.format(file)])
+                    sys.stderr.writelines(['{} is not a file.\n'.format(file)])
             else:
-                sys.stderr.writelines(['File {} does not exist.'.format(file)])
+                sys.stderr.writelines(['File {} does not exist.\n'.format(file)])
     elif sys.argv[1] == 'md':
         path = os.path.normpath(sys.argv[2])
         if not os.path.exists(path):
             os.makedirs(path)
         else:
             if os.path.isdir(path):
-                sys.stderr.writelines(['Directory {} already exists.'.format(path)])
+                sys.stderr.writelines(['Directory {} already exists.\n'.format(path)])
             else:
-                sys.stderr.writelines(['{} is a file.'.format(path)])
+                sys.stderr.writelines(['{} is a file.\n'.format(path)])
                 return 1
     elif sys.argv[1] == 'rd':
         paths = [os.path.normpath(x) for x in sys.argv[2:]]
@@ -261,9 +249,9 @@ def main():
                 if os.path.isdir(path):
                     shutil.rmtree(path)
                 else:
-                    sys.stderr.writelines(['{} is not a directory.'.format(path)])
+                    sys.stderr.writelines(['{} is not a directory.\n'.format(path)])
             else:
-                sys.stderr.writelines(['Directory {} does not exist.'.format(path)])
+                sys.stderr.writelines(['Directory {} does not exist.\n'.format(path)])
     elif sys.argv[1] == 'rm_pyc_files':
         path = os.path.normpath(sys.argv[2])
         files = glob.glob(os.path.join(path, '*.pyc'))
@@ -272,14 +260,14 @@ def main():
                 if os.path.isfile(file):
                     os.remove(file)
                 else:
-                    sys.stderr.writelines(['{} is not a file.'.format(file)])
+                    sys.stderr.writelines(['{} is not a file.\n'.format(file)])
             else:
-                sys.stderr.writelines(['File {} does not exist.'.format(file)])
+                sys.stderr.writelines(['File {} does not exist.\n'.format(file)])
         py_cache = os.path.join(path, '__pycache__')
         if os.path.isdir(py_cache):
             shutil.rmtree(py_cache)
     else:
-        sys.stderr.writelines(['Unsupported command.'])
+        sys.stderr.writelines(['Unsupported command.\n'])
         return 1
     return 0
 

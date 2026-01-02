@@ -339,7 +339,12 @@ CoreFreeMemoryMapStack (
     //
     Entry = AllocateMemoryMapEntry ();
 
-    ASSERT (Entry);
+    // If entry allocation failed once, it is unlikely to succeed moving forward
+    // However, we can try since we're in the middle of moving list nodes
+    if (Entry == NULL) {
+      ASSERT (Entry != NULL);
+      continue;
+    }
 
     //
     // Update to proper entry
@@ -876,7 +881,7 @@ CoreConvertPagesEx (
       }
     }
 
-    if (Link == &gMemoryMap) {
+    if ((Link == &gMemoryMap) || (Entry == NULL)) {
       DEBUG ((DEBUG_ERROR | DEBUG_PAGE, "ConvertPages: failed to find range %lx - %lx\n", Start, End));
       return EFI_NOT_FOUND;
     }
@@ -898,8 +903,11 @@ CoreConvertPagesEx (
     // if that's all we've got
     //
     RangeEnd = End;
+    if (Entry == NULL) {
+      ASSERT (Entry != NULL);
+      return EFI_NOT_FOUND;
+    }
 
-    ASSERT (Entry != NULL);
     if (Entry->End < End) {
       RangeEnd = Entry->End;
     }
@@ -1459,6 +1467,11 @@ CoreInternalAllocatePages (
   // return EFI_NOT_FOUND.
   //
   if (Type == AllocateAddress) {
+    // Page 0 is not allowed to be allocated as it is reserved for null pointer detection
+    if (Start == 0) {
+      return EFI_NOT_FOUND;
+    }
+
     if ((NumberOfPages == 0) ||
         (NumberOfPages > RShiftU64 (MaxAddress, EFI_PAGE_SHIFT)))
     {
@@ -1741,6 +1754,40 @@ CoreFreePages (
 {
   EFI_STATUS       Status;
   EFI_MEMORY_TYPE  MemoryType;
+  UINT64           Attributes;
+
+  // check if this memory is returned to the core as RW at a minimum. If the memory attribute protocol is not installed,
+  // then we assume that the memory is RW by default and continue to free it.
+  if (gMemoryAttributeProtocol != NULL) {
+    Status = gMemoryAttributeProtocol->GetMemoryAttributes (
+                                         gMemoryAttributeProtocol,
+                                         Memory,
+                                         EFI_PAGES_TO_SIZE (NumberOfPages),
+                                         &Attributes
+                                         );
+
+    // if we failed to get the attributes, or if the memory is read-only or read-protected,
+    // then we leak the memory and return success. This is done because the UEFI spec does not specify whether pages
+    // should be freed with any specific permission attributes. As such, there exist bootloaders in the wild that will
+    // free memory that is marked RO, which can crash the core if DebugClearMemory is enabled or can be passed out to a
+    // driver in the next AllocatePages() call, which can cause a crash later on. It is deemed lower risk to leak the
+    // memory than to attempt to fix up the attributes as that requires syncing the GCD and the page table.
+    if ((Status == EFI_NO_MAPPING) ||
+        (!EFI_ERROR (Status) && ((Attributes & EFI_MEMORY_RO) || (Attributes & EFI_MEMORY_RP))))
+    {
+      DEBUG ((
+        DEBUG_WARN,
+        "%a: Memory %llx for %llx Pages failed to get attributes with status %r or it is read-only or read-protected. "
+        "Attributes: %llx. Leaking memory!\n",
+        __func__,
+        Memory,
+        NumberOfPages,
+        Status,
+        Attributes
+        ));
+      return EFI_SUCCESS;
+    }
+  }
 
   Status = CoreInternalFreePages (Memory, NumberOfPages, &MemoryType);
   if (!EFI_ERROR (Status)) {
@@ -1916,6 +1963,7 @@ CoreGetMemoryMap (
     GcdMapEntry = CR (Link, EFI_GCD_MAP_ENTRY, Link, EFI_GCD_MAP_SIGNATURE);
     if ((GcdMapEntry->GcdMemoryType == EfiGcdMemoryTypePersistent) ||
         (GcdMapEntry->GcdMemoryType == EfiGcdMemoryTypeReserved) ||
+        (GcdMapEntry->GcdMemoryType == EfiGcdMemoryTypeUnaccepted) ||
         ((GcdMapEntry->GcdMemoryType == EfiGcdMemoryTypeMemoryMappedIo) &&
          ((GcdMapEntry->Attributes & EFI_MEMORY_RUNTIME) == EFI_MEMORY_RUNTIME)))
     {

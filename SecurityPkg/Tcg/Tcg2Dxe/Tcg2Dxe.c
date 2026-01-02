@@ -79,8 +79,17 @@ typedef struct {
   UINTN                        Next800155EventOffset;
 } TCG_EVENT_LOG_AREA_STRUCT;
 
+// Mapping of TPM return status to BIOS/OS TPM support and related flags (TPMPresentFlag, TpmUpdateFlag)
+// +-------------------+---------------------+-------------------+----------------+---------------+
+// | TPM Return Status | Support TPM in BIOS | Support TPM in OS | TPMPresentFlag | TpmUpdateFlag |
+// |-------------------|---------------------|-------------------|----------------|---------------|
+// | SUCCESS           | YES                 | YES               | TRUE           | FALSE         |
+// | FIELD_UPGRADE     | YES                 | NO                | FALSE          | TRUE          |
+// | Other FAIL        | NO                  | NO                | FALSE          | FALSE         |
+// +-------------------+---------------------+-------------------+----------------+---------------+
 typedef struct _TCG_DXE_DATA {
   EFI_TCG2_BOOT_SERVICE_CAPABILITY    BsCap;
+  BOOLEAN                             TpmUpdateFlag;
   TCG_EVENT_LOG_AREA_STRUCT           EventLogAreaStruct[TCG_EVENT_LOG_AREA_COUNT_MAX];
   BOOLEAN                             GetEventLogCalled[TCG_EVENT_LOG_AREA_COUNT_MAX];
   TCG_EVENT_LOG_AREA_STRUCT           FinalEventLogAreaStruct[TCG_EVENT_LOG_AREA_COUNT_MAX];
@@ -101,6 +110,7 @@ TCG_DXE_DATA  mTcgDxeData = {
     0,                                         // NumberOfPCRBanks
     0,                                         // ActivePcrBanks
   },
+  FALSE,
 };
 
 UINTN   mBootAttempts  = 0;
@@ -145,7 +155,7 @@ MeasurePeImageAndExtend (
 
 /**
 
-  This function dump raw data.
+  This function dumps raw data.
 
   @param  Data  raw data
   @param  Size  raw data size
@@ -160,7 +170,7 @@ InternalDumpData (
   UINTN  Index;
 
   for (Index = 0; Index < Size; Index++) {
-    DEBUG ((DEBUG_INFO, "%02x", (UINTN)Data[Index]));
+    DEBUG ((DEBUG_SECURITY, "%02x", (UINTN)Data[Index]));
   }
 }
 
@@ -242,7 +252,7 @@ InitNoActionEvent (
 
 /**
 
-  This function dump raw data with colume format.
+  This function dumps raw data in columns.
 
   @param  Data  raw data
   @param  Size  raw data size
@@ -263,15 +273,15 @@ InternalDumpHex (
   Count = Size / COLUME_SIZE;
   Left  = Size % COLUME_SIZE;
   for (Index = 0; Index < Count; Index++) {
-    DEBUG ((DEBUG_INFO, "%04x: ", Index * COLUME_SIZE));
+    DEBUG ((DEBUG_SECURITY, "%04x: ", Index * COLUME_SIZE));
     InternalDumpData (Data + Index * COLUME_SIZE, COLUME_SIZE);
-    DEBUG ((DEBUG_INFO, "\n"));
+    DEBUG ((DEBUG_SECURITY, "\n"));
   }
 
   if (Left != 0) {
-    DEBUG ((DEBUG_INFO, "%04x: ", Index * COLUME_SIZE));
+    DEBUG ((DEBUG_SECURITY, "%04x: ", Index * COLUME_SIZE));
     InternalDumpData (Data + Index * COLUME_SIZE, Left);
-    DEBUG ((DEBUG_INFO, "\n"));
+    DEBUG ((DEBUG_SECURITY, "\n"));
   }
 }
 
@@ -420,7 +430,7 @@ Tcg2GetCapability (
 }
 
 /**
-  This function dump PCR event.
+  This function dumps PCR events.
 
   @param[in]  EventHdr     TCG PCR event structure.
 **/
@@ -431,21 +441,21 @@ DumpEvent (
 {
   UINTN  Index;
 
-  DEBUG ((DEBUG_INFO, "  Event:\n"));
-  DEBUG ((DEBUG_INFO, "    PCRIndex  - %d\n", EventHdr->PCRIndex));
-  DEBUG ((DEBUG_INFO, "    EventType - 0x%08x\n", EventHdr->EventType));
-  DEBUG ((DEBUG_INFO, "    Digest    - "));
+  DEBUG ((DEBUG_SECURITY, "  Event:\n"));
+  DEBUG ((DEBUG_SECURITY, "    PCRIndex  - %d\n", EventHdr->PCRIndex));
+  DEBUG ((DEBUG_SECURITY, "    EventType - 0x%08x\n", EventHdr->EventType));
+  DEBUG ((DEBUG_SECURITY, "    Digest    - "));
   for (Index = 0; Index < sizeof (TCG_DIGEST); Index++) {
-    DEBUG ((DEBUG_INFO, "%02x ", EventHdr->Digest.digest[Index]));
+    DEBUG ((DEBUG_SECURITY, "%02x ", EventHdr->Digest.digest[Index]));
   }
 
-  DEBUG ((DEBUG_INFO, "\n"));
-  DEBUG ((DEBUG_INFO, "    EventSize - 0x%08x\n", EventHdr->EventSize));
+  DEBUG ((DEBUG_SECURITY, "\n"));
+  DEBUG ((DEBUG_SECURITY, "    EventSize - 0x%08x\n", EventHdr->EventSize));
   InternalDumpHex ((UINT8 *)(EventHdr + 1), EventHdr->EventSize);
 }
 
 /**
-  This function dump TCG_EfiSpecIDEventStruct.
+  This function dumps the TCG_EfiSpecIDEventStruct.
 
   @param[in]  TcgEfiSpecIdEventStruct     A pointer to TCG_EfiSpecIDEventStruct.
 **/
@@ -460,36 +470,36 @@ DumpTcgEfiSpecIdEventStruct (
   UINT8                            *VendorInfo;
   UINT32                           NumberOfAlgorithms;
 
-  DEBUG ((DEBUG_INFO, "  TCG_EfiSpecIDEventStruct:\n"));
-  DEBUG ((DEBUG_INFO, "    signature          - '"));
+  DEBUG ((DEBUG_SECURITY, "  TCG_EfiSpecIDEventStruct:\n"));
+  DEBUG ((DEBUG_SECURITY, "    signature          - '"));
   for (Index = 0; Index < sizeof (TcgEfiSpecIdEventStruct->signature); Index++) {
-    DEBUG ((DEBUG_INFO, "%c", TcgEfiSpecIdEventStruct->signature[Index]));
+    DEBUG ((DEBUG_SECURITY, "%c", TcgEfiSpecIdEventStruct->signature[Index]));
   }
 
-  DEBUG ((DEBUG_INFO, "'\n"));
-  DEBUG ((DEBUG_INFO, "    platformClass      - 0x%08x\n", TcgEfiSpecIdEventStruct->platformClass));
-  DEBUG ((DEBUG_INFO, "    specVersion        - %d.%d%d\n", TcgEfiSpecIdEventStruct->specVersionMajor, TcgEfiSpecIdEventStruct->specVersionMinor, TcgEfiSpecIdEventStruct->specErrata));
-  DEBUG ((DEBUG_INFO, "    uintnSize          - 0x%02x\n", TcgEfiSpecIdEventStruct->uintnSize));
+  DEBUG ((DEBUG_SECURITY, "'\n"));
+  DEBUG ((DEBUG_SECURITY, "    platformClass      - 0x%08x\n", TcgEfiSpecIdEventStruct->platformClass));
+  DEBUG ((DEBUG_SECURITY, "    specVersion        - %d.%d%d\n", TcgEfiSpecIdEventStruct->specVersionMajor, TcgEfiSpecIdEventStruct->specVersionMinor, TcgEfiSpecIdEventStruct->specErrata));
+  DEBUG ((DEBUG_SECURITY, "    uintnSize          - 0x%02x\n", TcgEfiSpecIdEventStruct->uintnSize));
 
   CopyMem (&NumberOfAlgorithms, TcgEfiSpecIdEventStruct + 1, sizeof (NumberOfAlgorithms));
-  DEBUG ((DEBUG_INFO, "    NumberOfAlgorithms - 0x%08x\n", NumberOfAlgorithms));
+  DEBUG ((DEBUG_SECURITY, "    NumberOfAlgorithms - 0x%08x\n", NumberOfAlgorithms));
 
   DigestSize = (TCG_EfiSpecIdEventAlgorithmSize *)((UINT8 *)TcgEfiSpecIdEventStruct + sizeof (*TcgEfiSpecIdEventStruct) + sizeof (NumberOfAlgorithms));
   for (Index = 0; Index < NumberOfAlgorithms; Index++) {
-    DEBUG ((DEBUG_INFO, "    digest(%d)\n", Index));
-    DEBUG ((DEBUG_INFO, "      algorithmId      - 0x%04x\n", DigestSize[Index].algorithmId));
-    DEBUG ((DEBUG_INFO, "      digestSize       - 0x%04x\n", DigestSize[Index].digestSize));
+    DEBUG ((DEBUG_SECURITY, "    digest(%d)\n", Index));
+    DEBUG ((DEBUG_SECURITY, "      algorithmId      - 0x%04x\n", DigestSize[Index].algorithmId));
+    DEBUG ((DEBUG_SECURITY, "      digestSize       - 0x%04x\n", DigestSize[Index].digestSize));
   }
 
   VendorInfoSize = (UINT8 *)&DigestSize[NumberOfAlgorithms];
-  DEBUG ((DEBUG_INFO, "    VendorInfoSize     - 0x%02x\n", *VendorInfoSize));
+  DEBUG ((DEBUG_SECURITY, "    VendorInfoSize     - 0x%02x\n", *VendorInfoSize));
   VendorInfo = VendorInfoSize + 1;
-  DEBUG ((DEBUG_INFO, "    VendorInfo         - "));
+  DEBUG ((DEBUG_SECURITY, "    VendorInfo         - "));
   for (Index = 0; Index < *VendorInfoSize; Index++) {
-    DEBUG ((DEBUG_INFO, "%02x ", VendorInfo[Index]));
+    DEBUG ((DEBUG_SECURITY, "%02x ", VendorInfo[Index]));
   }
 
-  DEBUG ((DEBUG_INFO, "\n"));
+  DEBUG ((DEBUG_SECURITY, "\n"));
 }
 
 /**
@@ -514,7 +524,7 @@ GetTcgEfiSpecIdEventStructSize (
 }
 
 /**
-  This function dump PCR event 2.
+  This function dumps PCR event 2 structures.
 
   @param[in]  TcgPcrEvent2     TCG PCR event 2 structure.
 **/
@@ -532,24 +542,24 @@ DumpEvent2 (
   UINT32         EventSize;
   UINT8          *EventBuffer;
 
-  DEBUG ((DEBUG_INFO, "  Event:\n"));
-  DEBUG ((DEBUG_INFO, "    PCRIndex  - %d\n", TcgPcrEvent2->PCRIndex));
-  DEBUG ((DEBUG_INFO, "    EventType - 0x%08x\n", TcgPcrEvent2->EventType));
+  DEBUG ((DEBUG_SECURITY, "  Event:\n"));
+  DEBUG ((DEBUG_SECURITY, "    PCRIndex  - %d\n", TcgPcrEvent2->PCRIndex));
+  DEBUG ((DEBUG_SECURITY, "    EventType - 0x%08x\n", TcgPcrEvent2->EventType));
 
-  DEBUG ((DEBUG_INFO, "    DigestCount: 0x%08x\n", TcgPcrEvent2->Digest.count));
+  DEBUG ((DEBUG_SECURITY, "    DigestCount: 0x%08x\n", TcgPcrEvent2->Digest.count));
 
   DigestCount  = TcgPcrEvent2->Digest.count;
   HashAlgo     = TcgPcrEvent2->Digest.digests[0].hashAlg;
   DigestBuffer = (UINT8 *)&TcgPcrEvent2->Digest.digests[0].digest;
   for (DigestIndex = 0; DigestIndex < DigestCount; DigestIndex++) {
-    DEBUG ((DEBUG_INFO, "      HashAlgo : 0x%04x\n", HashAlgo));
-    DEBUG ((DEBUG_INFO, "      Digest(%d): ", DigestIndex));
+    DEBUG ((DEBUG_SECURITY, "      HashAlgo : 0x%04x\n", HashAlgo));
+    DEBUG ((DEBUG_SECURITY, "      Digest(%d): ", DigestIndex));
     DigestSize = GetHashSizeFromAlgo (HashAlgo);
     for (Index = 0; Index < DigestSize; Index++) {
-      DEBUG ((DEBUG_INFO, "%02x ", DigestBuffer[Index]));
+      DEBUG ((DEBUG_SECURITY, "%02x ", DigestBuffer[Index]));
     }
 
-    DEBUG ((DEBUG_INFO, "\n"));
+    DEBUG ((DEBUG_SECURITY, "\n"));
     //
     // Prepare next
     //
@@ -557,11 +567,11 @@ DumpEvent2 (
     DigestBuffer = DigestBuffer + DigestSize + sizeof (TPMI_ALG_HASH);
   }
 
-  DEBUG ((DEBUG_INFO, "\n"));
+  DEBUG ((DEBUG_SECURITY, "\n"));
   DigestBuffer = DigestBuffer - sizeof (TPMI_ALG_HASH);
 
   CopyMem (&EventSize, DigestBuffer, sizeof (TcgPcrEvent2->EventSize));
-  DEBUG ((DEBUG_INFO, "    EventSize - 0x%08x\n", EventSize));
+  DEBUG ((DEBUG_SECURITY, "    EventSize - 0x%08x\n", EventSize));
   EventBuffer = DigestBuffer + sizeof (TcgPcrEvent2->EventSize);
   InternalDumpHex (EventBuffer, EventSize);
 }
@@ -607,7 +617,7 @@ GetPcrEvent2Size (
 }
 
 /**
-  This function dump event log.
+  This function dumps the event log.
 
   @param[in]  EventLogFormat     The type of the event log for which the information is requested.
   @param[in]  EventLogLocation   A pointer to the memory address of the event log.
@@ -628,7 +638,11 @@ DumpEventLog (
   TCG_EfiSpecIDEventStruct  *TcgEfiSpecIdEventStruct;
   UINTN                     NumberOfEvents;
 
-  DEBUG ((DEBUG_INFO, "EventLogFormat: (0x%x)\n", EventLogFormat));
+  if (!DebugPrintLevelEnabled (DEBUG_SECURITY)) {
+    return;
+  }
+
+  DEBUG ((DEBUG_SECURITY, "EventLogFormat: (0x%x)\n", EventLogFormat));
 
   switch (EventLogFormat) {
     case EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2:
@@ -639,11 +653,11 @@ DumpEventLog (
       }
 
       if (FinalEventsTable == NULL) {
-        DEBUG ((DEBUG_INFO, "FinalEventsTable: NOT FOUND\n"));
+        DEBUG ((DEBUG_SECURITY, "FinalEventsTable: NOT FOUND\n"));
       } else {
-        DEBUG ((DEBUG_INFO, "FinalEventsTable:    (0x%x)\n", FinalEventsTable));
-        DEBUG ((DEBUG_INFO, "  Version:           (0x%x)\n", FinalEventsTable->Version));
-        DEBUG ((DEBUG_INFO, "  NumberOfEvents:    (0x%x)\n", FinalEventsTable->NumberOfEvents));
+        DEBUG ((DEBUG_SECURITY, "FinalEventsTable:    (0x%x)\n", FinalEventsTable));
+        DEBUG ((DEBUG_SECURITY, "  Version:           (0x%x)\n", FinalEventsTable->Version));
+        DEBUG ((DEBUG_SECURITY, "  NumberOfEvents:    (0x%x)\n", FinalEventsTable->NumberOfEvents));
 
         EventHdr = (TCG_PCR_EVENT_HDR *)(UINTN)(FinalEventsTable + 1);
         for (NumberOfEvents = 0; NumberOfEvents < FinalEventsTable->NumberOfEvents; NumberOfEvents++) {
@@ -670,11 +684,11 @@ DumpEventLog (
       }
 
       if (FinalEventsTable == NULL) {
-        DEBUG ((DEBUG_INFO, "FinalEventsTable: NOT FOUND\n"));
+        DEBUG ((DEBUG_SECURITY, "FinalEventsTable: NOT FOUND\n"));
       } else {
-        DEBUG ((DEBUG_INFO, "FinalEventsTable:    (0x%x)\n", FinalEventsTable));
-        DEBUG ((DEBUG_INFO, "  Version:           (0x%x)\n", FinalEventsTable->Version));
-        DEBUG ((DEBUG_INFO, "  NumberOfEvents:    (0x%x)\n", FinalEventsTable->NumberOfEvents));
+        DEBUG ((DEBUG_SECURITY, "FinalEventsTable:    (0x%x)\n", FinalEventsTable));
+        DEBUG ((DEBUG_SECURITY, "  Version:           (0x%x)\n", FinalEventsTable->Version));
+        DEBUG ((DEBUG_SECURITY, "  NumberOfEvents:    (0x%x)\n", FinalEventsTable->NumberOfEvents));
 
         TcgPcrEvent2 = (TCG_PCR_EVENT2 *)(UINTN)(FinalEventsTable + 1);
         for (NumberOfEvents = 0; NumberOfEvents < FinalEventsTable->NumberOfEvents; NumberOfEvents++) {
@@ -718,8 +732,6 @@ Tcg2GetEventLog (
 {
   UINTN  Index;
 
-  DEBUG ((DEBUG_INFO, "Tcg2GetEventLog ... (0x%x)\n", EventLogFormat));
-
   if (This == NULL) {
     return EFI_INVALID_PARAMETER;
   }
@@ -756,7 +768,6 @@ Tcg2GetEventLog (
 
   if (EventLogLocation != NULL) {
     *EventLogLocation = mTcgDxeData.EventLogAreaStruct[Index].Lasa;
-    DEBUG ((DEBUG_INFO, "Tcg2GetEventLog (EventLogLocation - %x)\n", *EventLogLocation));
   }
 
   if (EventLogLastEntry != NULL) {
@@ -765,16 +776,11 @@ Tcg2GetEventLog (
     } else {
       *EventLogLastEntry = (EFI_PHYSICAL_ADDRESS)(UINTN)mTcgDxeData.EventLogAreaStruct[Index].LastEvent;
     }
-
-    DEBUG ((DEBUG_INFO, "Tcg2GetEventLog (EventLogLastEntry - %x)\n", *EventLogLastEntry));
   }
 
   if (EventLogTruncated != NULL) {
     *EventLogTruncated = mTcgDxeData.EventLogAreaStruct[Index].EventLogTruncated;
-    DEBUG ((DEBUG_INFO, "Tcg2GetEventLog (EventLogTruncated - %x)\n", *EventLogTruncated));
   }
-
-  DEBUG ((DEBUG_INFO, "Tcg2GetEventLog - %r\n", EFI_SUCCESS));
 
   // Dump Event Log for debug purpose
   if ((EventLogLocation != NULL) && (EventLogLastEntry != NULL)) {
@@ -802,6 +808,7 @@ Tcg2GetEventLog (
   @retval FALSE  This is NOT a Tcg800155PlatformIdEvent.
 
 **/
+STATIC
 BOOLEAN
 Is800155Event (
   IN      VOID    *NewEventHdr,
@@ -810,18 +817,26 @@ Is800155Event (
   IN      UINT32  NewEventSize
   )
 {
-  if ((((TCG_PCR_EVENT2_HDR *)NewEventHdr)->EventType == EV_NO_ACTION) &&
-      (NewEventSize >= sizeof (TCG_Sp800_155_PlatformId_Event2)) &&
-      ((CompareMem (
-          NewEventData,
-          TCG_Sp800_155_PlatformId_Event2_SIGNATURE,
-          sizeof (TCG_Sp800_155_PlatformId_Event2_SIGNATURE) - 1
-          ) == 0) ||
-       (CompareMem (
-          NewEventData,
-          TCG_Sp800_155_PlatformId_Event3_SIGNATURE,
-          sizeof (TCG_Sp800_155_PlatformId_Event3_SIGNATURE) - 1
-          ) == 0)))
+  if (((TCG_PCR_EVENT2_HDR *)NewEventHdr)->EventType != EV_NO_ACTION) {
+    return FALSE;
+  }
+
+  if ((NewEventSize >= sizeof (TCG_Sp800_155_PlatformId_Event2)) &&
+      (CompareMem (
+         NewEventData,
+         TCG_Sp800_155_PlatformId_Event2_SIGNATURE,
+         sizeof (TCG_Sp800_155_PlatformId_Event2_SIGNATURE) - 1
+         ) == 0))
+  {
+    return TRUE;
+  }
+
+  if ((NewEventSize >= sizeof (TCG_Sp800_155_PlatformId_Event3)) &&
+      (CompareMem (
+         NewEventData,
+         TCG_Sp800_155_PlatformId_Event3_SIGNATURE,
+         sizeof (TCG_Sp800_155_PlatformId_Event3_SIGNATURE) - 1
+         ) == 0))
   {
     return TRUE;
   }
@@ -1132,12 +1147,9 @@ TcgDxeLogHashEvent (
   UINT8           *DigestBuffer;
   UINT32          *EventSizePtr;
 
-  DEBUG ((DEBUG_INFO, "SupportedEventLogs - 0x%08x\n", mTcgDxeData.BsCap.SupportedEventLogs));
-
   RetStatus = EFI_SUCCESS;
   for (Index = 0; Index < sizeof (mTcg2EventInfo)/sizeof (mTcg2EventInfo[0]); Index++) {
     if ((mTcgDxeData.BsCap.SupportedEventLogs & mTcg2EventInfo[Index].LogFormat) != 0) {
-      DEBUG ((DEBUG_INFO, "  LogFormat - 0x%08x\n", mTcg2EventInfo[Index].LogFormat));
       switch (mTcg2EventInfo[Index].LogFormat) {
         case EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2:
           Status = GetDigestFromDigestList (TPM_ALG_SHA1, DigestList, &NewEventHdr->Digest);
@@ -1405,18 +1417,14 @@ Tcg2SubmitCommand (
   )
 {
   EFI_STATUS  Status;
-
-  DEBUG ((DEBUG_INFO, "Tcg2SubmitCommand ...\n"));
+  TPM_RC      ResponseCode;
+  UINT32      CurrentOutputBlockSize;
 
   if ((This == NULL) ||
       (InputParameterBlockSize == 0) || (InputParameterBlock == NULL) ||
       (OutputParameterBlockSize == 0) || (OutputParameterBlock == NULL))
   {
     return EFI_INVALID_PARAMETER;
-  }
-
-  if (!mTcgDxeData.BsCap.TPMPresentFlag) {
-    return EFI_DEVICE_ERROR;
   }
 
   if (InputParameterBlockSize > mTcgDxeData.BsCap.MaxCommandSize) {
@@ -1427,14 +1435,53 @@ Tcg2SubmitCommand (
     return EFI_INVALID_PARAMETER;
   }
 
-  Status = Tpm2SubmitCommand (
-             InputParameterBlockSize,
-             InputParameterBlock,
-             &OutputParameterBlockSize,
-             OutputParameterBlock
-             );
-  DEBUG ((DEBUG_INFO, "Tcg2SubmitCommand - %r\n", Status));
-  return Status;
+  //
+  // Always attempt to submit the command, but if the TPM is already flagged
+  // as not present, we expect it to fail other than the capsule update scenario.
+  //
+  CurrentOutputBlockSize = OutputParameterBlockSize;
+  Status                 = Tpm2SubmitCommand (
+                             InputParameterBlockSize,
+                             InputParameterBlock,
+                             &CurrentOutputBlockSize,
+                             OutputParameterBlock
+                             );
+  if (EFI_ERROR (Status)) {
+    return mTcgDxeData.BsCap.TPMPresentFlag ? Status : EFI_DEVICE_ERROR;
+  }
+
+  if (CurrentOutputBlockSize < sizeof (TPM2_RESPONSE_HEADER)) {
+    DEBUG ((DEBUG_ERROR, "%a: Response buffer too small!\n", __func__));
+    return EFI_DEVICE_ERROR;
+  }
+
+  //
+  // Correctly read the response code and swap bytes from Big-Endian to Host order.
+  // The responseCode field is at offset 6 of the response header.
+  //
+  ResponseCode = SwapBytes32 (ReadUnaligned32 ((UINT32 *)(OutputParameterBlock + 6)));
+  DEBUG ((DEBUG_ERROR, "Response code is %x", ResponseCode));
+  // If the response code ever equals to TPM_RC_UPGRADE, it means the TPM is in field
+  // upgrade mode, we set TpmUpdateFlag to TRUE.
+  if (ResponseCode == TPM_RC_UPGRADE) {
+    DEBUG ((DEBUG_INFO, "TPM response code TPM_RC_UPDATE received. Setting flag.\n"));
+    mTcgDxeData.TpmUpdateFlag = TRUE;
+  }
+
+  // Now that we have set the TPMPresentFlag, it should be able to reflect the actual TPM presence
+  // as long as the device is not in field update mode.
+  if ((mTcgDxeData.BsCap.TPMPresentFlag == FALSE) && (mTcgDxeData.TpmUpdateFlag == FALSE)) {
+    DEBUG ((DEBUG_WARN, "%a: TPMPresentFlag is FALSE. Expecting command to fail.\n", __func__));
+    return EFI_DEVICE_ERROR;
+  }
+
+  // If the response code is not TPM_RC_SUCCESS and the device is not in field update mode, return error.
+  if ((ResponseCode != TPM_RC_SUCCESS) && (mTcgDxeData.TpmUpdateFlag == FALSE)) {
+    DEBUG ((DEBUG_ERROR, "%a: Command failed with response code 0x%x\n", __func__, ResponseCode));
+    return EFI_DEVICE_ERROR;
+  }
+
+  return EFI_SUCCESS;
 }
 
 /**

@@ -24,7 +24,6 @@
 [Sources]
   UefiPayloadEntry.c
   LoadDxeCore.c
-  MemoryAllocation.c
   AcpiTable.c
 
 [Sources.Ia32]
@@ -61,6 +60,7 @@
   CpuLib
   StackCheckLib
   UefiCpuBaseArchSupportLib
+  MemoryAllocationLib
 
 [Guids]
   gEfiMemoryTypeInformationGuid
@@ -71,6 +71,7 @@
   gUniversalPayloadSmbiosTableGuid
   gUniversalPayloadAcpiTableGuid
   gUniversalPayloadSerialPortInfoGuid
+  gEfiFirmwareInfoHobGuid
   gEfiSmmStoreInfoHobGuid
 
 [FeaturePcd.IA32]

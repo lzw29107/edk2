@@ -5,6 +5,7 @@
 #  Copyright (c) 2007 - 2021, Intel Corporation. All rights reserved.<BR>
 #  Copyright (c) 2018, Hewlett Packard Enterprise Development, L.P.<BR>
 #  Copyright (c) 2020 - 2021, ARM Limited. All rights reserved.<BR>
+#  Copyright (c) 2025 Qualcomm Technologies, Inc. All rights reserved.<BR>
 #
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
@@ -23,6 +24,7 @@ import time
 import platform
 import traceback
 import multiprocessing
+import errno
 from threading import Thread,Event,BoundedSemaphore
 import threading
 from linecache import getlines
@@ -58,7 +60,6 @@ from PatchPcdValue.PatchPcdValue import PatchBinaryFile
 import Common.GlobalData as GlobalData
 from GenFds.GenFds import GenFds, GenFdsApi
 import multiprocessing as mp
-from multiprocessing import Manager
 from AutoGen.DataPipe import MemoryDataPipe
 from AutoGen.ModuleAutoGenHelper import WorkSpaceInfo, PlatformInfo
 from GenFds.FdfParser import FdfParser
@@ -72,21 +73,24 @@ gSupportedTarget = ['all', 'genc', 'genmake', 'modules', 'libraries', 'fds', 'cl
 TemporaryTablePattern = re.compile(r'^_\d+_\d+_[a-fA-F0-9]+$')
 TmpTableDict = {}
 
-## Check environment PATH variable to make sure the specified tool is found
+## Set build time
 #
-#   If the tool is found in the PATH, then True is returned
-#   Otherwise, False is returned
+# Check if SOURCE_DATE_EPOCH is set in environment, or set it to current timestamp.
+# Return the resulting value.
 #
-def IsToolInPath(tool):
-    if 'PATHEXT' in os.environ:
-        extns = os.environ['PATHEXT'].split(os.path.pathsep)
+# @retval float         The time in seconds since the epoch as a floating-point number.
+#
+def GetBuildEpoch():
+    # Set SOURCE_DATE_EPOCH to the current time if not already set by environment
+    if "SOURCE_DATE_EPOCH" not in os.environ:
+        BuildEpoch = time.time()
+        BuildEpochString = str(int(BuildEpoch))
+        EdkLogger.quiet("SOURCE_DATE_EPOCH not set - using %s" % (BuildEpochString))
+        os.environ["SOURCE_DATE_EPOCH"] = BuildEpochString
     else:
-        extns = ('',)
-    for pathDir in os.environ['PATH'].split(os.path.pathsep):
-        for ext in extns:
-            if os.path.exists(os.path.join(pathDir, tool + ext)):
-                return True
-    return False
+        BuildEpoch = float(os.environ["SOURCE_DATE_EPOCH"])
+
+    return BuildEpoch
 
 ## Check environment variables
 #
@@ -99,7 +103,7 @@ def IsToolInPath(tool):
 #   If any of above environment variable is not set or has error, the build
 #   will be broken.
 #
-def CheckEnvVariable():
+def CheckEnvVariables():
     # check WORKSPACE
     if "WORKSPACE" not in os.environ:
         EdkLogger.error("build", ATTRIBUTE_NOT_AVAILABLE, "Environment variable not found",
@@ -386,26 +390,6 @@ class ModuleMakeUnit(BuildUnit):
         if Target in [None, "", "all"]:
             self.Target = "tbuild"
 
-## The smallest platform unit that can be built by nmake/make command in multi-thread build mode
-#
-# This class is for platform build by nmake/make build system. The "Obj" parameter
-# must provide __str__(), __eq__() and __hash__() methods. Otherwise there could
-# be make units missing build.
-#
-# Currently the "Obj" should be only PlatformAutoGen object.
-#
-class PlatformMakeUnit(BuildUnit):
-    ## The constructor
-    #
-    #   @param  self        The object pointer
-    #   @param  Obj         The PlatformAutoGen object the build is working on
-    #   @param  Target      The build target name, one of gSupportedTarget
-    #
-    def __init__(self, Obj, BuildCommand, Target):
-        Dependency = [ModuleMakeUnit(Lib, BuildCommand, Target) for Lib in self.BuildObject.LibraryAutoGenList]
-        Dependency.extend([ModuleMakeUnit(Mod, BuildCommand,Target) for Mod in self.BuildObject.ModuleAutoGenList])
-        BuildUnit.__init__(self, Obj, BuildCommand, Target, Dependency, Obj.MakeFileDir)
-
 ## The class representing the task of a module build or platform build
 #
 # This class manages the build tasks in multi-thread build mode. Its jobs include
@@ -562,15 +546,6 @@ class BuildTask:
     @staticmethod
     def HasError():
         return BuildTask._ErrorFlag.is_set()
-
-    ## Get error message in running thread
-    #
-    #   Since the main thread cannot catch exceptions in other thread, we have to
-    #   use a static variable to communicate this message to main thread.
-    #
-    @staticmethod
-    def GetErrorMessage():
-        return BuildTask._ErrorMessage
 
     ## Factory method to create a BuildTask object
     #
@@ -804,8 +779,6 @@ class Build():
         self.LoadFixAddress = 0
         self.UniFlag        = BuildOptions.Flag
         self.BuildModules = []
-        self.HashSkipModules = []
-        self.Db_Flag = False
         self.LaunchPrebuildFlag = False
         self.PlatformBuildPath = os.path.join(GlobalData.gConfDirectory, '.cache', '.PlatformBuild')
         if BuildOptions.CommandLength:
@@ -865,13 +838,22 @@ class Build():
         try:
             if SkipAutoGen:
                 return True,0
+            if sys.platform == "win32":
+                SafeThreadNumber = self.ThreadNumber
+            else:
+                import resource
+                soft = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
+                SafeThreadNumber = min(self.ThreadNumber, soft // 3)
+                if SafeThreadNumber < self.ThreadNumber:
+                    EdkLogger.verbose("AutoGen workers limited to %d to avoid file descriptor exhaustion" % SafeThreadNumber)
             feedback_q = mp.Queue()
             error_event = mp.Event()
             FfsCmd = DataPipe.Get("FfsCommand")
             if FfsCmd is None:
                 FfsCmd = {}
             GlobalData.FfsCmd = FfsCmd
-            auto_workers = [AutoGenWorkerInProcess(mqueue,DataPipe.dump_file,feedback_q,GlobalData.file_lock,cqueue,self.log_q,error_event) for _ in range(self.ThreadNumber)]
+
+            auto_workers = [AutoGenWorkerInProcess(mqueue,DataPipe.dump_file,feedback_q,GlobalData.file_lock,cqueue,self.log_q,error_event) for _ in range(SafeThreadNumber)]
             self.AutoGenMgr = AutoGenManager(auto_workers,feedback_q,error_event)
             self.AutoGenMgr.start()
             for w in auto_workers:
@@ -899,6 +881,10 @@ class Build():
             if not rt:
                 err = UNKNOWN_ERROR
             return rt, err
+        except OSError as e:
+            if e.errno == errno.EMFILE:
+                EdkLogger.warn("build", RESOURCE_OVERFLOW, ExtraData="Reached file descriptor limit!\n")
+            raise
         except FatalError as e:
             return False, e.args[0]
         except:
@@ -1046,7 +1032,6 @@ class Build():
         if 'PREBUILD' in GlobalData.gCommandLineDefines:
             self.Prebuild   = GlobalData.gCommandLineDefines.get('PREBUILD')
         else:
-            self.Db_Flag = True
             Platform = self.Db.MapPlatform(str(self.PlatformFile))
             self.Prebuild = str(Platform.Prebuild)
         if self.Prebuild:
@@ -1674,7 +1659,7 @@ class Build():
                     elif Module.ModuleType in [EDK_COMPONENT_TYPE_BS_DRIVER, SUP_MODULE_DXE_DRIVER, SUP_MODULE_UEFI_DRIVER]:
                         BtModuleList[Module.MetaFile] = ImageInfo
                         BtSize += ImageInfo.Image.Size
-                    elif Module.ModuleType in [SUP_MODULE_DXE_RUNTIME_DRIVER, EDK_COMPONENT_TYPE_RT_DRIVER, SUP_MODULE_DXE_SAL_DRIVER, EDK_COMPONENT_TYPE_SAL_RT_DRIVER]:
+                    elif Module.ModuleType in [SUP_MODULE_DXE_RUNTIME_DRIVER, EDK_COMPONENT_TYPE_RT_DRIVER]:
                         RtModuleList[Module.MetaFile] = ImageInfo
                         RtSize += ImageInfo.Image.Size
                     elif Module.ModuleType in [SUP_MODULE_SMM_CORE, SUP_MODULE_DXE_SMM_DRIVER, SUP_MODULE_MM_STANDALONE, SUP_MODULE_MM_CORE_STANDALONE]:
@@ -1848,8 +1833,8 @@ class Build():
                         #
                         # Check whether the set fix address is above 4G for 32bit image.
                         #
-                        if (Arch == 'IA32' or Arch == 'ARM') and self.LoadFixAddress != 0xFFFFFFFFFFFFFFFF and self.LoadFixAddress >= 0x100000000:
-                            EdkLogger.error("build", PARAMETER_INVALID, "FIX_LOAD_TOP_MEMORY_ADDRESS can't be set to larger than or equal to 4G for the platform with IA32 or ARM arch modules")
+                        if Arch == 'IA32' and self.LoadFixAddress != 0xFFFFFFFFFFFFFFFF and self.LoadFixAddress >= 0x100000000:
+                            EdkLogger.error("build", PARAMETER_INVALID, "FIX_LOAD_TOP_MEMORY_ADDRESS can't be set to larger than or equal to 4G for the platform with IA32 arch modules")
                     #
                     # Get Module List
                     #
@@ -2034,8 +2019,8 @@ class Build():
                         #
                         # Check whether the set fix address is above 4G for 32bit image.
                         #
-                        if (Arch == 'IA32' or Arch == 'ARM') and self.LoadFixAddress != 0xFFFFFFFFFFFFFFFF and self.LoadFixAddress >= 0x100000000:
-                            EdkLogger.error("build", PARAMETER_INVALID, "FIX_LOAD_TOP_MEMORY_ADDRESS can't be set to larger than or equal to 4G for the platorm with IA32 or ARM arch modules")
+                        if Arch == 'IA32' and self.LoadFixAddress != 0xFFFFFFFFFFFFFFFF and self.LoadFixAddress >= 0x100000000:
+                            EdkLogger.error("build", PARAMETER_INVALID, "FIX_LOAD_TOP_MEMORY_ADDRESS can't be set to larger than or equal to 4G for the platorm with IA32 arch modules")
                     #
                     # Get Module List
                     #
@@ -2365,8 +2350,8 @@ class Build():
                         #
                         # Check whether the set fix address is above 4G for 32bit image.
                         #
-                        if (Arch == 'IA32' or Arch == 'ARM') and self.LoadFixAddress != 0xFFFFFFFFFFFFFFFF and self.LoadFixAddress >= 0x100000000:
-                            EdkLogger.error("build", PARAMETER_INVALID, "FIX_LOAD_TOP_MEMORY_ADDRESS can't be set to larger than or equal to 4G for the platorm with IA32 or ARM arch modules")
+                        if Arch == 'IA32' and self.LoadFixAddress != 0xFFFFFFFFFFFFFFFF and self.LoadFixAddress >= 0x100000000:
+                            EdkLogger.error("build", PARAMETER_INVALID, "FIX_LOAD_TOP_MEMORY_ADDRESS can't be set to larger than or equal to 4G for the platorm with IA32 arch modules")
 
                     #
                     # Rebase module to the preferred memory address before GenFds
@@ -2495,13 +2480,6 @@ class Build():
                     for guidedSectionTool in guidAttribs:
                         print(' '.join(guidedSectionTool), file=toolsFile)
                     toolsFile.close()
-
-    ## Returns the real path of the tool.
-    #
-    def GetRealPathOfTool (self, tool):
-        if os.path.exists(tool):
-            return os.path.realpath(tool)
-        return tool
 
     ## Launch the module or platform build
     #
@@ -2653,7 +2631,8 @@ def Main():
         GlobalData.gIsWindows = False
 
     EdkLogger.quiet("Build environment: %s" % platform.platform())
-    EdkLogger.quiet(time.strftime("Build start time: %H:%M:%S, %b.%d %Y\n", time.localtime()));
+    BuildStartTime = GetBuildEpoch()
+    EdkLogger.quiet(time.strftime("Build start time: %H:%M:%S, %b.%d %Y\n", time.localtime(BuildStartTime)));
     ReturnCode = 0
     MyBuild = None
     BuildError = True
@@ -2671,9 +2650,9 @@ def Main():
                             ExtraData="Please select one of: %s" % (' '.join(gSupportedTarget)))
 
         #
-        # Check environment variable: EDK_TOOLS_PATH, WORKSPACE, PATH
+        # Check environment variables: EDK_TOOLS_PATH, WORKSPACE, PATH, etc...
         #
-        CheckEnvVariable()
+        CheckEnvVariables()
         GlobalData.gCommandLineDefines.update(ParseDefines(Option.Macros))
 
         Workspace = os.getenv("WORKSPACE")
@@ -2728,6 +2707,8 @@ def Main():
         # All job done, no error found and no exception raised
         #
         BuildError = False
+    except OSError as X:
+        ReturnCode = RESOURCE_UNKNOWN_ERROR
     except FatalError as X:
         if MyBuild is not None:
             # for multi-thread build exits safely

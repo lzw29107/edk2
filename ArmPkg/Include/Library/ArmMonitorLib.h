@@ -23,6 +23,7 @@ typedef struct {
   UINTN    Arg5;
   UINTN    Arg6;
   UINTN    Arg7;
+ #ifdef MDE_CPU_AARCH64
   UINTN    Arg8;
   UINTN    Arg9;
   UINTN    Arg10;
@@ -33,6 +34,7 @@ typedef struct {
   UINTN    Arg15;
   UINTN    Arg16;
   UINTN    Arg17;
+ #endif
 } ARM_MONITOR_ARGS;
 
 /** Monitor call.

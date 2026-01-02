@@ -20,6 +20,10 @@
   PI_SPECIFICATION_VERSION       = 0x00010032
   CONSTRUCTOR                    = StandaloneMmServicesTableLibConstructor
 
+#
+#  VALID_ARCHITECTURES           = IA32 X64 ARM AARCH64
+#
+
 [Sources]
   StandaloneMmServicesTableLib.c
 

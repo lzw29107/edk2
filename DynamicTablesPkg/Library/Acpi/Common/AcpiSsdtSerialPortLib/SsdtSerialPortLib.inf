@@ -19,7 +19,7 @@
 [Sources]
   SsdtSerialPortGenerator.c
 
-[Packages.AARCH64]
+[Packages.ARM, Packages.AARCH64]
   ArmPlatformPkg/ArmPlatformPkg.dec
 
 [Packages]

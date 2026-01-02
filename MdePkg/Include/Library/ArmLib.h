@@ -12,14 +12,7 @@
 #define ARM_LIB_H_
 
 #include <Uefi/UefiBaseType.h>
-
-#ifdef MDE_CPU_ARM
-  #include <Arm/AArch32.h>
-#elif defined (MDE_CPU_AARCH64)
-  #include <AArch64/AArch64.h>
-#else
-  #error "Unknown chipset."
-#endif
+#include <AArch64/AArch64.h>
 
 #define EFI_MEMORY_CACHETYPE_MASK  (EFI_MEMORY_UC | EFI_MEMORY_WC |  \
                                      EFI_MEMORY_WT | EFI_MEMORY_WB | \
@@ -699,6 +692,18 @@ ArmHasGicSystemRegisters (
   VOID
   );
 
+/**
+  Check whether the CPU supports the GICv5 system register interface
+
+  @return   Whether GICv5 System Register Interface is supported
+
+**/
+BOOLEAN
+EFIAPI
+ArmHasGicV5SystemRegisters (
+  VOID
+  );
+
 /** Checks if CCIDX is implemented.
 
    @retval TRUE  CCIDX is implemented.
@@ -710,7 +715,6 @@ ArmHasCcidx (
   VOID
   );
 
-#ifdef MDE_CPU_AARCH64
 ///
 /// AArch64-only ID Register Helper functions
 ///
@@ -750,26 +754,5 @@ EFIAPI
 ArmHasEte (
   VOID
   );
-
-#endif // MDE_CPU_AARCH64
-
-#ifdef MDE_CPU_ARM
-///
-/// AArch32-only ID Register Helper functions
-///
-
-/**
-  Check whether the CPU supports the Security extensions
-
-  @return   Whether the Security extensions are implemented
-
-**/
-BOOLEAN
-EFIAPI
-ArmHasSecurityExtensions (
-  VOID
-  );
-
-#endif // MDE_CPU_ARM
 
 #endif // ARM_LIB_H_

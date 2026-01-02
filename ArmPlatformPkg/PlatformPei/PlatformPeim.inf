@@ -16,12 +16,6 @@
 
   ENTRY_POINT                    = InitializePlatformPeim
 
-#
-# The following information is for reference only and not required by the build tools.
-#
-#  VALID_ARCHITECTURES           = IA32 X64 EBC ARM
-#
-
 [Sources]
   PlatformPeim.c
 
@@ -43,6 +37,7 @@
 [Ppis]
   gEfiPeiMasterBootModePpiGuid                  # PPI ALWAYS_PRODUCED
   gEfiPeiBootInRecoveryModePpiGuid              # PPI SOMETIMES_PRODUCED
+  gArmTransferListPpiGuid                       # PPI SOMETIMES_CONSUMED
 
 [FixedPcd]
   gArmTokenSpaceGuid.PcdFdBaseAddress
@@ -50,6 +45,9 @@
 
   gArmTokenSpaceGuid.PcdFvBaseAddress
   gArmTokenSpaceGuid.PcdFvSize
+
+[Guids]
+  gArmTransferListHobGuid
 
 [Depex]
   TRUE

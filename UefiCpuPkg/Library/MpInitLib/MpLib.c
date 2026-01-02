@@ -2,7 +2,7 @@
   CPU MP Initialize Library common functions.
 
   Copyright (c) 2016 - 2024, Intel Corporation. All rights reserved.<BR>
-  Copyright (c) 2020 - 2024, AMD Inc. All rights reserved.<BR>
+  Copyright (C) 2020 - 2025 Advanced Micro Devices, Inc. All rights reserved.<BR>
 
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -1018,15 +1018,17 @@ FillExchangeInfoData (
   ExchangeInfo->Enable5LevelPaging = (BOOLEAN)(Cr4.Bits.LA57 == 1);
   DEBUG ((DEBUG_INFO, "%a: 5-Level Paging = %d\n", gEfiCallerBaseName, ExchangeInfo->Enable5LevelPaging));
 
-  ExchangeInfo->SevEsIsEnabled  = CpuMpData->SevEsIsEnabled;
-  ExchangeInfo->SevSnpIsEnabled = CpuMpData->SevSnpIsEnabled;
-  ExchangeInfo->GhcbBase        = (UINTN)CpuMpData->GhcbBase;
+  ExchangeInfo->SevEsIsEnabled        = CpuMpData->SevEsIsEnabled;
+  ExchangeInfo->SevSnpIsEnabled       = CpuMpData->SevSnpIsEnabled;
+  ExchangeInfo->GhcbBase              = (UINTN)CpuMpData->GhcbBase;
+  ExchangeInfo->ExtTopoAvail          = FALSE;
+  ExchangeInfo->SevSnpKnownInitApicId = FALSE;
 
   //
-  // Populate SEV-ES specific exchange data.
+  // Populate SEV-SNP specific exchange data.
   //
   if (ExchangeInfo->SevSnpIsEnabled) {
-    FillExchangeInfoDataSevEs (ExchangeInfo);
+    FillExchangeInfoDataSevSnp (ExchangeInfo);
   }
 
   //
@@ -1661,10 +1663,24 @@ ResetProcessorToIdleState (
 
   CpuMpData = GetCpuMpData ();
 
-  CpuMpData->WakeUpByInitSipiSipi = TRUE;
   if (CpuMpData == NULL) {
     DEBUG ((DEBUG_ERROR, "[%a] - Failed to get CpuMpData.  Aborting the AP reset to idle.\n", __func__));
     return;
+  }
+
+  CpuMpData->WakeUpByInitSipiSipi = TRUE;
+
+  //
+  // "CpuMpData->WakeUpByInitSipiSipi = TRUE" requires that the AP must be in Halt loop.
+  // If AP loop mode is not Halt loop, make sure that the AP is in the known non-executable state.
+  //
+  // AP could be in MONITOR/MWAIT state that could wake up the AP when setting WAKEUP_AP_SIGNAL in WakeUpAp().
+  // And then SendInitSipiSipi() in WakeupAp() could wake up the AP again to run the AP Wakeup vector.
+  // But the AP wakeup vector could be freed by the BSP while the AP is running it.
+  //
+  if (CpuMpData->ApLoopMode != ApInHltLoop) {
+    SendInitIpi (((CPU_INFO_IN_HOB *)(UINTN)CpuMpData->CpuInfoInHob)[ProcessorNumber].ApicId);
+    MicroSecondDelay (PcdGet32 (PcdCpuInitIpiDelayInMicroSeconds));
   }
 
   WakeUpAP (CpuMpData, FALSE, ProcessorNumber, NULL, NULL, TRUE);
@@ -2072,6 +2088,7 @@ MpInitLibInitialize (
   UINTN                    ApResetVectorSizeAbove1Mb;
   UINTN                    BackupBufferAddr;
   UINTN                    ApIdtBase;
+  IA32_CR0                 Cr0;
 
   FirstMpHandOff = GetNextMpHandOffHob (NULL);
   if (FirstMpHandOff != NULL) {
@@ -2248,7 +2265,13 @@ MpInitLibInitialize (
   // Copy all 32-bit code and 64-bit code into memory with type of
   // EfiBootServicesCode to avoid page fault if NX memory protection is enabled.
   //
-  CpuMpData->WakeupBufferHigh = AllocateCodeBuffer (ApResetVectorSizeAbove1Mb);
+  CpuMpData->WakeupBufferHigh = AllocateCodePage (ApResetVectorSizeAbove1Mb);
+
+  Cr0.UintN = AsmReadCr0 ();
+  if (Cr0.Bits.PG != 0) {
+    RemoveNxProtection ((EFI_PHYSICAL_ADDRESS)(UINTN)CpuMpData->WakeupBufferHigh, ALIGN_VALUE (ApResetVectorSizeAbove1Mb, EFI_PAGE_SIZE));
+  }
+
   CopyMem (
     (VOID *)CpuMpData->WakeupBufferHigh,
     CpuMpData->AddressMap.RendezvousFunnelAddress +
@@ -2256,6 +2279,9 @@ MpInitLibInitialize (
     ApResetVectorSizeAbove1Mb
     );
   DEBUG ((DEBUG_INFO, "AP Vector: non-16-bit = %p/%x\n", CpuMpData->WakeupBufferHigh, ApResetVectorSizeAbove1Mb));
+  if (Cr0.Bits.PG != 0) {
+    ApplyRoProtection ((EFI_PHYSICAL_ADDRESS)(UINTN)CpuMpData->WakeupBufferHigh, ALIGN_VALUE (ApResetVectorSizeAbove1Mb, EFI_PAGE_SIZE));
+  }
 
   //
   // Save APIC mode for AP to sync
@@ -3484,7 +3510,7 @@ PrepareApLoopCode (
     // Make sure that the buffer memory is executable if NX protection is enabled
     // for EfiReservedMemoryType.
     //
-    RemoveNxprotection (Address, EFI_PAGES_TO_SIZE (FuncPages));
+    RemoveNxProtection (Address, EFI_PAGES_TO_SIZE (FuncPages));
   }
 
   mReservedTopOfApStack = (UINTN)Address + EFI_PAGES_TO_SIZE (StackPages+FuncPages);
@@ -3492,6 +3518,10 @@ PrepareApLoopCode (
   mReservedApLoop.Data = (VOID *)(UINTN)Address;
   ASSERT (mReservedApLoop.Data != NULL);
   CopyMem (mReservedApLoop.Data, ApLoopFunc, ApLoopFuncSize);
+  if (Cr0.Bits.PG != 0) {
+    ApplyRoProtection (Address, EFI_PAGES_TO_SIZE (FuncPages));
+  }
+
   if (!CpuMpData->UseSevEsAPMethod) {
     //
     // processors without SEV-ES and paging is enabled

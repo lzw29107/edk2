@@ -184,7 +184,8 @@ STATIC CONST CM_OBJ_PARSER  CmArmGenericWatchdogInfoParser[] = {
   { "Flags",               4, "0x%x",   NULL }
 };
 
-/** A parser for EArchCommonObjPciConfigSpaceInfo.
+/** A parser for EArchCommonObjPciConfigSpaceInfo or
+    EArchCommonObjMcfgPciConfigSpaceInfo.
 */
 STATIC CONST CM_OBJ_PARSER  CmArchCommonPciConfigSpaceInfoParser[] = {
   { "BaseAddress",           8,                        "0x%llx", NULL },
@@ -874,6 +875,13 @@ STATIC CONST CM_OBJ_PARSER  CmArchCommonMemoryCacheInfo[] = {
   { "CacheAttributes",       4,                        "0x%x",  NULL,},
 };
 
+/** A parser for EArchCommonObjSpcrInfo.
+*/
+STATIC CONST CM_OBJ_PARSER  CmArchCommonObjSpcrInfoParser[] = {
+  { "InterruptType", 1, "0x%x", NULL },
+  { "TerminalType",  1, "0x%x", NULL }
+};
+
 /** A parser for Arch Common namespace objects.
 */
 STATIC CONST CM_OBJ_PARSER_ARRAY  ArchCommonNamespaceObjectParser[] = {
@@ -922,6 +930,8 @@ STATIC CONST CM_OBJ_PARSER_ARRAY  ArchCommonNamespaceObjectParser[] = {
   CM_PARSER_ADD_OBJECT (EArchCommonObjMemoryProximityDomainAttrInfo,CmArchCommonMemoryProximityDomainAttrInfo),
   CM_PARSER_ADD_OBJECT (EArchCommonObjMemoryLatBwInfo,              CmArchCommonMemoryLatBwInfo),
   CM_PARSER_ADD_OBJECT (EArchCommonObjMemoryCacheInfo,              CmArchCommonMemoryCacheInfo),
+  CM_PARSER_ADD_OBJECT (EArchCommonObjSpcrInfo,                     CmArchCommonObjSpcrInfoParser),
+  CM_PARSER_ADD_OBJECT (EArchCommonObjMcfgPciConfigSpaceInfo,       CmArchCommonPciConfigSpaceInfoParser),
   CM_PARSER_ADD_OBJECT_RESERVED (EArchCommonObjMax)
 };
 

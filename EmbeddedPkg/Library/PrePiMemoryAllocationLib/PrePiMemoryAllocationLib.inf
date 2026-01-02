@@ -13,6 +13,11 @@
   VERSION_STRING                 = 1.0
   LIBRARY_CLASS                  = MemoryAllocationLib
 
+
+#
+#  VALID_ARCHITECTURES           = ARM
+#
+
 [Sources]
   MemoryAllocationLib.c
 

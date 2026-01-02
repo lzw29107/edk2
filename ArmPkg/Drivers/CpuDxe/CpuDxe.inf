@@ -25,6 +25,9 @@
   Exception.c
   MemoryAttribute.c
 
+[Sources.ARM]
+  Arm/Mmu.c
+
 [Sources.AARCH64]
   AArch64/Mmu.c
 

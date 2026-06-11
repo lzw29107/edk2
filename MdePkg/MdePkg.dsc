@@ -24,9 +24,6 @@
 
 !include MdePkg/MdeLibs.dsc.inc
 
-[PcdsFeatureFlag]
-  gEfiMdePkgTokenSpaceGuid.PcdUgaConsumeSupport|TRUE
-
 [PcdsFixedAtBuild]
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x0f
   gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x80000000
@@ -114,7 +111,6 @@
   MdePkg/Library/UefiDebugLibStdErr/UefiDebugLibStdErr.inf
   MdePkg/Library/UefiDevicePathLib/UefiDevicePathLib.inf
   MdePkg/Library/UefiDevicePathLib/UefiDevicePathLibBase.inf
-  MdePkg/Library/UefiDevicePathLib/UefiDevicePathLibStandaloneMm.inf
   MdePkg/Library/UefiDevicePathLib/UefiDevicePathLibOptionalDevicePathProtocol.inf
   MdePkg/Library/UefiDevicePathLibDevicePathProtocol/UefiDevicePathLibDevicePathProtocol.inf
   MdePkg/Library/UefiDriverEntryPoint/UefiDriverEntryPoint.inf
@@ -210,13 +206,16 @@
   MdePkg/Library/ArmSmcLib/ArmSmcLib.inf
   MdePkg/Library/ArmSmcLibNull/ArmSmcLibNull.inf
   MdePkg/Library/ArmSvcLib/ArmSvcLib.inf
+  MdePkg/Library/ArmFfaMemMgmtLib/ArmFfaMemMgmtLib.inf
 
 [Components.RISCV64]
   MdePkg/Library/BaseRiscVSbiLib/BaseRiscVSbiLib.inf
   MdePkg/Library/BaseSerialPortLibRiscVSbiLib/BaseSerialPortLibRiscVSbiLib.inf
   MdePkg/Library/BaseSerialPortLibRiscVSbiLib/BaseSerialPortLibRiscVSbiLibRam.inf
+  MdePkg/Library/PeiServicesTablePointerLibRiscV/PeiServicesTablePointerLib.inf
 
 [Components.LOONGARCH64]
   MdePkg/Library/PeiServicesTablePointerLibKs0/PeiServicesTablePointerLibKs0.inf
+  MdePkg/Library/CompilerIntrinsicsLib/CompilerIntrinsicsLib.inf
 
 [BuildOptions]

@@ -70,6 +70,9 @@ typedef enum ArchCommonObjectID {
   EArchCommonObjMemoryProximityDomainAttrInfo,  ///< 42 - Memory Proximity Domain Attribute
   EArchCommonObjMemoryLatBwInfo,                ///< 43 - Memory Latency Bandwidth Info
   EArchCommonObjMemoryCacheInfo,                ///< 44 - Memory Cache Info
+  EArchCommonObjSpcrInfo,                       ///< 45 - Serial Terminal and Interrupt Info
+  EArchCommonObjTpm2DeviceInfo,                 ///< 46 - TPM2 Device Info
+  EArchCommonObjMcfgPciConfigSpaceInfo,         ///< 47 - MCFG PCI Configuration Space Info
   EArchCommonObjMax
 } EARCH_COMMON_OBJECT_ID;
 
@@ -723,6 +726,18 @@ typedef struct CmArchCommonTpm2InterfaceInfo {
   UINT64    Lasa;
 } CM_ARCH_COMMON_TPM2_INTERFACE_INFO;
 
+/** A structure that describes TPM2 device.
+
+  ID: EArchCommonObjTpm2DeviceInfo
+*/
+typedef struct CmArchCommonTpm2DeviceInfo {
+  /** TPM2 Device's Base Address */
+  UINT64    Tpm2DeviceBaseAddress;
+
+  /** TPM2 Device' Size */
+  UINT64    Tpm2DeviceSize;
+} CM_ARCH_COMMON_TPM2_DEVICE_INFO;
+
 /** A structure that describes the
     SPMI (Service Processor Management Interface) Info.
 
@@ -1047,6 +1062,20 @@ typedef struct CmArchCommonMemoryCacheInfo {
   /// @todo Referencing Smbios tables is not possible for now,
   /// @todo but will be in a near future.
 } CM_ARCH_COMMON_MEMORY_CACHE_INFO;
+
+/** A structure that describes the Serial Terminal and Interrupt Information.
+
+  This structure provides details about the interrupt type and terminal type
+  associated with a console device, used for the SPCR Table.
+
+  ID: EArchCommonObjSpcrInfo
+*/
+typedef struct CmArchCommonObjSpcrInfo {
+  /// Specifies the type of interrupt used by the console device.
+  UINT8    InterruptType;
+  /// Specifies the terminal type used by the console device.
+  UINT8    TerminalType;
+} CM_ARCH_COMMON_SPCR_INFO;
 
 #pragma pack()
 

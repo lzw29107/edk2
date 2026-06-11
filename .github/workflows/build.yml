@@ -64,6 +64,7 @@ jobs:
         compression-level: 9
 
     - name: 'Upload logs'
+      if: ${{ failure() }}
       uses: actions/upload-artifact@main
       with:
         name: ${{ format('{0} {1} {2} (Ubuntu {3} Build) logs', matrix.platform, matrix.arch, matrix.target, matrix.system) }}

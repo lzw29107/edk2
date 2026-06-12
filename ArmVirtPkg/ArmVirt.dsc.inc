@@ -407,6 +407,7 @@
 
 !include OvmfPkg/Include/Dsc/ShellComponents.dsc.inc
 
+[Components.AARCH64]
   #
   # ACPI Support
   #

@@ -27,6 +27,9 @@
 [Sources.IA32, Sources.X64]
   X64/X64SratGenerator.c
 
+[Sources.RISCV64]
+  RiscV/RiscVSratGenerator.c
+
 [Packages]
   EmbeddedPkg/EmbeddedPkg.dec
   DynamicTablesPkg/DynamicTablesPkg.dec

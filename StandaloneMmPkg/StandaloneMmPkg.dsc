@@ -45,7 +45,6 @@
   DebugLib|MdePkg/Library/BaseDebugLibNull/BaseDebugLibNull.inf
   DebugPrintErrorLevelLib|MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf
   ExtractGuidedSectionLib|StandaloneMmPkg/Library/StandaloneMmExtractGuidedSectionLib/StandaloneMmExtractGuidedSectionLib.inf
-  FvLib|StandaloneMmPkg/Library/FvLib/FvLib.inf
   HobLib|StandaloneMmPkg/Library/StandaloneMmHobLib/StandaloneMmHobLib.inf
   IoLib|MdePkg/Library/BaseIoLibIntrinsic/BaseIoLibIntrinsic.inf
   MemLib|StandaloneMmPkg/Library/StandaloneMmMemLib/StandaloneMmMemLib.inf
@@ -139,7 +138,6 @@
   # MM Core
   #
   StandaloneMmPkg/Core/StandaloneMmCore.inf
-  StandaloneMmPkg/Library/FvLib/FvLib.inf
   StandaloneMmPkg/Library/StandaloneMmCoreHobLib/StandaloneMmCoreHobLib.inf
   StandaloneMmPkg/Library/StandaloneMmCoreMemoryAllocationLib/StandaloneMmCoreMemoryAllocationLib.inf
   StandaloneMmPkg/Library/StandaloneMmHobLib/StandaloneMmHobLib.inf
@@ -178,3 +176,4 @@ GCC:*_*_*_CC_FLAGS = -fno-stack-protector
 [BuildOptions.X64]
   MSFT:*_*_*_DLINK_FLAGS = /ALIGN:4096
   GCC:*_GCC*_*_DLINK_FLAGS = -z common-page-size=0x1000
+  CLANGPDB: *_*_*_DLINK_FLAGS = /ALIGN:4096

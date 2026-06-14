@@ -88,6 +88,7 @@
 [BuildOptions.common.EDKII.DXE_RUNTIME_DRIVER]
   GCC:  *_*_*_DLINK_FLAGS = -z common-page-size=0x1000
   MSFT: *_*_*_DLINK_FLAGS = /ALIGN:4096
+  CLANGPDB: *_*_*_DLINK_FLAGS = /ALIGN:4096
 
 ################################################################################
 #
@@ -321,7 +322,6 @@
       NULL|MdeModulePkg/Library/LzmaCustomDecompressLib/LzmaCustomDecompressLib.inf
   }
 !if $(TPM2_ENABLE) == TRUE
-  OvmfPkg/Tcg/Tcg2Config/Tcg2ConfigPei.inf
   SecurityPkg/Tcg/Tcg2Pei/Tcg2Pei.inf {
     <LibraryClasses>
       Tpm2DeviceLib|SecurityPkg/Library/Tpm2DeviceLibRouter/Tpm2DeviceLibRouterPei.inf
@@ -337,6 +337,9 @@
     <LibraryClasses>
       TpmPlatformHierarchyLib|SecurityPkg/Library/PeiDxeTpmPlatformHierarchyLib/PeiDxeTpmPlatformHierarchyLib.inf
   }
+!if $(TPM2_CONFIG_ENABLE) == TRUE
+  OvmfPkg/Tcg/Tcg2Config/Tcg2ConfigPei.inf
+!endif
 !endif
 !else
   UefiCpuPkg/SecCore/SecCoreNative.inf {

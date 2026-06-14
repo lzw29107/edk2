@@ -3165,7 +3165,7 @@ ConSplitterTextOutDeleteDevice (
     return EFI_NOT_FOUND;
   }
 
-  if ((Private->CurrentNumberOfGraphicsOutput == 0)) {
+  if (Private->CurrentNumberOfGraphicsOutput == 0) {
     //
     // If there is not any physical GOP in system,
     // Consplitter GOP protocol will be uninstalled
@@ -3308,6 +3308,7 @@ ConSplitterTextInExDequeueKey (
     &Private->KeyQueue[1],
     Private->CurrentNumberOfKeys * sizeof (EFI_KEY_DATA)
     );
+  ZeroMem (&Private->KeyQueue[Private->CurrentNumberOfKeys], sizeof (EFI_KEY_DATA));
   return EFI_SUCCESS;
 }
 

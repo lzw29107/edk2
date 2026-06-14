@@ -162,7 +162,10 @@ PeCoffEmuProtocolNotify (
     }
 
     Entry = AllocateZeroPool (sizeof (*Entry));
-    ASSERT (Entry != NULL);
+    if (Entry == NULL) {
+      ASSERT (Entry != NULL);
+      break;
+    }
 
     Entry->Emulator    = Emulator;
     Entry->MachineType = Entry->Emulator->MachineType;
@@ -201,7 +204,9 @@ CoreInitializeImageServices (
       //
       // Find Dxe Core HOB
       //
-      break;
+      if (CompareGuid (&DxeCoreHob.MemoryAllocationModule->ModuleName, &gEfiCallerIdGuid)) {
+        break;
+      }
     }
 
     DxeCoreHob.Raw = GET_NEXT_HOB (DxeCoreHob);
@@ -628,7 +633,6 @@ CoreLoadPeImage (
       Image->ImageContext.ImageDataMemoryType = EfiBootServicesData;
       break;
     case EFI_IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER:
-    case EFI_IMAGE_SUBSYSTEM_SAL_RUNTIME_DRIVER:
       Image->ImageContext.ImageCodeMemoryType = EfiRuntimeServicesCode;
       Image->ImageContext.ImageDataMemoryType = EfiRuntimeServicesData;
       break;
@@ -739,7 +743,7 @@ CoreLoadPeImage (
   if (!Image->ImageContext.IsTeImage) {
     Image->ImageContext.ImageAddress =
       (Image->ImageContext.ImageAddress + Image->ImageContext.SectionAlignment - 1) &
-      ~((UINTN)Image->ImageContext.SectionAlignment - 1);
+      ~((EFI_PHYSICAL_ADDRESS)Image->ImageContext.SectionAlignment - 1);
   }
 
   //
@@ -1255,6 +1259,11 @@ CoreLoadImageCommon (
         // LoadFile () may cause the device path of the Handle be updated.
         //
         OriginalFilePath = AppendDevicePath (DevicePathFromHandle (DeviceHandle), Node);
+        if (OriginalFilePath == NULL) {
+          Image  = NULL;
+          Status = EFI_OUT_OF_RESOURCES;
+          goto Done;
+        }
       }
     }
   }

@@ -10,6 +10,7 @@
 # Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
 # Copyright (c) Microsoft Corporation.<BR>
 # Copyright (C) 2024 Advanced Micro Devices, Inc. All rights reserved.<BR>
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries. All rights reserved.<BR>
 # SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 ##
@@ -1696,6 +1697,14 @@
   # @Prompt Enable Capsule On Disk support.
   gEfiMdeModulePkgTokenSpaceGuid.PcdCapsuleOnDiskSupport|FALSE|BOOLEAN|0x0000002d
 
+  ## Indicates whether the platform supports processing Capsules that include EmbeddedDrivers.
+  #  Default value is FALSE, meaning embedded drivers are not supported.
+  #  Platforms that require embedded driver support must explicitly opt-in by setting this PCD to TRUE.
+  #   TRUE  - Capsule with EmbeddedDriver is supported.<BR>
+  #   FALSE - Capsule with EmbeddedDriver is not supported.<BR>
+  # @Prompt Enable Capsule with EmbeddedDriver support.
+  gEfiMdeModulePkgTokenSpaceGuid.PcdCapsuleEmbeddedDriverSupport|FALSE|BOOLEAN|0x00010021
+
   ## Maximum permitted encapsulation levels of sections in a firmware volume,
   #  in the DXE phase. Minimum value is 1. Sections nested more deeply are
   #  rejected.
@@ -1738,6 +1747,11 @@
   ## Delayed Dispatch Max Entries
   # @Prompt Maximum number of delayed dispatch entries. Default value is 8.
   gEfiMdeModulePkgTokenSpaceGuid.PcdDelayedDispatchMaxEntries|8|UINT32|0x00000037
+
+  ## Indicate the default timeout value for SATA device to be ready for operations in seconds.
+  #
+  # @Prompt SATA device ready for operations timoeout (s), default value is 16s.
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSataDeviceReadyTimeout|16|UINT8|0x00000038
 
 [PcdsPatchableInModule, PcdsDynamic, PcdsDynamicEx]
   ## This PCD defines the Console output row. The default value is 25 according to UEFI spec.

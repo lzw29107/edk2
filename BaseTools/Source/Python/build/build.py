@@ -5,6 +5,7 @@
 #  Copyright (c) 2007 - 2021, Intel Corporation. All rights reserved.<BR>
 #  Copyright (c) 2018, Hewlett Packard Enterprise Development, L.P.<BR>
 #  Copyright (c) 2020 - 2021, ARM Limited. All rights reserved.<BR>
+#  Copyright (c) 2025 Qualcomm Technologies, Inc. All rights reserved.<BR>
 #
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
@@ -23,6 +24,7 @@ import time
 import platform
 import traceback
 import multiprocessing
+import errno
 from threading import Thread,Event,BoundedSemaphore
 import threading
 from linecache import getlines
@@ -71,6 +73,25 @@ gSupportedTarget = ['all', 'genc', 'genmake', 'modules', 'libraries', 'fds', 'cl
 TemporaryTablePattern = re.compile(r'^_\d+_\d+_[a-fA-F0-9]+$')
 TmpTableDict = {}
 
+## Set build time
+#
+# Check if SOURCE_DATE_EPOCH is set in environment, or set it to current timestamp.
+# Return the resulting value.
+#
+# @retval float         The time in seconds since the epoch as a floating-point number.
+#
+def GetBuildEpoch():
+    # Set SOURCE_DATE_EPOCH to the current time if not already set by environment
+    if "SOURCE_DATE_EPOCH" not in os.environ:
+        BuildEpoch = time.time()
+        BuildEpochString = str(int(BuildEpoch))
+        EdkLogger.quiet("SOURCE_DATE_EPOCH not set - using %s" % (BuildEpochString))
+        os.environ["SOURCE_DATE_EPOCH"] = BuildEpochString
+    else:
+        BuildEpoch = float(os.environ["SOURCE_DATE_EPOCH"])
+
+    return BuildEpoch
+
 ## Check environment variables
 #
 #  Check environment variables that must be set for build. Currently they are
@@ -82,7 +103,7 @@ TmpTableDict = {}
 #   If any of above environment variable is not set or has error, the build
 #   will be broken.
 #
-def CheckEnvVariable():
+def CheckEnvVariables():
     # check WORKSPACE
     if "WORKSPACE" not in os.environ:
         EdkLogger.error("build", ATTRIBUTE_NOT_AVAILABLE, "Environment variable not found",
@@ -817,13 +838,22 @@ class Build():
         try:
             if SkipAutoGen:
                 return True,0
+            if sys.platform == "win32":
+                SafeThreadNumber = self.ThreadNumber
+            else:
+                import resource
+                soft = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
+                SafeThreadNumber = min(self.ThreadNumber, soft // 3)
+                if SafeThreadNumber < self.ThreadNumber:
+                    EdkLogger.verbose("AutoGen workers limited to %d to avoid file descriptor exhaustion" % SafeThreadNumber)
             feedback_q = mp.Queue()
             error_event = mp.Event()
             FfsCmd = DataPipe.Get("FfsCommand")
             if FfsCmd is None:
                 FfsCmd = {}
             GlobalData.FfsCmd = FfsCmd
-            auto_workers = [AutoGenWorkerInProcess(mqueue,DataPipe.dump_file,feedback_q,GlobalData.file_lock,cqueue,self.log_q,error_event) for _ in range(self.ThreadNumber)]
+
+            auto_workers = [AutoGenWorkerInProcess(mqueue,DataPipe.dump_file,feedback_q,GlobalData.file_lock,cqueue,self.log_q,error_event) for _ in range(SafeThreadNumber)]
             self.AutoGenMgr = AutoGenManager(auto_workers,feedback_q,error_event)
             self.AutoGenMgr.start()
             for w in auto_workers:
@@ -851,6 +881,10 @@ class Build():
             if not rt:
                 err = UNKNOWN_ERROR
             return rt, err
+        except OSError as e:
+            if e.errno == errno.EMFILE:
+                EdkLogger.warn("build", RESOURCE_OVERFLOW, ExtraData="Reached file descriptor limit!\n")
+            raise
         except FatalError as e:
             return False, e.args[0]
         except:
@@ -1625,7 +1659,7 @@ class Build():
                     elif Module.ModuleType in [EDK_COMPONENT_TYPE_BS_DRIVER, SUP_MODULE_DXE_DRIVER, SUP_MODULE_UEFI_DRIVER]:
                         BtModuleList[Module.MetaFile] = ImageInfo
                         BtSize += ImageInfo.Image.Size
-                    elif Module.ModuleType in [SUP_MODULE_DXE_RUNTIME_DRIVER, EDK_COMPONENT_TYPE_RT_DRIVER, SUP_MODULE_DXE_SAL_DRIVER, EDK_COMPONENT_TYPE_SAL_RT_DRIVER]:
+                    elif Module.ModuleType in [SUP_MODULE_DXE_RUNTIME_DRIVER, EDK_COMPONENT_TYPE_RT_DRIVER]:
                         RtModuleList[Module.MetaFile] = ImageInfo
                         RtSize += ImageInfo.Image.Size
                     elif Module.ModuleType in [SUP_MODULE_SMM_CORE, SUP_MODULE_DXE_SMM_DRIVER, SUP_MODULE_MM_STANDALONE, SUP_MODULE_MM_CORE_STANDALONE]:
@@ -2597,7 +2631,8 @@ def Main():
         GlobalData.gIsWindows = False
 
     EdkLogger.quiet("Build environment: %s" % platform.platform())
-    EdkLogger.quiet(time.strftime("Build start time: %H:%M:%S, %b.%d %Y\n", time.localtime()));
+    BuildStartTime = GetBuildEpoch()
+    EdkLogger.quiet(time.strftime("Build start time: %H:%M:%S, %b.%d %Y\n", time.localtime(BuildStartTime)));
     ReturnCode = 0
     MyBuild = None
     BuildError = True
@@ -2615,9 +2650,9 @@ def Main():
                             ExtraData="Please select one of: %s" % (' '.join(gSupportedTarget)))
 
         #
-        # Check environment variable: EDK_TOOLS_PATH, WORKSPACE, PATH
+        # Check environment variables: EDK_TOOLS_PATH, WORKSPACE, PATH, etc...
         #
-        CheckEnvVariable()
+        CheckEnvVariables()
         GlobalData.gCommandLineDefines.update(ParseDefines(Option.Macros))
 
         Workspace = os.getenv("WORKSPACE")
@@ -2672,6 +2707,8 @@ def Main():
         # All job done, no error found and no exception raised
         #
         BuildError = False
+    except OSError as X:
+        ReturnCode = RESOURCE_UNKNOWN_ERROR
     except FatalError as X:
         if MyBuild is not None:
             # for multi-thread build exits safely

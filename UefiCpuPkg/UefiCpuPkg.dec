@@ -2,7 +2,7 @@
 # This Package provides UEFI compatible CPU modules and libraries.
 #
 # Copyright (c) 2007 - 2024, Intel Corporation. All rights reserved.<BR>
-# Copyright (C) 2023 - 2024, Advanced Micro Devices, Inc. All rights reserved.<BR>
+# Copyright (C) 2023 - 2025, Advanced Micro Devices, Inc. All rights reserved.<BR>
 # Copyright (c) 2024, Loongson Technology Corporation Limited. All rights reserved.<BR>
 #
 # SPDX-License-Identifier: BSD-2-Clause-Patent
@@ -78,6 +78,9 @@
 
   ## @libraryclass   Provides functions for SMM Relocation Operation.
   SmmRelocationLib|Include/Library/SmmRelocationLib.h
+
+## @libraryclass   Provides functions for AmdSysCallLib
+  AmdSysCallLib|Include/Library/AmdSysCallLib.h
 
 [LibraryClasses.RISCV64]
   ##  @libraryclass  Provides functions to manage MMU features on RISCV64 CPUs.
@@ -432,7 +435,7 @@
   ## This PCD indicates whether CPU processor trace is enabled on BSP only when CPU processor trace is enabled.<BR><BR>
   #  This PCD is ignored if CPU processor trace is disabled.<BR><BR>
   #  TRUE  - CPU processor trace is enabled on BSP only.<BR>
-  #  FASLE - CPU processor trace is enabled on all CPU.<BR>
+  #  FALSE - CPU processor trace is enabled on all CPU.<BR>
   # @Prompt Enable CPU processor trace only on BSP.
   gUefiCpuPkgTokenSpaceGuid.PcdCpuProcTraceBspOnly|FALSE|BOOLEAN|0x60000019
 
@@ -440,7 +443,7 @@
   #  CYC/TSC timing packets will be generated to collect performance data if this PCD is TRUE.
   #  This PCD is ignored if CPU processor trace is disabled.<BR><BR>
   #  TRUE  - Performance collecting will be enabled in processor trace.<BR>
-  #  FASLE - Performance collecting will be disabled in processor trace.<BR>
+  #  FALSE - Performance collecting will be disabled in processor trace.<BR>
   # @Prompt Enable performance collecting when processor trace is enabled.
   gUefiCpuPkgTokenSpaceGuid.PcdCpuProcTracePerformanceCollecting|FALSE|BOOLEAN|0x60000020
 

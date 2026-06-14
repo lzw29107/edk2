@@ -27,6 +27,9 @@
 [Sources.AARCH64]
   SmbiosProcessorAArch64.c
 
+[Sources.ARM]
+  SmbiosProcessorArm.c
+
 [Packages]
   ArmPkg/ArmPkg.dec
   MdeModulePkg/MdeModulePkg.dec

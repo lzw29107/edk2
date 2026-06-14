@@ -23,6 +23,10 @@
   CONSTRUCTOR                    = DxeRuntimeDebugLibSerialPortConstructor
   DESTRUCTOR                     = DxeRuntimeDebugLibSerialPortDestructor
 
+#
+#  VALID_ARCHITECTURES           = AARCH64 ARM IA32 X64 EBC
+#
+
 [Sources]
   DebugLib.c
 

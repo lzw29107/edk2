@@ -24,7 +24,7 @@
   TestBaseSafeIntLib.c
   TestBaseSafeIntLib.h
 
-[Sources.Ia32]
+[Sources.Ia32, Sources.ARM]
   SafeIntLibUintnIntnUnitTests32.c
 
 [Sources.X64, Sources.AARCH64]

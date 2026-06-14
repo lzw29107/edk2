@@ -37,7 +37,7 @@
   UefiLib|MdePkg/Library/UefiLib/UefiLib.inf
   UefiRuntimeServicesTableLib|MdePkg/Library/UefiRuntimeServicesTableLib/UefiRuntimeServicesTableLib.inf
 
-[LibraryClasses.AARCH64]
+[LibraryClasses.ARM, LibraryClasses.AARCH64]
   PL011UartLib|ArmPlatformPkg/Library/PL011UartLib/PL011UartLib.inf
 
 [Components.common]
@@ -53,7 +53,7 @@
   DynamicTablesPkg/Library/Common/MetadataHandlerLib/MetadataHandlerLib.inf
   DynamicTablesPkg/Library/Common/Tpm2DeviceTableLib/Tpm2DeviceTableLib.inf
 
-[Components.AARCH64]
+[Components.ARM, Components.AARCH64]
   DynamicTablesPkg/Library/FdtHwInfoParserLib/FdtHwInfoParserLib.inf
 
 [Components.AARCH64]

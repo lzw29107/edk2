@@ -95,6 +95,9 @@
   PlatformFlashAccessLib|SignedCapsulePkg/Library/PlatformFlashAccessLibNull/PlatformFlashAccessLibNull.inf
   RngLib|MdePkg/Library/BaseRngLib/BaseRngLib.inf
 
+[LibraryClasses.ARM]
+  RngLib|MdeModulePkg/Library/BaseRngLibTimerLib/BaseRngLibTimerLib.inf
+
 [LibraryClasses.RISCV64]
   RngLib|MdeModulePkg/Library/BaseRngLibTimerLib/BaseRngLibTimerLib.inf
 

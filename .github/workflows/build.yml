@@ -43,16 +43,16 @@ jobs:
 
     - name: 'Build ${{ matrix.arch }}'
       env:
-        GCC5_ARM_PREFIX: '/usr/bin/arm-linux-gnueabihf-'
-        GCC5_AARCH64_PREFIX: '/usr/bin/aarch64-linux-gnu-'
+        GCC_ARM_PREFIX: '/usr/bin/arm-linux-gnueabihf-'
+        GCC_AARCH64_PREFIX: '/usr/bin/aarch64-linux-gnu-'
         flags: ${{ format('BLD_*_SECURE_BOOT_ENABLE=1 BLD_*_TPM2_ENABLE=1 BLD_*_NETWORK_IP6_ENABLE=1 BLD_*_NETWORK_HTTP_BOOT_ENABLE=1 {0}', matrix.arch != 'ARM' && 'BLD_*_NETWORK_TLS_ENABLE=1' || '')}}
-        fd_path:  ${{ format('{0}/Build/{1}-{2}/{3}_GCC5/FV/QEMU_EFI.fd', github.workspace, matrix.platform, matrix.arch, matrix.target) }}
+        fd_path:  ${{ format('{0}/Build/{1}-{2}/{3}_GCC/FV/QEMU_EFI.fd', github.workspace, matrix.platform, matrix.arch, matrix.target) }}
       run: |
         pip install --upgrade -r pip-requirements.txt
-        python BaseTools/Edk2ToolsBuild.py -t GCC5
-        stuart_setup -c ArmVirtPkg/PlatformCI/QemuBuild.py -a ${{ matrix.arch }} -t ${{ matrix.target }} TOOL_CHAIN_TAG=GCC5 ${{ env.flags }}
-        stuart_update -c ArmVirtPkg/PlatformCI/QemuBuild.py -a ${{ matrix.arch }} -t ${{ matrix.target }} TOOL_CHAIN_TAG=GCC5 ${{ env.flags }}
-        stuart_build -c ArmVirtPkg/PlatformCI/QemuBuild.py -a ${{ matrix.arch }} Target=${{ matrix.target }}  TOOL_CHAIN_TAG=GCC5 ${{ env.flags }}
+        python BaseTools/Edk2ToolsBuild.py -t GCC
+        stuart_setup -c ArmVirtPkg/PlatformCI/QemuBuild.py -a ${{ matrix.arch }} -t ${{ matrix.target }} TOOL_CHAIN_TAG=GCC ${{ env.flags }}
+        stuart_update -c ArmVirtPkg/PlatformCI/QemuBuild.py -a ${{ matrix.arch }} -t ${{ matrix.target }} TOOL_CHAIN_TAG=GCC ${{ env.flags }}
+        stuart_build -c ArmVirtPkg/PlatformCI/QemuBuild.py -a ${{ matrix.arch }} Target=${{ matrix.target }}  TOOL_CHAIN_TAG=GCC ${{ env.flags }}
         echo "version=$(date +%Y%m%d)-$(git rev-parse --short HEAD)" > $GITHUB_ENV
         mv $fd_path $artifact_fd_path
 

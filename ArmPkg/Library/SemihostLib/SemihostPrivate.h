@@ -7,8 +7,7 @@
 
 **/
 
-#ifndef SEMIHOST_PRIVATE_H_
-#define SEMIHOST_PRIVATE_H_
+#pragma once
 
 typedef struct {
   CHAR8    *FileName;
@@ -208,5 +207,3 @@ GccSemihostCall (
 #define SEMIHOST_SYS_SYSTEM(SystemBlock)    (-1)
 
 #endif // __CC_ARM
-
-#endif // SEMIHOST_PRIVATE_H_

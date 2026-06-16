@@ -16,8 +16,7 @@
 
 **/
 
-#ifndef ARM_FFA_SVC_H_
-#define ARM_FFA_SVC_H_
+#pragma once
 
 #define ARM_FID_FFA_ERROR            0x84000060
 #define ARM_FID_FFA_SUCCESS_AARCH32  0x84000061
@@ -205,13 +204,13 @@
      ARM_FFA_SET_MEM_ATTR_DATA_PERM_SHIFT))
 
 /*
- * macro used in FFA_MSG_DIRECT_REQ/REQ2
- * See FF-A spec Chapther 15.2 FFA_MSG_SEND_DIRECT_REQ and
- * 15.4 FFA_MSG_SEND_DIRECT_REQ2
+ * macro used for partition information
+ * See FF-A spec Chapter 6.1 Partition identification
  */
-#define ARM_FFA_SOURCE_EP_SHIFT    16
-#define ARM_FFA_DEST_EP_SHIFT      0
-#define ARM_FFA_PARTITION_ID_MASK  0xffff
+#define ARM_FFA_SOURCE_EP_SHIFT          16
+#define ARM_FFA_DEST_EP_SHIFT            0
+#define ARM_FFA_PARTITION_ID_MASK        0xffff
+#define ARM_FFA_PARTITION_ID_TYPE_SHIFT  15
 
 #define GET_SOURCE_PARTITION_ID(PackedId) \
   ((PackedId >> ARM_FFA_SOURCE_EP_SHIFT) & ARM_FFA_PARTITION_ID_MASK)
@@ -222,6 +221,9 @@
 #define PACK_PARTITION_ID_INFO(SourceId, DestId)                          \
   (((SourceId & ARM_FFA_PARTITION_ID_MASK) << ARM_FFA_SOURCE_EP_SHIFT) |  \
    ((DestId & ARM_FFA_PARTITION_ID_MASK) << ARM_FFA_DEST_EP_SHIFT))
+
+#define ARM_FFA_IS_SECURE_PARTITION_ID(PartId) \
+  (((PartId) & (1 << ARM_FFA_PARTITION_ID_TYPE_SHIFT)) != 0)
 
 #define IS_FID_FFA_ERROR(fid) \
   (fid == ARM_FID_FFA_ERROR)
@@ -260,5 +262,3 @@
 
 /** Query notifications features. */
 #define ARM_FFA_FEATURE_NOTIFICATIONS  0x4U
-
-#endif // ARM_FFA_SVC_H_

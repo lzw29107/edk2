@@ -10,8 +10,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
-#ifndef __UEFI_BASETYPE_H__
-#define __UEFI_BASETYPE_H__
+#pragma once
 
 #include <Base.h>
 
@@ -320,6 +319,4 @@ typedef union {
   #else
 #define EFI_IMAGE_MACHINE_CROSS_TYPE_SUPPORTED(Machine)  (FALSE)
   #endif
-#endif
-
 #endif

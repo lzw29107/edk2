@@ -7,8 +7,7 @@
 
 **/
 
-#ifndef __BASE_PE_COFF_LIB_H__
-#define __BASE_PE_COFF_LIB_H__
+#pragma once
 
 //
 // Return status codes from the PE/COFF Loader services
@@ -207,7 +206,3 @@ ThumbMovwMovtImmediatePatch (
   IN OUT UINT16 *Instructions,
   IN     UINT32 Address
   );
-
-
-
-#endif

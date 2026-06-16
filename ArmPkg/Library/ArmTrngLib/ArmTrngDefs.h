@@ -15,8 +15,7 @@
     - FID  - Function ID
 **/
 
-#ifndef ARM_FW_TRNG_DEFS_H_
-#define ARM_FW_TRNG_DEFS_H_
+#pragma once
 
 #include <IndustryStandard/ArmStdSmc.h>
 
@@ -46,5 +45,3 @@
 #else
   #error "Firmware TRNG not supported. Unknown chipset."
 #endif
-
-#endif // ARM_FW_TRNG_DEFS_H_

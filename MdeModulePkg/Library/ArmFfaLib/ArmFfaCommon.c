@@ -23,6 +23,7 @@
 #include <Library/DebugLib.h>
 #include <Library/HobLib.h>
 #include <Library/PcdLib.h>
+#include <Library/SafeIntLib.h>
 
 #include <IndustryStandard/ArmFfaSvc.h>
 #include <IndustryStandard/ArmFfaPartInfo.h>
@@ -65,6 +66,8 @@ EfiStatusToFfaStatus (
       return ARM_FFA_RET_NODATA;
     case EFI_NOT_READY:
       return ARM_FFA_RET_NOT_READY;
+    case EFI_TIMEOUT:
+      return ARM_FFA_RET_RETRY;
     default:
       return ARM_FFA_RET_NOT_SUPPORTED;
   }
@@ -103,6 +106,8 @@ FfaStatusToEfiStatus (
       return EFI_NOT_FOUND;
     case ARM_FFA_RET_NOT_READY:
       return EFI_NOT_READY;
+    case ARM_FFA_RET_RETRY:
+      return EFI_TIMEOUT;
     default:
       return EFI_UNSUPPORTED;
   }
@@ -509,6 +514,46 @@ ErrorHandler:
   }
 
   return Status;
+}
+
+/**
+  Invoked by an endpoint to yield control back to the component
+  that called it. This prevents long running transactions from
+  being caught up in the secure world. Endpoint will need to be
+  invoked with FFA_RUN after the specified timeout.
+
+  @param [in]   TimeoutUs    The timeout indicating the time in which
+                             the endpoint is required to be run in
+                             microseconds.
+
+  @return EFI_SUCCESS
+  @return Other              Error
+
+**/
+EFI_STATUS
+EFIAPI
+ArmFfaLibYield (
+  IN  UINT64  TimeoutUs
+  )
+{
+  ARM_FFA_ARGS   FfaArgs;
+  UINT64         TimeoutNs;
+  RETURN_STATUS  ReturnStatus;
+
+  ZeroMem (&FfaArgs, sizeof (ARM_FFA_ARGS));
+
+  ReturnStatus = SafeUint64Mult (TimeoutUs, 1000, &TimeoutNs);
+  if (ReturnStatus != RETURN_SUCCESS) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  FfaArgs.Arg0 = ARM_FID_FFA_YIELD;
+  FfaArgs.Arg2 = (UINT32)TimeoutNs;
+  FfaArgs.Arg3 = (UINT32)(TimeoutNs >> 32);
+
+  ArmCallFfa (&FfaArgs);
+
+  return FfaArgsToEfiStatus (&FfaArgs);
 }
 
 /**

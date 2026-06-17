@@ -49,7 +49,6 @@
 [LibraryClasses.IA32, LibraryClasses.X64]
   CpuLib
   BaseLib
-  HobLib
   DebugLib
 
 [Guids.IA32, Guids.X64]

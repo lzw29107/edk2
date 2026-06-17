@@ -50,7 +50,6 @@
   IoLib
   PcdLib
   TimerLib
-  UefiLib
 
 [Protocols]
   gHardwareInterruptProtocolGuid  ## PRODUCES

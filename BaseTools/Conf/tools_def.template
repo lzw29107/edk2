@@ -1018,10 +1018,13 @@ DEFINE GCC_ARM_CC_COMMON           = DEF(GCC_ALL_CC_COMMON) -mlittle-endian -mab
 DEFINE GCC_ARM_CC_XIPCOMMON        = -mno-unaligned-access
 DEFINE GCC_AARCH64_CC_COMMON           = DEF(GCC_ALL_CC_COMMON) -mlittle-endian -fno-short-enums -fverbose-asm -funsigned-char  -ffunction-sections -fdata-sections -Wno-address -fno-asynchronous-unwind-tables -fno-unwind-tables -fno-pic -fno-pie -ffixed-x18 -mstack-protector-guard=global
 DEFINE GCC_AARCH64_CC_XIPCOMMON        = -mstrict-align -mgeneral-regs-only
+DEFINE GCC_RISCV64_CC_XIPFLAGS         = -mstrict-align -mgeneral-regs-only
 DEFINE GCC_DLINK2_FLAGS_COMMON         = -Wl,--script=$(EDK_TOOLS_PATH)/Scripts/GccBase.lds
 DEFINE GCC_ARM_AARCH64_DLINK_COMMON        = -Wl,--emit-relocs -nostdlib -Wl,--gc-sections -u $(IMAGE_ENTRY_POINT) -Wl,-e,$(IMAGE_ENTRY_POINT),-Map,$(DEST_DIR_DEBUG)/$(BASE_NAME).map -z common-page-size=0x20
 DEFINE GCC_ARM_ASLDLINK_COMMON     = DEF(GCC_ARM_AARCH64_DLINK_COMMON) -Wl,--entry,ReferenceAcpiTable -u $(IMAGE_ENTRY_POINT) -Wl,--defsym=PECOFF_HEADER_SIZE=0 DEF(GCC_DLINK2_FLAGS_COMMON) -z common-page-size=0x20
+DEFINE GCC_LOONGARCH64_DLINK_COMMON    = -Wl,--emit-relocs -nostdlib -Wl,--gc-sections -u $(IMAGE_ENTRY_POINT) -Wl,-e,$(IMAGE_ENTRY_POINT),-Map,$(DEST_DIR_DEBUG)/$(BASE_NAME).map -z common-page-size=0x20
 DEFINE GCC_AARCH64_ASLDLINK_COMMON     = DEF(GCC_ARM_AARCH64_DLINK_COMMON) -Wl,--entry,ReferenceAcpiTable -u $(IMAGE_ENTRY_POINT) -Wl,--defsym=PECOFF_HEADER_SIZE=0 DEF(GCC_DLINK2_FLAGS_COMMON) -z common-page-size=0x20
+DEFINE GCC_LOONGARCH64_ASLDLINK_COMMON = DEF(GCC_LOONGARCH64_DLINK_COMMON) -Wl,--entry,ReferenceAcpiTable -u $(IMAGE_ENTRY_POINT)
 DEFINE GCC_ASM_COMMON                  = -c -x assembler
 DEFINE GCC_PP_FLAGS                    = -E -x assembler-with-cpp -include AutoGen.h
 DEFINE GCC_VFRPP_FLAGS                 = -x c -E -DVFRCOMPILE --include $(MODULE_NAME)StrDefs.h
@@ -1029,9 +1032,13 @@ DEFINE GCC_ASLPP_FLAGS                 = -x c -E -include AutoGen.h
 DEFINE GCC_ASLCC_COMMON                = -x c -include AutoGen.h -fshort-wchar
 DEFINE GCC_WINDRES_FLAGS               = -J rc -O coff
 DEFINE GCC_DTCPP_FLAGS                 = -E -x assembler-with-cpp -imacros AutoGen.h -nostdinc -undef
+DEFINE GCC_IA32_RC_FLAGS               = -I binary -O elf32-i386          -B i386        --rename-section .data=.hii
+DEFINE GCC_X64_RC_FLAGS                = -I binary -O elf64-x86-64        -B i386        --rename-section .data=.hii
 DEFINE GCC_ARM_RC_FLAGS            = -I binary -O elf32-littlearm     -B arm         --rename-section .data=.hii
 DEFINE GCC_AARCH64_RC_FLAGS            = -I binary -O elf64-littleaarch64 -B aarch64     --rename-section .data=.hii
 DEFINE GCC_AARCH64_RC_BTI_FLAGS        = --add-section .note.gnu.property=$(WORKSPACE)/BaseTools/Bin/GnuNoteBti.bin --set-section-flags .note.gnu.property=alloc,readonly
+DEFINE GCC_RISCV64_RC_FLAGS            = -I binary -O elf64-littleriscv   -B riscv       --rename-section .data=.hii
+DEFINE GCC_LOONGARCH64_RC_FLAGS        = -I binary -O elf64-loongarch     -B loongarch64 --rename-section .data=.hii
 
 # GCC Build Flag for included header file list generation
 DEFINE GCC_DEPS_FLAGS              = -MMD -MF $@.deps
@@ -1050,7 +1057,7 @@ DEFINE GCCNOLTO_ASM_FLAGS               = DEF(GCC_ASM_COMMON)
 DEFINE GCCNOLTO_ARM_ASM_FLAGS       = $(PLATFORM_FLAGS) DEF(GCC_ASM_COMMON) -mlittle-endian
 DEFINE GCCNOLTO_ARM_CC_FLAGS        = $(PLATFORM_FLAGS) DEF(GCC_ALL_CC_FLAGS) DEF(GCC_ARM_CC_COMMON) -mword-relocations
 DEFINE GCCNOLTO_ARM_CC_XIPFLAGS     = DEF(GCC_ARM_CC_XIPCOMMON)
-DEFINE GCCNOLTO_ARM_DLINK_FLAGS     = DEF(GCC_ARM_ARM_DLINK_COMMON) -Wl,--oformat=elf32-littlearm
+DEFINE GCCNOLTO_ARM_DLINK_FLAGS     = DEF(GCC_ARM_AARCH64_DLINK_COMMON) -Wl,--oformat=elf32-littlearm
 DEFINE GCCNOLTO_ARM_DLINK2_FLAGS    = DEF(GCC_DLINK2_FLAGS_COMMON) -Wl,--defsym=PECOFF_HEADER_SIZE=0x220
 DEFINE GCCNOLTO_ARM_ASLDLINK_FLAGS  = DEF(GCC_ARM_ASLDLINK_COMMON) -Wl,--oformat=elf32-littlearm
 DEFINE GCCNOLTO_AARCH64_ASM_FLAGS       = $(PLATFORM_FLAGS) DEF(GCC_ASM_COMMON) -mlittle-endian
@@ -1198,21 +1205,21 @@ RELEASE_GCCNOLTO_X64_CC_FLAGS       = DEF(GCCNOLTO_X64_CC_FLAGS)
 *_GCCNOLTO_ARM_ASLPP_PATH           = ENV(GCCNOLTO_ARM_PREFIX)gcc
 *_GCCNOLTO_ARM_RC_PATH              = ENV(GCCNOLTO_ARM_PREFIX)objcopy
 
-*_GCCNOLTO_ARM_ASLCC_FLAGS          = DEF(GCC49_ASLCC_FLAGS)
-*_GCCNOLTO_ARM_ASLDLINK_FLAGS       = DEF(GCC49_ARM_ASLDLINK_FLAGS)
-*_GCCNOLTO_ARM_ASM_FLAGS            = DEF(GCC49_ARM_ASM_FLAGS)
-*_GCCNOLTO_ARM_DLINK_FLAGS          = DEF(GCC49_ARM_DLINK_FLAGS)
-*_GCCNOLTO_ARM_DLINK2_FLAGS         = DEF(GCC49_ARM_DLINK2_FLAGS)
+*_GCCNOLTO_ARM_ASLCC_FLAGS          = DEF(GCC_ASLCC_FLAGS)
+*_GCCNOLTO_ARM_ASLDLINK_FLAGS       = DEF(GCC_ARM_ASLDLINK_FLAGS)
+*_GCCNOLTO_ARM_ASM_FLAGS            = DEF(GCC_ARM_ASM_FLAGS)
+*_GCCNOLTO_ARM_DLINK_FLAGS          = DEF(GCC_ARM_DLINK_FLAGS)
+*_GCCNOLTO_ARM_DLINK2_FLAGS         = DEF(GCC_ARM_DLINK2_FLAGS)
 *_GCCNOLTO_ARM_DTCPP_FLAGS          = DEF(GCC_DTCPP_FLAGS)
 *_GCCNOLTO_ARM_PLATFORM_FLAGS       = -march=armv7-a
 *_GCCNOLTO_ARM_PP_FLAGS             = $(PLATFORM_FLAGS) DEF(GCC_PP_FLAGS)
 *_GCCNOLTO_ARM_RC_FLAGS             = DEF(GCC_ARM_RC_FLAGS)
 *_GCCNOLTO_ARM_VFRPP_FLAGS          = $(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS)
-*_GCCNOLTO_ARM_CC_XIPFLAGS          = DEF(GCC49_ARM_CC_XIPFLAGS)
+*_GCCNOLTO_ARM_CC_XIPFLAGS          = DEF(GCC_ARM_CC_XIPFLAGS)
 
-  DEBUG_GCCNOLTO_ARM_CC_FLAGS       = DEF(GCC49_ARM_CC_FLAGS) -O0
-RELEASE_GCCNOLTO_ARM_CC_FLAGS       = DEF(GCC49_ARM_CC_FLAGS) -Wno-unused-but-set-variable -Wno-unused-const-variable
-  NOOPT_GCCNOLTO_ARM_CC_FLAGS       = DEF(GCC49_ARM_CC_FLAGS) -O0
+  DEBUG_GCCNOLTO_ARM_CC_FLAGS       = DEF(GCC_ARM_CC_FLAGS) -O0
+RELEASE_GCCNOLTO_ARM_CC_FLAGS       = DEF(GCC_ARM_CC_FLAGS) -Wno-unused-but-set-variable -Wno-unused-const-variable
+  NOOPT_GCCNOLTO_ARM_CC_FLAGS       = DEF(GCC_ARM_CC_FLAGS) -O0
 
 ##################
 # GCCNOLTO AARCH64 definitions
@@ -1351,25 +1358,25 @@ RELEASE_GCC_X64_DLINK_FLAGS     = DEF(GCC_X64_DLINK_FLAGS) -flto -Os
 *_GCC_ARM_ASLPP_PATH            = ENV(GCC_ARM_PREFIX)gcc
 *_GCC_ARM_RC_PATH               = ENV(GCC_ARM_PREFIX)objcopy
 
-*_GCC_ARM_ASLCC_FLAGS           = DEF(GCC5_ASLCC_FLAGS)
-*_GCC_ARM_ASLDLINK_FLAGS        = DEF(GCC5_ARM_ASLDLINK_FLAGS)
-*_GCC_ARM_ASM_FLAGS             = DEF(GCC5_ARM_ASM_FLAGS)
-*_GCC_ARM_DLINK2_FLAGS          = DEF(GCC5_ARM_DLINK2_FLAGS)
+*_GCC_ARM_ASLCC_FLAGS           = DEF(GCC_ASLCC_FLAGS)
+*_GCC_ARM_ASLDLINK_FLAGS        = DEF(GCC_ARM_ASLDLINK_FLAGS)
+*_GCC_ARM_ASM_FLAGS             = DEF(GCC_ARM_ASM_FLAGS)
+*_GCC_ARM_DLINK2_FLAGS          = DEF(GCC_ARM_DLINK2_FLAGS)
 *_GCC_ARM_DTCPP_FLAGS           = DEF(GCC_DTCPP_FLAGS)
 *_GCC_ARM_PLATFORM_FLAGS        = -march=armv7-a -mfloat-abi=soft
 *_GCC_ARM_PP_FLAGS              = $(PLATFORM_FLAGS) DEF(GCC_PP_FLAGS)
 *_GCC_ARM_RC_FLAGS              = DEF(GCC_ARM_RC_FLAGS)
 *_GCC_ARM_VFRPP_FLAGS           = $(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS)
-*_GCC_ARM_CC_XIPFLAGS           = DEF(GCC5_ARM_CC_XIPFLAGS)
+*_GCC_ARM_CC_XIPFLAGS           = DEF(GCC_ARM_CC_XIPFLAGS)
 
-  DEBUG_GCC_ARM_CC_FLAGS        = DEF(GCC5_ARM_CC_FLAGS) -flto -Wno-unused-but-set-variable -Wno-unused-const-variable
-  DEBUG_GCC_ARM_DLINK_FLAGS     = DEF(GCC5_ARM_DLINK_FLAGS) -flto -Os -L$(WORKSPACE)/BaseTools/Bin/GccLto -llto-arm -Wl,-plugin-opt=-pass-through=-llto-arm
+  DEBUG_GCC_ARM_CC_FLAGS        = DEF(GCC_ARM_CC_FLAGS) -flto -Wno-unused-but-set-variable -Wno-unused-const-variable
+  DEBUG_GCC_ARM_DLINK_FLAGS     = DEF(GCC_ARM_DLINK_FLAGS) -flto -Os -L$(WORKSPACE)/BaseTools/Bin/GccLto -llto-arm -Wl,-plugin-opt=-pass-through=-llto-arm
 
-RELEASE_GCC_ARM_CC_FLAGS        = DEF(GCC5_ARM_CC_FLAGS) -flto -Wno-unused-but-set-variable -Wno-unused-const-variable
-RELEASE_GCC_ARM_DLINK_FLAGS     = DEF(GCC5_ARM_DLINK_FLAGS) -flto -Os -L$(WORKSPACE)/BaseTools/Bin/GccLto -llto-arm -Wl,-plugin-opt=-pass-through=-llto-arm
+RELEASE_GCC_ARM_CC_FLAGS        = DEF(GCC_ARM_CC_FLAGS) -flto -Wno-unused-but-set-variable -Wno-unused-const-variable
+RELEASE_GCC_ARM_DLINK_FLAGS     = DEF(GCC_ARM_DLINK_FLAGS) -flto -Os -L$(WORKSPACE)/BaseTools/Bin/GccLto -llto-arm -Wl,-plugin-opt=-pass-through=-llto-arm
 
-  NOOPT_GCC_ARM_CC_FLAGS        = DEF(GCC5_ARM_CC_FLAGS) -O0
-  NOOPT_GCC_ARM_DLINK_FLAGS     = DEF(GCC5_ARM_DLINK_FLAGS) -O0
+  NOOPT_GCC_ARM_CC_FLAGS        = DEF(GCC_ARM_CC_FLAGS) -O0
+  NOOPT_GCC_ARM_DLINK_FLAGS     = DEF(GCC_ARM_DLINK_FLAGS) -O0
 
 ##################
 # GCC AARCH64 definitions
@@ -1789,7 +1796,7 @@ RELEASE_CLANGDWARF_ARM_DLINK_FLAGS  = DEF(CLANGDWARF_ARM_DLINK_FLAGS) -flto -Wl,
 ##################
 DEFINE CLANGDWARF_AARCH64_TARGET    = -target aarch64-linux-gnu
 DEFINE CLANGDWARF_AARCH64_CC_FLAGS  = DEF(GCC_AARCH64_CC_COMMON) DEF(CLANGDWARF_AARCH64_TARGET) -mcmodel=small DEF(CLANGDWARF_WARNING_OVERRIDES)
-DEFINE CLANGDWARF_AARCH64_DLINK_FLAGS  = DEF(CLANGDWARF_AARCH64_TARGET) DEF(GCC_AARCH64_DLINK_COMMON) -z common-page-size=0x1000 DEF(CLANGDWARF_DLINK_WARNING_FLAGS)
+DEFINE CLANGDWARF_AARCH64_DLINK_FLAGS  = DEF(CLANGDWARF_AARCH64_TARGET) DEF(GCC_ARM_AARCH64_DLINK_COMMON) -z common-page-size=0x1000 DEF(CLANGDWARF_DLINK_WARNING_FLAGS)
 
 *_CLANGDWARF_AARCH64_PP_FLAGS       = DEF(GCC_PP_FLAGS)
 *_CLANGDWARF_AARCH64_ASLCC_FLAGS    = DEF(GCC_ASLCC_COMMON)
@@ -1814,7 +1821,7 @@ DEFINE CLANGDWARF_AARCH64_DLINK_FLAGS  = DEF(CLANGDWARF_AARCH64_TARGET) DEF(GCC_
 *_CLANGDWARF_AARCH64_ASLCC_FLAGS    = DEF(GCC_ASLCC_COMMON) DEF(CLANGDWARF_AARCH64_TARGET) -fno-lto
 *_CLANGDWARF_AARCH64_ASLDLINK_FLAGS = DEF(CLANGDWARF_AARCH64_TARGET) DEF(GCC_AARCH64_ASLDLINK_COMMON) DEF(CLANGDWARF_DLINK_WARNING_FLAGS) -fuse-ld=lld
 *_CLANGDWARF_AARCH64_ASM_FLAGS      = DEF(GCC_ASM_COMMON) DEF(CLANGDWARF_AARCH64_TARGET) $(PLATFORM_FLAGS) -Qunused-arguments
-*_CLANGDWARF_AARCH64_DLINK_FLAGS    = DEF(CLANGDWARF_AARCH64_TARGET) DEF(GCC_AARCH64_DLINK_COMMON) -z common-page-size=0x1000 DEF(CLANGDWARF_DLINK_WARNING_FLAGS)
+*_CLANGDWARF_AARCH64_DLINK_FLAGS    = DEF(CLANGDWARF_AARCH64_TARGET) DEF(GCC_ARM_AARCH64_DLINK_COMMON) -z common-page-size=0x1000 DEF(CLANGDWARF_DLINK_WARNING_FLAGS)
 *_CLANGDWARF_AARCH64_DLINK_XIPFLAGS = -z common-page-size=0x20
 *_CLANGDWARF_AARCH64_DLINK2_FLAGS   = DEF(GCC_DLINK2_FLAGS_COMMON) -Wl,--defsym=PECOFF_HEADER_SIZE=0x228
 *_CLANGDWARF_AARCH64_PLATFORM_FLAGS =

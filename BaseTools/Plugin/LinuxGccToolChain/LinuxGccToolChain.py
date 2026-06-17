@@ -34,7 +34,7 @@ class LinuxGccToolChain(IUefiBuildPlugin):
                 return ret
 
             # Check arm compiler
-            ret = self._check_arm(toolchain)
+            ret = self._check_arm()
             if ret != 0:
                 self.Logger.critical("Failed in check arm")
                 return ret

@@ -20,10 +20,6 @@ jobs:
         artifact_fd_path: ${{ format('{0}/QEMU_EFI_{1}_{2}_{3}{4}.fd', github.workspace, matrix.platform, matrix.arch, matrix.target, matrix.system == 'devel' && '_devel' || '') }}
 
     steps:
-    - uses: actions/setup-python@main
-      with:
-          python-version: 3.12
-
     - name: 'Prepare to update system to devel'
       if: ${{ matrix.system == 'devel' }}
       run: |
@@ -41,6 +37,13 @@ jobs:
       with: 
           submodules: 'true'
 
+    - uses: actions/setup-python@main
+      with:
+        python-version: 3.12
+        cache: pip
+        cache-dependency-path: pip-requirements.txt
+    - run: pip install -r pip-requirements.txt
+
     - name: 'Build ${{ matrix.arch }}'
       env:
         GCC_ARM_PREFIX: '/usr/bin/arm-linux-gnueabihf-'
@@ -52,7 +55,7 @@ jobs:
         python BaseTools/Edk2ToolsBuild.py -t GCC
         stuart_setup -c ArmVirtPkg/PlatformCI/QemuBuild.py -a ${{ matrix.arch }} -t ${{ matrix.target }} TOOL_CHAIN_TAG=GCC ${{ env.flags }}
         stuart_update -c ArmVirtPkg/PlatformCI/QemuBuild.py -a ${{ matrix.arch }} -t ${{ matrix.target }} TOOL_CHAIN_TAG=GCC ${{ env.flags }}
-        stuart_build -c ArmVirtPkg/PlatformCI/QemuBuild.py -a ${{ matrix.arch }} Target=${{ matrix.target }}  TOOL_CHAIN_TAG=GCC ${{ env.flags }}
+        stuart_build -c ArmVirtPkg/PlatformCI/QemuBuild.py -a ${{ matrix.arch }} Target=${{ matrix.target }} TOOL_CHAIN_TAG=GCC ${{ env.flags }}
         echo "version=$(date +%Y%m%d)-$(git rev-parse --short HEAD)" > $GITHUB_ENV
         mv $fd_path $artifact_fd_path
 

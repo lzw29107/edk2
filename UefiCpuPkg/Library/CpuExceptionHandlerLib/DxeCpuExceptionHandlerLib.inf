@@ -58,18 +58,18 @@
 
 [Sources.ARM]
   Arm/CpuExceptionHandlerLib.c
-  Arm/DefaultExceptionHandlerUefi.c
   Arm/ArmException.c
   Arm/ExceptionSupport.S | GCC
 
 [Sources.AARCH64]
   AArch64/CpuExceptionHandlerLib.c
-  AArch64/DefaultExceptionHandlerUefi.c
   AArch64/AArch64Exception.c
   AArch64/ExceptionSupport.S | GCC
 
 [Sources.ARM, Sources.AARCH64]
   ArmExceptionLib.c
+  CpuExceptionHelpers.h
+  DxeCpuExceptionHelpers.c
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdCpuStackGuard
@@ -92,6 +92,7 @@
   PrintLib
   SerialPortLib
   SynchronizationLib
+  UefiLib
 
 [LibraryClasses.Ia32, LibraryClasses.X64]
   CcExitLib
@@ -103,7 +104,7 @@
 [LibraryClasses.ARM, LibraryClasses.AARCH64]
   ArmLib
 
-[Guids.RISCV64]
+[Guids.RISCV64, Guids.ARM, Guids.AARCH64]
   gEfiDebugImageInfoTableGuid
 
 [BuildOptions]

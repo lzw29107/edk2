@@ -14,13 +14,9 @@
 #include <Library/PeCoffGetEntryPointLib.h>
 #include <Library/PrintLib.h>
 #include <Library/SerialPortLib.h>
-#include <Library/UefiBootServicesTableLib.h>
-#include <Library/UefiLib.h>
-
-#include <Guid/DebugImageInfoTable.h>
-
 #include <Protocol/DebugSupport.h>
-#include <Library/DefaultExceptionHandlerLib.h>
+
+#include <CpuExceptionHelpers.h>
 
 //
 // Maximum number of characters to print to serial (UINT8s) and to console if
@@ -52,13 +48,6 @@ STATIC CONST CPSR_CHAR  mCpsrChar[] = {
   { 5,  't' },
   { 0,  '?' }
 };
-
-CHAR8 *
-GetImageName (
-  IN  UINTN  FaultAddress,
-  OUT UINTN  *ImageBase,
-  OUT UINTN  *PeCoffSizeOfHeaders
-  );
 
 /**
   Convert the Current Program Status Register (CPSR) to a string. The string is
@@ -274,9 +263,7 @@ DefaultExceptionHandler (
   // Attempt to print that we had a synchronous exception to ConOut.  We do
   // this after the serial logging as ConOut's logging is more complex and we
   // aren't guaranteed to succeed.
-  if (gST->ConOut != NULL) {
-    gST->ConOut->OutputString (gST->ConOut, UnicodeBuffer);
-  }
+  LogToConsole (UnicodeBuffer);
 
   ASSERT (FALSE);
 

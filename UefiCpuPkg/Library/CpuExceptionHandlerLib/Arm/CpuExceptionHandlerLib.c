@@ -10,6 +10,7 @@
 
 #include <Uefi.h>
 #include <Library/BaseLib.h>
+#include <Library/CpuExceptionHandlerLib.h>
 #include <Library/DebugLib.h>
 #include <Library/PeCoffGetEntryPointLib.h>
 #include <Library/PrintLib.h>
@@ -187,7 +188,7 @@ STATIC CHAR8  *gExceptionTypeString[] = {
 
 **/
 VOID
-DefaultExceptionHandler (
+DumpCpuContext (
   IN     EFI_EXCEPTION_TYPE  ExceptionType,
   IN OUT EFI_SYSTEM_CONTEXT  SystemContext
   )

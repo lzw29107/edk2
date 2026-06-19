@@ -57,10 +57,14 @@
   RiscV/ExceptionHandlerAsm.S | GCC
 
 [Sources.ARM]
+  Arm/CpuExceptionHandlerLib.c
+  Arm/DefaultExceptionHandlerUefi.c
   Arm/ArmException.c
   Arm/ExceptionSupport.S | GCC
 
 [Sources.AARCH64]
+  AArch64/CpuExceptionHandlerLib.c
+  AArch64/DefaultExceptionHandlerUefi.c
   AArch64/AArch64Exception.c
   AArch64/ExceptionSupport.S | GCC
 
@@ -76,7 +80,6 @@
   gUefiCpuPkgTokenSpaceGuid.PcdCpuSmmStackGuard                    ## CONSUMES
 
 [Packages]
-  ArmPkg/ArmPkg.dec
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
   UefiCpuPkg/UefiCpuPkg.dec
@@ -99,7 +102,6 @@
 
 [LibraryClasses.ARM, LibraryClasses.AARCH64]
   ArmLib
-  DefaultExceptionHandlerLib
 
 [Guids.RISCV64]
   gEfiDebugImageInfoTableGuid

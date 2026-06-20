@@ -48,10 +48,13 @@
   LoongArch/LoongArch64/ArchExceptionHandler.c
   LoongArch/LoongArch64/ExceptionHandlerAsm.S | GCC
 
+[Sources.ARM, Sources.AARCH64, Sources.RISCV64]
+  CpuExceptionHelpers.h
+  DxeCpuExceptionHelpers.c
+
 [Sources.RISCV64]
   RiscV/Backtrace.h
   RiscV/Backtrace.c
-  RiscV/BacktraceHelper.c
   RiscV/ExceptionLib.c
   RiscV/ExceptionHandler.h
   RiscV/ExceptionHandlerAsm.S | GCC
@@ -66,8 +69,6 @@
 
 [Sources.ARM, Sources.AARCH64]
   ArmExceptionLib.c
-  CpuExceptionHelpers.h
-  DxeCpuExceptionHelpers.c
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdCpuStackGuard

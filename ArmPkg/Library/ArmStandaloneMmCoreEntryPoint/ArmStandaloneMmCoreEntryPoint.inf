@@ -38,9 +38,6 @@
   StandaloneMmPkg/StandaloneMmPkg.dec
   UefiCpuPkg/UefiCpuPkg.dec
 
-[Packages]
-  ArmPkg/ArmPkg.dec
-
 [LibraryClasses]
   BaseLib
   DebugLib

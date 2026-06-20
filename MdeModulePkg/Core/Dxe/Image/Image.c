@@ -1211,7 +1211,7 @@ CoreLoadImageCommon (
     }
   } else {
     if (FilePath == NULL) {
-      return EFI_INVALID_PARAMETER;
+      return EFI_NOT_FOUND;
     }
 
     //

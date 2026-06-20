@@ -9,6 +9,7 @@
 **/
 
 #include <Uefi.h>
+#include <Library/ArmLib.h>
 #include <Library/BaseLib.h>
 #include <Library/CpuExceptionHandlerLib.h>
 #include <Library/DebugLib.h>
@@ -166,7 +167,11 @@ FaultStatusToString (
   return FaultSource;
 }
 
-STATIC CHAR8  *gExceptionTypeString[] = {
+UINTN                   mMaxExceptionNumber                       = MAX_ARM_EXCEPTION;
+EFI_EXCEPTION_CALLBACK  mExceptionHandlers[MAX_ARM_EXCEPTION + 1] = { 0 };
+PHYSICAL_ADDRESS        mExceptionVectorAlignmentMask             = ARM_VECTOR_TABLE_ALIGNMENT;
+
+STATIC CHAR8  *mExceptionTypeString[] = {
   "Reset",
   "Undefined OpCode",
   "SVC",
@@ -176,6 +181,23 @@ STATIC CHAR8  *gExceptionTypeString[] = {
   "IRQ",
   "FIQ"
 };
+
+RETURN_STATUS
+ArchVectorConfig (
+  IN  UINTN  VectorBaseAddress
+  )
+{
+  // if the vector address corresponds to high vectors
+  if (VectorBaseAddress == 0xFFFF0000) {
+    // set SCTLR.V to enable high vectors
+    ArmSetHighVectors ();
+  } else {
+    // Set SCTLR.V to 0 to enable VBAR to be used
+    ArmSetLowVectors ();
+  }
+
+  return RETURN_SUCCESS;
+}
 
 /**
   This is the default action to take on an unexpected exception
@@ -204,7 +226,7 @@ DumpCpuContext (
                 Buffer,
                 sizeof (Buffer),
                 "\n%a Exception PC at 0x%08x  CPSR 0x%08x ",
-                gExceptionTypeString[ExceptionType],
+                mExceptionTypeString[ExceptionType],
                 SystemContext.SystemContextArm->PC,
                 SystemContext.SystemContextArm->CPSR
                 );

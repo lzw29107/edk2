@@ -31,9 +31,9 @@ ArchVectorConfig (
   );
 
 // these globals are provided by the architecture specific source (Arm or AArch64)
-extern UINTN                   gMaxExceptionNumber;
-extern EFI_EXCEPTION_CALLBACK  gExceptionHandlers[];
-extern PHYSICAL_ADDRESS        gExceptionVectorAlignmentMask;
+extern UINTN                   mMaxExceptionNumber;
+extern EFI_EXCEPTION_CALLBACK  mExceptionHandlers[];
+extern PHYSICAL_ADDRESS        mExceptionVectorAlignmentMask;
 
 /**
 Initializes all CPU exceptions entries and provides the default exception handlers.
@@ -68,7 +68,7 @@ InitializeCpuExceptionHandlers (
   // for AArch64 Align=4K is required.  Align=Auto can be used but this
   // is known to cause an issue with populating the reset vector area
   // for encapsulated FVs.
-  ASSERT (((UINTN)ExceptionHandlersStart & gExceptionVectorAlignmentMask) == 0);
+  ASSERT (((UINTN)ExceptionHandlersStart & mExceptionVectorAlignmentMask) == 0);
 
   VectorBase = (UINT64)(UINTN)ExceptionHandlersStart;
 
@@ -112,15 +112,15 @@ RegisterCpuInterruptHandler (
   IN EFI_CPU_INTERRUPT_HANDLER  ExceptionHandler
   )
 {
-  if ((UINTN)ExceptionType > gMaxExceptionNumber) {
+  if ((UINTN)ExceptionType > mMaxExceptionNumber) {
     return RETURN_UNSUPPORTED;
   }
 
-  if ((ExceptionHandler != NULL) && (gExceptionHandlers[ExceptionType] != NULL)) {
+  if ((ExceptionHandler != NULL) && (mExceptionHandlers[ExceptionType] != NULL)) {
     return RETURN_ALREADY_STARTED;
   }
 
-  gExceptionHandlers[ExceptionType] = ExceptionHandler;
+  mExceptionHandlers[ExceptionType] = ExceptionHandler;
 
   return RETURN_SUCCESS;
 }
@@ -132,9 +132,9 @@ CommonCExceptionHandler (
   IN OUT EFI_SYSTEM_CONTEXT  SystemContext
   )
 {
-  if ((UINTN)ExceptionType <= gMaxExceptionNumber) {
-    if (gExceptionHandlers[ExceptionType]) {
-      gExceptionHandlers[ExceptionType](ExceptionType, SystemContext);
+  if ((UINTN)ExceptionType <= mMaxExceptionNumber) {
+    if (mExceptionHandlers[ExceptionType]) {
+      mExceptionHandlers[ExceptionType](ExceptionType, SystemContext);
       return;
     }
   } else {

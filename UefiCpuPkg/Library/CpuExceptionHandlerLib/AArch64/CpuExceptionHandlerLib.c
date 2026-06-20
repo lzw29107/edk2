@@ -10,6 +10,7 @@
 **/
 
 #include <Uefi.h>
+#include <Library/ArmLib.h>
 #include <Library/BaseLib.h>
 #include <Library/CpuExceptionHandlerLib.h>
 #include <Library/DebugLib.h>
@@ -26,7 +27,14 @@
 //
 #define MAX_PRINT_CHARS  100
 
-STATIC CHAR8  *gExceptionTypeString[] = {
+UINTN                   mMaxExceptionNumber                           = MAX_AARCH64_EXCEPTION;
+EFI_EXCEPTION_CALLBACK  mExceptionHandlers[MAX_AARCH64_EXCEPTION + 1] = { 0 };
+PHYSICAL_ADDRESS        mExceptionVectorAlignmentMask                 = ARM_VECTOR_TABLE_ALIGNMENT;
+
+#define EL0_STACK_SIZE  EFI_PAGES_TO_SIZE(2)
+STATIC UINTN  mNewStackBase[EL0_STACK_SIZE / sizeof (UINTN)];
+
+STATIC CHAR8  *mExceptionTypeString[] = {
   "Synchronous",
   "IRQ",
   "FIQ",
@@ -167,6 +175,35 @@ BaseName (
   return Str;
 }
 
+VOID
+RegisterEl0Stack (
+  IN  VOID  *Stack
+  );
+
+RETURN_STATUS
+ArchVectorConfig (
+  IN  UINTN  VectorBaseAddress
+  )
+{
+  UINTN  HcrReg;
+
+  // Round down sp by 16 bytes alignment
+  RegisterEl0Stack (
+    (VOID *)(((UINTN)mNewStackBase + EL0_STACK_SIZE) & ~0xFULL)
+    );
+
+  if (ArmReadCurrentEL () == AARCH64_EL2) {
+    HcrReg = ArmReadHcr ();
+
+    // Trap General Exceptions. All exceptions that would be routed to EL1 are routed to EL2
+    HcrReg |= ARM_HCR_TGE;
+
+    ArmWriteHcr (HcrReg);
+  }
+
+  return RETURN_SUCCESS;
+}
+
 /**
   This is the default action to take on an unexpected exception
 
@@ -195,7 +232,7 @@ DumpCpuContext (
 
   mRecursiveException = TRUE;
 
-  CharCount = AsciiSPrint (Buffer, sizeof (Buffer), "\n\n%a Exception at 0x%016lx\n", gExceptionTypeString[ExceptionType], SystemContext.SystemContextAArch64->ELR);
+  CharCount = AsciiSPrint (Buffer, sizeof (Buffer), "\n\n%a Exception at 0x%016lx\n", mExceptionTypeString[ExceptionType], SystemContext.SystemContextAArch64->ELR);
   SerialPortWrite ((UINT8 *)Buffer, CharCount);
 
   // Prepare a unicode buffer for ConOut, if applicable, in case the buffer

@@ -25,7 +25,7 @@ ExceptionHandlersStart (
   VOID
   );
 
-RETURN_STATUS
+EFI_STATUS
 ArchVectorConfig (
   IN  UINTN  VectorBaseAddress
   );
@@ -78,7 +78,7 @@ InitializeCpuExceptionHandlers (
 
   ArmWriteVBar ((UINTN)VectorBase);
 
-  return RETURN_SUCCESS;
+  return EFI_SUCCESS;
 }
 
 /**
@@ -106,25 +106,33 @@ previously installed.
 @retval EFI_UNSUPPORTED       The interrupt specified by ExceptionType is not supported,
 or this function is not supported.
 **/
-RETURN_STATUS
+EFI_STATUS
 RegisterCpuInterruptHandler (
   IN EFI_EXCEPTION_TYPE         ExceptionType,
   IN EFI_CPU_INTERRUPT_HANDLER  ExceptionHandler
   )
 {
   if ((UINTN)ExceptionType > mMaxExceptionNumber) {
-    return RETURN_UNSUPPORTED;
+    return EFI_UNSUPPORTED;
   }
 
   if ((ExceptionHandler != NULL) && (mExceptionHandlers[ExceptionType] != NULL)) {
-    return RETURN_ALREADY_STARTED;
+    return EFI_ALREADY_STARTED;
   }
 
   mExceptionHandlers[ExceptionType] = ExceptionHandler;
 
-  return RETURN_SUCCESS;
+  return EFI_SUCCESS;
 }
 
+/**
+  Common C-level exception handler dispatched from ASM exception entry points.
+  Invokes a registered handler for the given ExceptionType if one exists,
+  otherwise dumps the CPU context. Asserts on unknown exception types.
+
+  @param[in]      ExceptionType  ARM/AArch64 exception type or interrupt vector number.
+  @param[in,out]  SystemContext  Saved CPU context at the time of the exception.
+**/
 VOID
 EFIAPI
 CommonCExceptionHandler (

@@ -43,6 +43,17 @@ STATIC CHAR8  *mExceptionTypeString[] = {
 
 STATIC BOOLEAN  mRecursiveException;
 
+/**
+  Decodes and logs the fault cause of an Instruction or Data Abort
+  by mapping the Fault Status Code bits [5:0] of the ISS field to
+  a human-readable description.
+
+  @param[in]  AbortType  Null-terminated string identifying the abort
+                         type (e.g., "Instruction Abort", "Data Abort").
+  @param[in]  Iss        The Instruction Specific Syndrome (ISS) field
+                         extracted from ESR_ELx. Bits [5:0] are used as
+                         the Fault Status Code (IFSC/DFSC).
+**/
 STATIC
 VOID
 DescribeInstructionOrDataAbort (
@@ -124,6 +135,17 @@ DescribeInstructionOrDataAbort (
   DEBUG ((DEBUG_ERROR, "\n%a: %a\n", AbortType, AbortCause));
 }
 
+/**
+  Decodes and logs the cause of an AArch64 exception by inspecting the
+  Exception Class (EC) field of the Exception Syndrome Register (ESR_ELx).
+  For Instruction and Data Aborts, delegates to
+  DescribeInstructionOrDataAbort () for further ISS decoding.
+
+  @param[in]  Esr  The 64-bit value of ESR_ELx captured at the time of
+                   the exception. Bits [31:26] are used as the Exception
+                   Class (EC) and bits [24:0] as the Instruction Specific
+                   Syndrome (ISS).
+**/
 STATIC
 VOID
 DescribeExceptionSyndrome (
@@ -156,6 +178,18 @@ DescribeExceptionSyndrome (
   DEBUG ((DEBUG_ERROR, "\n %a \n", Message));
 }
 
+/**
+  Returns a pointer to the filename component of a full file path by
+  scanning backwards for the last '/' or '\\' path separator.
+  If no separator is found, the original string is returned as-is.
+
+  @param[in]  FullName  Null-terminated ASCII string containing the full
+                        file path to extract the base name from.
+
+  @retval  Pointer to the base filename within FullName. This is not a
+           newly allocated string — the returned pointer references
+           memory within the original FullName buffer.
+**/
 STATIC
 CONST CHAR8 *
 BaseName (
@@ -180,7 +214,16 @@ RegisterEl0Stack (
   IN  VOID  *Stack
   );
 
-RETURN_STATUS
+/**
+  Register EL0 stack and perform architecture specific configuration to ensure
+  exceptions are routed to correct EL.
+
+  @param[in]  VectorBaseAddress  Base address of the exception vector table
+                                 to be configured.
+
+  @retval  EFI_SUCCESS  Vector environment configured successfully.
+**/
+EFI_STATUS
 ArchVectorConfig (
   IN  UINTN  VectorBaseAddress
   )
@@ -201,17 +244,18 @@ ArchVectorConfig (
     ArmWriteHcr (HcrReg);
   }
 
-  return RETURN_SUCCESS;
+  return EFI_SUCCESS;
 }
 
 /**
-  This is the default action to take on an unexpected exception
+  Dumps the full ARM/AArch64 CPU context to serial and ConOut on an unexpected
+  exception, then asserts and halts. Detects recursive calls and short-circuits
+  to a minimal serial write followed by CpuDeadLoop ().
 
-  Since this is exception context don't do anything crazy like try to allocate memory.
+  Do not allocate memory or perform complex operations from within this function.
 
-  @param  ExceptionType    Type of the exception
-  @param  SystemContext    Register state at the time of the Exception
-
+  @param[in]      ExceptionType  ARM/AArch64 exception type or interrupt vector number.
+  @param[in,out]  SystemContext  Saved CPU context at the time of the exception.
 **/
 VOID
 DumpCpuContext (

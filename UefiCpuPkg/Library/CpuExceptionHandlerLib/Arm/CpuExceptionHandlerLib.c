@@ -182,7 +182,7 @@ STATIC CHAR8  *mExceptionTypeString[] = {
   "FIQ"
 };
 
-RETURN_STATUS
+EFI_STATUS
 ArchVectorConfig (
   IN  UINTN  VectorBaseAddress
   )
@@ -196,7 +196,7 @@ ArchVectorConfig (
     ArmSetLowVectors ();
   }
 
-  return RETURN_SUCCESS;
+  return EFI_SUCCESS;
 }
 
 /**

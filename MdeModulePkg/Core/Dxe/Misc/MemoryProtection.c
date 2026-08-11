@@ -350,7 +350,7 @@ SetUefiImageProtectionAttributes (
         EFI_MEMORY_XP
         );
     }
-
+/**
     //
     // CODE
     //
@@ -359,6 +359,7 @@ SetUefiImageProtectionAttributes (
       ImageRecordCodeSection->CodeSegmentSize,
       EFI_MEMORY_RO
       );
+**/
     CurrentBase = ImageRecordCodeSection->CodeSegmentBase + ImageRecordCodeSection->CodeSegmentSize;
   }
 

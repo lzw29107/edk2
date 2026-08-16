@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ "merge-test" ]
+    branches: [ "merge-test2" ]
   pull_request:
-    branches: [ "merge-test" ]
+    branches: [ "merge-test2" ]
 
 jobs: 
   build:

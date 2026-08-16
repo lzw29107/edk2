@@ -1,7 +1,7 @@
 /** @file
   Provides interface to advanced shell functionality for parsing both handle and protocol database.
 
-  Copyright (c) 2010 - 2016, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2010 - 2017, Intel Corporation. All rights reserved.<BR>
   (C) Copyright 2013-2015 Hewlett-Packard Development Company, L.P.<BR>
   (C) Copyright 2015-2016 Hewlett Packard Enterprise Development LP<BR>
   This program and the accompanying materials
@@ -19,8 +19,8 @@
 
 EFI_HANDLE        mHandleParsingHiiHandle = NULL;
 HANDLE_INDEX_LIST mHandleList = {{{NULL,NULL},0,0},0};
-GUID_INFO_BLOCK   *GuidList;
-UINTN             GuidListCount;
+GUID_INFO_BLOCK   *mGuidList;
+UINTN             mGuidListCount;
 /**
   Function to translate the EFI_MEMORY_TYPE into a string.
 
@@ -98,8 +98,8 @@ HandleParsingLibConstructor (
   IN EFI_SYSTEM_TABLE  *SystemTable
   )
 {
-  GuidListCount = 0;
-  GuidList      = NULL;
+  mGuidListCount = 0;
+  mGuidList      = NULL;
 
   //
   // Do nothing with mHandleParsingHiiHandle.  Initialize HII as needed.
@@ -137,11 +137,11 @@ HandleParsingLibDestructor (
 {
   UINTN                 LoopCount;
 
-  for (LoopCount = 0; GuidList != NULL && LoopCount < GuidListCount; LoopCount++) {
-    SHELL_FREE_NON_NULL(GuidList[LoopCount].GuidId);
+  for (LoopCount = 0; mGuidList != NULL && LoopCount < mGuidListCount; LoopCount++) {
+    SHELL_FREE_NON_NULL(mGuidList[LoopCount].GuidId);
   }
 
-  SHELL_FREE_NON_NULL(GuidList);
+  SHELL_FREE_NON_NULL(mGuidList);
   if (mHandleParsingHiiHandle != NULL) {
     HiiRemovePackages(mHandleParsingHiiHandle);
   }
@@ -933,25 +933,22 @@ AdapterInformationDumpInformation (
       } else {
 
         GuidStr = GetStringNameFromGuid (&InfoTypesBuffer[GuidIndex], NULL);
+        if (GuidStr == NULL) {
+          TempRetVal = CatSPrint (RetVal, TempStr, L"UnknownInfoType");
+          SHELL_FREE_NON_NULL (RetVal);
+          RetVal = TempRetVal;
 
-        if (GuidStr != NULL) {
-          if (StrCmp(GuidStr, L"UnknownDevice") == 0) {
-            TempRetVal = CatSPrint (RetVal, TempStr, L"UnknownInfoType");
-            SHELL_FREE_NON_NULL (RetVal);
-            RetVal = TempRetVal;
-
-            SHELL_FREE_NON_NULL (TempStr);
-            SHELL_FREE_NON_NULL(GuidStr);
-            //
-            // So that we never have to pass this UnknownInfoType to the parsing function "GetInformation" service of AIP
-            //
-            continue;
-          } else {
-            TempRetVal = CatSPrint (RetVal, TempStr, GuidStr);
-            SHELL_FREE_NON_NULL (RetVal);
-            RetVal = TempRetVal;
-            SHELL_FREE_NON_NULL(GuidStr);
-          }
+          SHELL_FREE_NON_NULL (TempStr);
+          SHELL_FREE_NON_NULL(GuidStr);
+          //
+          // So that we never have to pass this UnknownInfoType to the parsing function "GetInformation" service of AIP
+          //
+          continue;
+        } else {
+          TempRetVal = CatSPrint (RetVal, TempStr, GuidStr);
+          SHELL_FREE_NON_NULL (RetVal);
+          RetVal = TempRetVal;
+          SHELL_FREE_NON_NULL(GuidStr);
         }
       }
 
@@ -1500,7 +1497,7 @@ STATIC CONST GUID_INFO_BLOCK mGuidStringListNT[] = {
   {STRING_TOKEN(STR_WINNT_THUNK),           (EFI_GUID*)&WinNtThunkProtocolGuid,               NULL},
   {STRING_TOKEN(STR_WINNT_DRIVER_IO),       (EFI_GUID*)&WinNtIoProtocolGuid,                  NULL},
   {STRING_TOKEN(STR_WINNT_SERIAL_PORT),     (EFI_GUID*)&WinNtSerialPortGuid,                  NULL},
-  {STRING_TOKEN(STR_UNKNOWN_DEVICE),        NULL,                                             NULL},
+  {0,                                       NULL,                                             NULL},
 };
 
 STATIC CONST GUID_INFO_BLOCK mGuidStringList[] = {
@@ -1816,7 +1813,7 @@ STATIC CONST GUID_INFO_BLOCK mGuidStringList[] = {
 //
 // terminator
 //
-  {STRING_TOKEN(STR_UNKNOWN_DEVICE),        NULL,                                             NULL},
+  {0,                                       NULL,                                             NULL},
 };
 
 /**
@@ -1838,7 +1835,7 @@ InternalShellGetNodeFromGuid(
 
   ASSERT(Guid != NULL);
 
-  for (LoopCount = 0, ListWalker = GuidList; GuidList != NULL && LoopCount < GuidListCount; LoopCount++, ListWalker++) {
+  for (LoopCount = 0, ListWalker = mGuidList; mGuidList != NULL && LoopCount < mGuidListCount; LoopCount++, ListWalker++) {
     if (CompareGuid(ListWalker->GuidId, Guid)) {
       return (ListWalker);
     }
@@ -1881,18 +1878,18 @@ InsertNewGuidNameMapping(
   ASSERT(Guid   != NULL);
   ASSERT(NameID != 0);
 
-  GuidList = ReallocatePool(GuidListCount * sizeof(GUID_INFO_BLOCK), GuidListCount+1 * sizeof(GUID_INFO_BLOCK), GuidList);
-  if (GuidList == NULL) {
-    GuidListCount = 0;
+  mGuidList = ReallocatePool(mGuidListCount * sizeof(GUID_INFO_BLOCK), mGuidListCount+1 * sizeof(GUID_INFO_BLOCK), mGuidList);
+  if (mGuidList == NULL) {
+    mGuidListCount = 0;
     return (EFI_OUT_OF_RESOURCES);
   }
-  GuidListCount++;
+  mGuidListCount++;
 
-  GuidList[GuidListCount - 1].GuidId   = AllocateCopyPool(sizeof(EFI_GUID), Guid);
-  GuidList[GuidListCount - 1].StringId = NameID;
-  GuidList[GuidListCount - 1].DumpInfo = DumpFunc;
+  mGuidList[mGuidListCount - 1].GuidId   = AllocateCopyPool(sizeof(EFI_GUID), Guid);
+  mGuidList[mGuidListCount - 1].StringId = NameID;
+  mGuidList[mGuidListCount - 1].DumpInfo = DumpFunc;
 
-  if (GuidList[GuidListCount - 1].GuidId == NULL) {
+  if (mGuidList[mGuidListCount - 1].GuidId == NULL) {
     return (EFI_OUT_OF_RESOURCES);
   }
 
@@ -1964,7 +1961,10 @@ GetStringNameFromGuid(
   HandleParsingHiiInit();
 
   Id = InternalShellGetNodeFromGuid(Guid);
-  return (HiiGetString(mHandleParsingHiiHandle, Id==NULL?STRING_TOKEN(STR_UNKNOWN_DEVICE):Id->StringId, Lang));
+  if (Id == NULL) {
+    return NULL;
+  }
+  return HiiGetString (mHandleParsingHiiHandle, Id->StringId, Lang);
 }
 
 /**
@@ -2061,7 +2061,7 @@ GetGuidFromStringName(
     }
   }
 
-  for (LoopCount = 0, ListWalker = GuidList; GuidList != NULL && LoopCount < GuidListCount; LoopCount++, ListWalker++) {
+  for (LoopCount = 0, ListWalker = mGuidList; mGuidList != NULL && LoopCount < mGuidListCount; LoopCount++, ListWalker++) {
     String = HiiGetString(mHandleParsingHiiHandle, ListWalker->StringId, Lang);
     if (Name != NULL && String != NULL && StringNoCaseCompare (&Name, &String) == 0) {
       *Guid = ListWalker->GuidId;
@@ -3078,4 +3078,56 @@ GetHandleListByProtocolList (
   }
 
   return (HandleList);
+}
+
+/**
+  Return all supported GUIDs.
+
+  @param[out]     Guids  The buffer to return all supported GUIDs.
+  @param[in, out] Count  On input, the count of GUIDs the buffer can hold,
+                         On output, the count of GUIDs to return.
+
+  @retval EFI_INVALID_PARAMETER Count is NULL.
+  @retval EFI_BUFFER_TOO_SMALL  Buffer is not enough to hold all GUIDs.
+  @retval EFI_SUCCESS           GUIDs are returned successfully.
+**/
+EFI_STATUS
+EFIAPI
+GetAllMappingGuids (
+  OUT EFI_GUID *Guids,
+  IN OUT UINTN *Count
+  )
+{
+  UINTN GuidCount;
+  UINTN NtGuidCount;
+  UINTN Index;
+
+  if (Count == NULL) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  NtGuidCount = 0;
+  if (PcdGetBool (PcdShellIncludeNtGuids)) {
+    NtGuidCount = ARRAY_SIZE (mGuidStringListNT) - 1;
+  }
+  GuidCount   = ARRAY_SIZE (mGuidStringList) - 1;
+
+  if (*Count < NtGuidCount + GuidCount + mGuidListCount) {
+    *Count = NtGuidCount + GuidCount + mGuidListCount;
+    return EFI_BUFFER_TOO_SMALL;
+  }
+
+  for (Index = 0; Index < NtGuidCount; Index++) {
+    CopyGuid (&Guids[Index], mGuidStringListNT[Index].GuidId);
+  }
+
+  for (Index = 0; Index < GuidCount; Index++) {
+    CopyGuid (&Guids[NtGuidCount + Index], mGuidStringList[Index].GuidId);
+  }
+
+  for (Index = 0; Index < mGuidListCount; Index++) {
+    CopyGuid (&Guids[NtGuidCount + GuidCount + Index], mGuidList[Index].GuidId);
+  }
+
+  return EFI_SUCCESS;
 }

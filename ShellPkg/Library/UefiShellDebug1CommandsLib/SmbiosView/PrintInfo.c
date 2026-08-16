@@ -3,7 +3,7 @@
 
   Copyright (c) 2005 - 2016, Intel Corporation. All rights reserved.<BR>
   (C) Copyright 2014 Hewlett-Packard Development Company, L.P.<BR>  
-  (C) Copyright 2015 Hewlett Packard Enterprise Development LP<BR>
+  (C) Copyright 2015-2017 Hewlett Packard Enterprise Development LP<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -390,8 +390,21 @@ SmbiosPrintStructure (
     DisplaySystemEnclosureStatus (Struct->Type3->ThermalState, Option);
     ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_SECURITY_STATUS), gShellDebug1HiiHandle);
     DisplaySESecurityStatus (Struct->Type3->SecurityStatus, Option);
-    if (AE_SMBIOS_VERSION (0x2, 0x3) && (Struct->Hdr->Length > 0xD)) {
-      PRINT_BIT_FIELD (Struct, Type3, OemDefined, 4);
+    if (AE_SMBIOS_VERSION (0x2, 0x3)) {
+      if (Struct->Hdr->Length > 0xD) {
+        PRINT_BIT_FIELD (Struct, Type3, OemDefined, 4);
+      }
+      if (Struct->Hdr->Length > 0x11) {
+        PRINT_STRUCT_VALUE (Struct, Type3, Height);
+      }
+      if (Struct->Hdr->Length > 0x12) {
+        PRINT_STRUCT_VALUE (Struct, Type3, NumberofPowerCords);
+      }
+    }
+    if (AE_SMBIOS_VERSION (0x2, 0x7) && (Struct->Hdr->Length > 0x13)) {
+      if (Struct->Hdr->Length > (0x15 + (Struct->Type3->ContainedElementCount * Struct->Type3->ContainedElementRecordLength))) {
+        PRINT_SMBIOS_STRING (Struct, Buffer[0x15 + (Struct->Type3->ContainedElementCount * Struct->Type3->ContainedElementRecordLength)], SKUNumber);
+      }
     }
     break;
 
@@ -1080,6 +1093,20 @@ SmbiosPrintStructure (
   //
   case 42:
     PRINT_STRUCT_VALUE_H (Struct, Type42, InterfaceType);
+    break;
+
+  //
+  // TPM Device (Type 43)
+  //
+  case 43:
+    PRINT_BIT_FIELD (Struct, Type43, VendorID, 4);
+    PRINT_STRUCT_VALUE_H (Struct, Type43, MajorSpecVersion);
+    PRINT_STRUCT_VALUE_H (Struct, Type43, MinorSpecVersion);
+    PRINT_STRUCT_VALUE_H (Struct, Type43, FirmwareVersion1);
+    PRINT_STRUCT_VALUE_H (Struct, Type43, FirmwareVersion2);
+    PRINT_PENDING_STRING (Struct, Type43, Description);
+    DisplayTpmDeviceCharacteristics (ReadUnaligned64 ((UINT64 *) (UINTN) &(Struct->Type43->Characteristics)), Option);
+    PRINT_STRUCT_VALUE_H (Struct, Type43, OemDefined);
     break;
 
   //
@@ -3224,4 +3251,60 @@ DisplaySPSCharacteristics (
   } else {
     ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_POWER_SUPPLY_NOT_REPLACE), gShellDebug1HiiHandle);
   }
+}
+
+/**
+  Display TPM Device (Type 43) Characteristics.
+
+  @param[in] Chara    The information bits.
+  @param[in] Option   The optional information.
+**/
+VOID
+DisplayTpmDeviceCharacteristics (
+  IN UINT64  Chara,
+  IN UINT8   Option
+  )
+{
+  //
+  // Print header
+  //
+  ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_TPM_DEVICE_CHAR), gShellDebug1HiiHandle);
+  //
+  // print option
+  //
+  PRINT_INFO_OPTION (Chara, Option);
+
+  //
+  // Check all the bits and print information
+  // This function does not use Table because table of bits
+  //   are designed not to deal with UINT64
+  //
+  if (BIT (Chara, 0) != 0) {
+    ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_RESERVED_BIT), gShellDebug1HiiHandle);
+  }
+
+  if (BIT (Chara, 1) != 0) {
+    ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_RESERVED_BIT), gShellDebug1HiiHandle);
+  }
+  if (BIT (Chara, 2) != 0) {
+    ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_TPM_DEVICE_CHAR_NOT_SUPPORTED), gShellDebug1HiiHandle);
+  }
+
+  if (BIT (Chara, 3) != 0) {
+    ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_TPM_DEVICE_CONFIG_FWU), gShellDebug1HiiHandle);
+  }
+
+  if (BIT (Chara, 4) != 0) {
+    ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_TPM_DEVICE_CONFIG_PLAT_SW), gShellDebug1HiiHandle);
+  }
+
+  if (BIT (Chara, 5) != 0) {
+    ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_TPM_DEVICE_CONFIG_OEM), gShellDebug1HiiHandle);
+  }
+
+  //
+  // Just print the Reserved
+  //
+  ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_BITS_06_63), gShellDebug1HiiHandle);
+
 }

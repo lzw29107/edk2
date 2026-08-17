@@ -3,6 +3,7 @@
 Copyright (c) 2009, Hewlett-Packard Company. All rights reserved.<BR>
 Portions copyright (c) 2010, Apple Inc. All rights reserved.<BR>
 Portions copyright (c) 2011-2013, ARM Ltd. All rights reserved.<BR>
+Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
 
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
@@ -215,16 +216,14 @@ EfiAttributeToArmAttribute (
     ArmAttributes = TT_ATTR_INDX_MEMORY_WRITE_BACK;
     break;
   default:
-    DEBUG ((EFI_D_ERROR, "EfiAttributeToArmAttribute: 0x%lX attributes is not supported.\n", EfiAttributes));
-    ASSERT (0);
-    ArmAttributes = TT_ATTR_INDX_DEVICE_MEMORY;
+    ArmAttributes = TT_ATTR_INDX_MASK;
   }
 
   // Set the access flag to match the block attributes
   ArmAttributes |= TT_AF;
 
   // Determine protection attributes
-  if (EfiAttributes & EFI_MEMORY_WP) {
+  if (EfiAttributes & EFI_MEMORY_RO) {
     ArmAttributes |= TT_AP_RO_RO;
   }
 

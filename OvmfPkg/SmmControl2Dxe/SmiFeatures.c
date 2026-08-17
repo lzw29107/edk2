@@ -240,7 +240,7 @@ SaveSmiFeatures (
                           S3SaveState,                     // This
                           EFI_BOOT_SCRIPT_IO_WRITE_OPCODE, // OpCode
                           EfiBootScriptWidthUint32,        // Width
-                          (UINT64)0x514,                   // Address
+                          (UINT64)FW_CFG_IO_DMA_ADDRESS,   // Address
                           (UINTN)2,                        // Count
                           &AccessAddress                   // Buffer
                           );
@@ -281,7 +281,7 @@ SaveSmiFeatures (
                           S3SaveState,                     // This
                           EFI_BOOT_SCRIPT_IO_WRITE_OPCODE, // OpCode
                           EfiBootScriptWidthUint16,        // Width
-                          (UINT64)0x510,                   // Address
+                          (UINT64)FW_CFG_IO_SELECTOR,      // Address
                           (UINTN)1,                        // Count
                           &FeaturesOkItemAsUint16          // Buffer
                           );
@@ -303,7 +303,7 @@ SaveSmiFeatures (
                      S3SaveState,                    // This
                      EFI_BOOT_SCRIPT_IO_POLL_OPCODE, // OpCode
                      EfiBootScriptWidthUint8,        // Width
-                     (UINT64)(UINTN)0x511,           // Address
+                     (UINT64)(UINTN)FW_CFG_IO_DATA,  // Address
                      &FeaturesOkData,                // Data
                      &FeaturesOkMask,                // DataMask
                      MAX_UINT64                      // Delay

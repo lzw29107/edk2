@@ -4,13 +4,13 @@
   Copyright (c) 2008 - 2014, Intel Corporation. All rights reserved.<BR>
   Copyright (C) 2012-2014, Red Hat, Inc.
 
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
+  This program and the accompanying materials are licensed and made available
+  under the terms and conditions of the BSD License which accompanies this
+  distribution.  The full text of the license may be found at
   http://opensource.org/licenses/bsd-license.php
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS, WITHOUT
+  WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 **/
 
@@ -352,6 +352,175 @@ ProcessCmdAddChecksum (
 }
 
 
+/**
+  Process a QEMU_LOADER_WRITE_POINTER command.
+
+  @param[in] WritePointer   The QEMU_LOADER_WRITE_POINTER command to process.
+
+  @param[in] Tracker        The ORDERED_COLLECTION tracking the BLOB user
+                            structures created thus far.
+
+  @param[in,out] S3Context  The S3_CONTEXT object capturing the fw_cfg actions
+                            of successfully processed QEMU_LOADER_WRITE_POINTER
+                            commands, to be replayed at S3 resume. S3Context
+                            may be NULL if S3 is disabled.
+
+  @retval EFI_PROTOCOL_ERROR  Malformed fw_cfg file name(s) have been found in
+                              WritePointer. Or, the WritePointer command
+                              references a file unknown to Tracker or the
+                              fw_cfg directory. Or, the pointer object to
+                              rewrite has invalid location, size, or initial
+                              relative value. Or, the pointer value to store
+                              does not fit in the given pointer size.
+
+  @retval EFI_SUCCESS         The pointer object inside the writeable fw_cfg
+                              file has been written. If S3Context is not NULL,
+                              then WritePointer has been condensed into
+                              S3Context.
+
+  @return                     Error codes propagated from
+                              SaveCondensedWritePointerToS3Context(). The
+                              pointer object inside the writeable fw_cfg file
+                              has not been written.
+**/
+STATIC
+EFI_STATUS
+ProcessCmdWritePointer (
+  IN     CONST QEMU_LOADER_WRITE_POINTER *WritePointer,
+  IN     CONST ORDERED_COLLECTION        *Tracker,
+  IN OUT       S3_CONTEXT                *S3Context OPTIONAL
+  )
+{
+  RETURN_STATUS            Status;
+  FIRMWARE_CONFIG_ITEM     PointerItem;
+  UINTN                    PointerItemSize;
+  ORDERED_COLLECTION_ENTRY *PointeeEntry;
+  BLOB                     *PointeeBlob;
+  UINT64                   PointerValue;
+
+  if (WritePointer->PointerFile[QEMU_LOADER_FNAME_SIZE - 1] != '\0' ||
+      WritePointer->PointeeFile[QEMU_LOADER_FNAME_SIZE - 1] != '\0') {
+    DEBUG ((DEBUG_ERROR, "%a: malformed file name\n", __FUNCTION__));
+    return EFI_PROTOCOL_ERROR;
+  }
+
+  Status = QemuFwCfgFindFile ((CONST CHAR8 *)WritePointer->PointerFile,
+             &PointerItem, &PointerItemSize);
+  PointeeEntry = OrderedCollectionFind (Tracker, WritePointer->PointeeFile);
+  if (RETURN_ERROR (Status) || PointeeEntry == NULL) {
+    DEBUG ((DEBUG_ERROR,
+      "%a: invalid fw_cfg file or blob reference \"%a\" / \"%a\"\n",
+      __FUNCTION__, WritePointer->PointerFile, WritePointer->PointeeFile));
+    return EFI_PROTOCOL_ERROR;
+  }
+
+  if ((WritePointer->PointerSize != 1 && WritePointer->PointerSize != 2 &&
+       WritePointer->PointerSize != 4 && WritePointer->PointerSize != 8) ||
+      (PointerItemSize < WritePointer->PointerSize) ||
+      (PointerItemSize - WritePointer->PointerSize <
+       WritePointer->PointerOffset)) {
+    DEBUG ((DEBUG_ERROR, "%a: invalid pointer location or size in \"%a\"\n",
+      __FUNCTION__, WritePointer->PointerFile));
+    return EFI_PROTOCOL_ERROR;
+  }
+
+  PointeeBlob = OrderedCollectionUserStruct (PointeeEntry);
+  PointerValue = WritePointer->PointeeOffset;
+  if (PointerValue >= PointeeBlob->Size) {
+    DEBUG ((DEBUG_ERROR, "%a: invalid PointeeOffset\n", __FUNCTION__));
+    return EFI_PROTOCOL_ERROR;
+  }
+
+  //
+  // The memory allocation system ensures that the address of the byte past the
+  // last byte of any allocated object is expressible (no wraparound).
+  //
+  ASSERT ((UINTN)PointeeBlob->Base <= MAX_ADDRESS - PointeeBlob->Size);
+
+  PointerValue += (UINT64)(UINTN)PointeeBlob->Base;
+  if (RShiftU64 (
+        RShiftU64 (PointerValue, WritePointer->PointerSize * 8 - 1), 1) != 0) {
+    DEBUG ((DEBUG_ERROR, "%a: pointer value unrepresentable in \"%a\"\n",
+      __FUNCTION__, WritePointer->PointerFile));
+    return EFI_PROTOCOL_ERROR;
+  }
+
+  //
+  // If S3 is enabled, we have to capture the below fw_cfg actions in condensed
+  // form, to be replayed during S3 resume.
+  //
+  if (S3Context != NULL) {
+    EFI_STATUS SaveStatus;
+
+    SaveStatus = SaveCondensedWritePointerToS3Context (
+                   S3Context,
+                   (UINT16)PointerItem,
+                   WritePointer->PointerSize,
+                   WritePointer->PointerOffset,
+                   PointerValue
+                   );
+    if (EFI_ERROR (SaveStatus)) {
+      return SaveStatus;
+    }
+  }
+
+  QemuFwCfgSelectItem (PointerItem);
+  QemuFwCfgSkipBytes (WritePointer->PointerOffset);
+  QemuFwCfgWriteBytes (WritePointer->PointerSize, &PointerValue);
+
+  //
+  // Because QEMU has now learned PointeeBlob->Base, we must mark PointeeBlob
+  // as unreleasable, for the case when the whole linker/loader script is
+  // handled successfully.
+  //
+  PointeeBlob->HostsOnlyTableData = FALSE;
+
+  DEBUG ((DEBUG_VERBOSE, "%a: PointerFile=\"%a\" PointeeFile=\"%a\" "
+    "PointerOffset=0x%x PointeeOffset=0x%x PointerSize=%d\n", __FUNCTION__,
+    WritePointer->PointerFile, WritePointer->PointeeFile,
+    WritePointer->PointerOffset, WritePointer->PointeeOffset,
+    WritePointer->PointerSize));
+  return EFI_SUCCESS;
+}
+
+
+/**
+  Undo a QEMU_LOADER_WRITE_POINTER command.
+
+  This function revokes (zeroes out) a guest memory reference communicated to
+  QEMU earlier. The caller is responsible for invoking this function only on
+  such QEMU_LOADER_WRITE_POINTER commands that have been successfully processed
+  by ProcessCmdWritePointer().
+
+  @param[in] WritePointer  The QEMU_LOADER_WRITE_POINTER command to undo.
+**/
+STATIC
+VOID
+UndoCmdWritePointer (
+  IN CONST QEMU_LOADER_WRITE_POINTER *WritePointer
+  )
+{
+  RETURN_STATUS        Status;
+  FIRMWARE_CONFIG_ITEM PointerItem;
+  UINTN                PointerItemSize;
+  UINT64               PointerValue;
+
+  Status = QemuFwCfgFindFile ((CONST CHAR8 *)WritePointer->PointerFile,
+             &PointerItem, &PointerItemSize);
+  ASSERT_RETURN_ERROR (Status);
+
+  PointerValue = 0;
+  QemuFwCfgSelectItem (PointerItem);
+  QemuFwCfgSkipBytes (WritePointer->PointerOffset);
+  QemuFwCfgWriteBytes (WritePointer->PointerSize, &PointerValue);
+
+  DEBUG ((DEBUG_VERBOSE,
+    "%a: PointerFile=\"%a\" PointerOffset=0x%x PointerSize=%d\n", __FUNCTION__,
+    WritePointer->PointerFile, WritePointer->PointerOffset,
+    WritePointer->PointerSize));
+}
+
+
 //
 // We'll be saving the keys of installed tables so that we can roll them back
 // in case of failure. 128 tables should be enough for anyone (TM).
@@ -561,8 +730,10 @@ InstallQemuFwCfgTables (
   UINTN                    FwCfgSize;
   QEMU_LOADER_ENTRY        *LoaderStart;
   CONST QEMU_LOADER_ENTRY  *LoaderEntry, *LoaderEnd;
+  CONST QEMU_LOADER_ENTRY  *WritePointerSubsetEnd;
   ORIGINAL_ATTRIBUTES      *OriginalPciAttributes;
   UINTN                    OriginalPciAttributesCount;
+  S3_CONTEXT               *S3Context;
   ORDERED_COLLECTION       *Tracker;
   UINTN                    *InstalledKey;
   INT32                    Installed;
@@ -588,15 +759,32 @@ InstallQemuFwCfgTables (
   RestorePciDecoding (OriginalPciAttributes, OriginalPciAttributesCount);
   LoaderEnd = LoaderStart + FwCfgSize / sizeof *LoaderEntry;
 
+  S3Context = NULL;
+  if (QemuFwCfgS3Enabled ()) {
+    //
+    // Size the allocation pessimistically, assuming that all commands in the
+    // script are QEMU_LOADER_WRITE_POINTER commands.
+    //
+    Status = AllocateS3Context (&S3Context, LoaderEnd - LoaderStart);
+    if (EFI_ERROR (Status)) {
+      goto FreeLoader;
+    }
+  }
+
   Tracker = OrderedCollectionInit (BlobCompare, BlobKeyCompare);
   if (Tracker == NULL) {
     Status = EFI_OUT_OF_RESOURCES;
-    goto FreeLoader;
+    goto FreeS3Context;
   }
 
   //
   // first pass: process the commands
   //
+  // "WritePointerSubsetEnd" points one past the last successful
+  // QEMU_LOADER_WRITE_POINTER command. Now when we're about to start the first
+  // pass, no such command has been encountered yet.
+  //
+  WritePointerSubsetEnd = LoaderStart;
   for (LoaderEntry = LoaderStart; LoaderEntry < LoaderEnd; ++LoaderEntry) {
     switch (LoaderEntry->Type) {
     case QemuLoaderCmdAllocate:
@@ -613,6 +801,14 @@ InstallQemuFwCfgTables (
                  Tracker);
       break;
 
+    case QemuLoaderCmdWritePointer:
+        Status = ProcessCmdWritePointer (&LoaderEntry->Command.WritePointer,
+                   Tracker, S3Context);
+        if (!EFI_ERROR (Status)) {
+          WritePointerSubsetEnd = LoaderEntry + 1;
+        }
+        break;
+
     default:
       DEBUG ((EFI_D_VERBOSE, "%a: unknown loader command: 0x%x\n",
         __FUNCTION__, LoaderEntry->Type));
@@ -620,14 +816,14 @@ InstallQemuFwCfgTables (
     }
 
     if (EFI_ERROR (Status)) {
-      goto FreeTracker;
+      goto RollbackWritePointersAndFreeTracker;
     }
   }
 
   InstalledKey = AllocatePool (INSTALLED_TABLES_MAX * sizeof *InstalledKey);
   if (InstalledKey == NULL) {
     Status = EFI_OUT_OF_RESOURCES;
-    goto FreeTracker;
+    goto RollbackWritePointersAndFreeTracker;
   }
 
   //
@@ -639,11 +835,21 @@ InstallQemuFwCfgTables (
       Status = Process2ndPassCmdAddPointer (&LoaderEntry->Command.AddPointer,
                  Tracker, AcpiProtocol, InstalledKey, &Installed);
       if (EFI_ERROR (Status)) {
-        break;
+        goto UninstallAcpiTables;
       }
     }
   }
 
+  //
+  // Translating the condensed QEMU_LOADER_WRITE_POINTER commands to ACPI S3
+  // Boot Script opcodes has to be the last operation in this function, because
+  // if it succeeds, it cannot be undone.
+  //
+  if (S3Context != NULL) {
+    Status = TransferS3ContextToBootScript (S3Context);
+  }
+
+UninstallAcpiTables:
   if (EFI_ERROR (Status)) {
     //
     // roll back partial installation
@@ -658,7 +864,21 @@ InstallQemuFwCfgTables (
 
   FreePool (InstalledKey);
 
-FreeTracker:
+RollbackWritePointersAndFreeTracker:
+  //
+  // In case of failure, revoke any allocation addresses that were communicated
+  // to QEMU previously, before we release all the blobs.
+  //
+  if (EFI_ERROR (Status)) {
+    LoaderEntry = WritePointerSubsetEnd;
+    while (LoaderEntry > LoaderStart) {
+      --LoaderEntry;
+      if (LoaderEntry->Type == QemuLoaderCmdWritePointer) {
+        UndoCmdWritePointer (&LoaderEntry->Command.WritePointer);
+      }
+    }
+  }
+
   //
   // Tear down the tracker infrastructure. Each fw_cfg blob will be left in
   // place only if we're exiting with success and the blob hosts data that is
@@ -681,6 +901,11 @@ FreeTracker:
     FreePool (Blob);
   }
   OrderedCollectionUninit (Tracker);
+
+FreeS3Context:
+  if (S3Context != NULL) {
+    ReleaseS3Context (S3Context);
+  }
 
 FreeLoader:
   FreePool (LoaderStart);

@@ -2,6 +2,7 @@
 
   Copyright (c) 2011 - 2013, Intel Corporation. All rights reserved.<BR>
   Copyright (C) 2013, Red Hat, Inc.
+  Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
 
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
@@ -26,59 +27,6 @@
 
 
 /**
-  Reads an 8-bit I/O port fifo into a block of memory.
-
-  Reads the 8-bit I/O fifo port specified by Port.
-
-  The port is read Count times, and the read data is
-  stored in the provided Buffer.
-
-  This function must guarantee that all I/O read and write operations are
-  serialized.
-
-  If 8-bit I/O port operations are not supported, then ASSERT().
-
-  @param  Port    The I/O port to read.
-  @param  Count   The number of times to read I/O port.
-  @param  Buffer  The buffer to store the read data into.
-
-**/
-VOID
-EFIAPI
-IoReadFifo8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
-  );
-
-/**
-  Writes an 8-bit I/O port fifo from a block of memory.
-
-  Writes the 8-bit I/O fifo port specified by Port.
-
-  The port is written Count times, and the data are obtained
-  from the provided Buffer.
-
-  This function must guarantee that all I/O read and write operations are
-  serialized.
-
-  If 8-bit I/O port operations are not supported, then ASSERT().
-
-  @param  Port    The I/O port to read.
-  @param  Count   The number of times to read I/O port.
-  @param  Buffer  The buffer to store the read data into.
-
-**/
-VOID
-EFIAPI
-IoWriteFifo8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
-  );
-
-
-/**
   Selects a firmware configuration item for reading.
   
   Following this call, any data read from this item will start from
@@ -99,32 +47,39 @@ QemuFwCfgSelectItem (
 
 
 /**
-  Transfer an array of bytes using the DMA interface.
+  Transfer an array of bytes, or skip a number of bytes, using the DMA
+  interface.
 
-  @param[in]     Size    Size in bytes to transfer.
-  @param[in,out] Buffer  Buffer to read data into or write data from. May be
-                         NULL if Size is zero.
-  @param[in]     Write   TRUE if writing to fw_cfg from Buffer, FALSE if
-                         reading from fw_cfg into Buffer.
+  @param[in]     Size     Size in bytes to transfer or skip.
+
+  @param[in,out] Buffer   Buffer to read data into or write data from. Ignored,
+                          and may be NULL, if Size is zero, or Control is
+                          FW_CFG_DMA_CTL_SKIP.
+
+  @param[in]     Control  One of the following:
+                          FW_CFG_DMA_CTL_WRITE - write to fw_cfg from Buffer.
+                          FW_CFG_DMA_CTL_READ  - read from fw_cfg into Buffer.
+                          FW_CFG_DMA_CTL_SKIP  - skip bytes in fw_cfg.
 **/
 VOID
 InternalQemuFwCfgDmaBytes (
   IN     UINT32   Size,
   IN OUT VOID     *Buffer OPTIONAL,
-  IN     BOOLEAN  Write
+  IN     UINT32   Control
   )
 {
   volatile FW_CFG_DMA_ACCESS Access;
   UINT32                     AccessHigh, AccessLow;
   UINT32                     Status;
 
+  ASSERT (Control == FW_CFG_DMA_CTL_WRITE || Control == FW_CFG_DMA_CTL_READ ||
+    Control == FW_CFG_DMA_CTL_SKIP);
+
   if (Size == 0) {
     return;
   }
 
-  Access.Control = SwapBytes32 (
-                    Write ? FW_CFG_DMA_CTL_WRITE : FW_CFG_DMA_CTL_READ
-                    );
+  Access.Control = SwapBytes32 (Control);
   Access.Length  = SwapBytes32 (Size);
   Access.Address = SwapBytes64 ((UINTN)Buffer);
 
@@ -177,7 +132,7 @@ InternalQemuFwCfgReadBytes (
   )
 {
   if (InternalQemuFwCfgDmaIsAvailable () && Size <= MAX_UINT32) {
-    InternalQemuFwCfgDmaBytes ((UINT32)Size, Buffer, FALSE);
+    InternalQemuFwCfgDmaBytes ((UINT32)Size, Buffer, FW_CFG_DMA_CTL_READ);
     return;
   }
   IoReadFifo8 (0x511, Size, Buffer);
@@ -229,10 +184,54 @@ QemuFwCfgWriteBytes (
 {
   if (InternalQemuFwCfgIsAvailable ()) {
     if (InternalQemuFwCfgDmaIsAvailable () && Size <= MAX_UINT32) {
-      InternalQemuFwCfgDmaBytes ((UINT32)Size, Buffer, TRUE);
+      InternalQemuFwCfgDmaBytes ((UINT32)Size, Buffer, FW_CFG_DMA_CTL_WRITE);
       return;
     }
     IoWriteFifo8 (0x511, Size, Buffer);
+  }
+}
+
+
+/**
+  Skip bytes in the firmware configuration item.
+
+  Increase the offset of the firmware configuration item without transferring
+  bytes between the item and a caller-provided buffer. Subsequent read, write
+  or skip operations will commence at the increased offset.
+
+  @param[in] Size  Number of bytes to skip.
+**/
+VOID
+EFIAPI
+QemuFwCfgSkipBytes (
+  IN UINTN                  Size
+  )
+{
+  UINTN ChunkSize;
+  UINT8 SkipBuffer[256];
+
+  if (!InternalQemuFwCfgIsAvailable ()) {
+    return;
+  }
+
+  if (InternalQemuFwCfgDmaIsAvailable () && Size <= MAX_UINT32) {
+    InternalQemuFwCfgDmaBytes ((UINT32)Size, NULL, FW_CFG_DMA_CTL_SKIP);
+    return;
+  }
+
+  //
+  // Emulate the skip by reading data in chunks, and throwing it away. The
+  // implementation below is suitable even for phases where RAM or dynamic
+  // allocation is not available or appropriate. It also doesn't affect the
+  // static data footprint for client modules. Large skips are not expected,
+  // therefore this fallback is not performance critical. The size of
+  // SkipBuffer is thought not to exert a large pressure on the stack in any
+  // phase.
+  //
+  while (Size > 0) {
+    ChunkSize = MIN (Size, sizeof SkipBuffer);
+    IoReadFifo8 (0x511, ChunkSize, SkipBuffer);
+    Size -= ChunkSize;
   }
 }
 

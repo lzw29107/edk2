@@ -1,6 +1,6 @@
 // /**
 //
-// Copyright (c) 2010 - 2016, Intel Corporation. All rights reserved.<BR>
+// Copyright (c) 2010 - 2017, Intel Corporation. All rights reserved.<BR>
 // (C) Copyright 2013-2015 Hewlett-Packard Development Company, L.P.<BR>
 // (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
 // This program and the accompanying materials
@@ -39,7 +39,7 @@
 #string STR_GEN_PCIRBIO_NF        #language en-US "%H%s%N: Protocol - PciRootBridgeIo not found.\r\n"
 #string STR_GEN_PCIRBIO_ER        #language en-US "%H%s%N: Problem accessing the data using Protocol - PciRootBridgeIo\r\n"
 #string STR_GEN_PARAM_INV         #language en-US "%H%s%N: Invalid argument - '%H%s%N'\r\n"
-#string STR_GEN_PARAM_INV_HEX     #language en-US "%H%s%N: Invalid parameter - '%H%s%N:'.  Must be hexadecimal.\r\n"
+#string STR_GEN_PARAM_INV_HEX     #language en-US "%H%s%N: Invalid parameter - '%H%s%N'. Must be hexadecimal.\r\n"
 #string STR_GEN_PARAM_CONFLICT    #language en-US "%H%s%N: Flags conflict with - '%H%s%N' and '%H%s%N'\r\n"
 #string STR_GEN_OUT_MEM           #language en-US "%H%s%N: Memory allocation was not successful.\r\n"
 #string STR_GEN_MAP_PROTOCOL      #language en-US "%H%s%N: Mapped device '%B%s%N' does not have protocol %B%s%N\r\n"
@@ -895,17 +895,20 @@
 #string STR_GET_HELP_PCI          #language en-US ""
 ".TH pci 0 "Displays PCI device information."\r\n"
 ".SH NAME\r\n"
-"Displays a PCI device list or PCI function configuration space of a device.\r\n"
+"Displays PCI device list or PCI function configuration space and PCIe extended\r\n"
+"configuration space.\r\n"
 ".SH SYNOPSIS\r\n"
 " \r\n"
-"PCI [Bus Dev [Func] [-s Seg] [-i]]\r\n"
+"PCI [Bus Dev [Func] [-s Seg] [-i [-ec ID]]]\r\n"
 ".SH OPTIONS\r\n"
 " \r\n"
-"  -s   - Specifies optional segment number.\r\n"
+"  -s   - Specifies optional segment number (hexadecimal number).\r\n"
 "  -i   - Displays interpreted information.\r\n"
-"  Bus  - Specifies a bus number.\r\n"
-"  Dev  - Specifies a device number.\r\n"
-"  Func - Specifies a function number.\r\n"
+"  -ec  - Displays detailed interpretation of specified PCIe extended capability\r\n"
+"         ID (hexadecimal number).\r\n"
+"  Bus  - Specifies a bus number (hexadecimal number).\r\n"
+"  Dev  - Specifies a device number (hexadecimal number).\r\n"
+"  Func - Specifies a function number (hexadecimal number).\r\n"
 ".SH DESCRIPTION\r\n"
 " \r\n"
 "NOTES:\r\n"
@@ -999,6 +1002,7 @@
 "       40 - Additional Information\r\n"
 "       41 - Onboard Devices Extended Information\r\n"
 "       42 - Management Controller Host Interface\r\n"
+"       43 - TPM Device\r\n"
 "  2. Enter the SmbiosHandle parameter in hexadecimal format.\r\n"
 "     Do not use the '0x' prefix format for hexadecimal values.\r\n"
 "  3. Internal commands:\r\n"

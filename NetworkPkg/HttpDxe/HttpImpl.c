@@ -1,7 +1,7 @@
 /** @file
   Implementation of EFI_HTTP_PROTOCOL protocol interfaces.
 
-  Copyright (c) 2015 - 2016, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2015 - 2017, Intel Corporation. All rights reserved.<BR>
   (C) Copyright 2015-2016 Hewlett Packard Enterprise Development LP<BR>
 
   This program and the accompanying materials
@@ -249,6 +249,7 @@ EfiHttpRequest (
   HTTP_TOKEN_WRAP               *Wrap;
   CHAR8                         *FileUrl;
   UINTN                         RequestMsgSize;
+  EFI_HANDLE                    ImageHandle;
 
   //
   // Initializations
@@ -355,14 +356,30 @@ EfiHttpRequest (
     HttpInstance->UseHttps = IsHttpsUrl (Url);
 
     //
+    // HTTP is disabled, return directly if the URI is not HTTPS.
+    //
+    if (!PcdGetBool (PcdAllowHttpConnections) && !(HttpInstance->UseHttps)) {
+      
+      DEBUG ((EFI_D_ERROR, "EfiHttpRequest: HTTP is disabled.\n"));
+
+      return EFI_ACCESS_DENIED;
+    }
+
+    //
     // Check whether we need to create Tls child and open the TLS protocol.
     //
     if (HttpInstance->UseHttps && HttpInstance->TlsChildHandle == NULL) {
       //
       // Use TlsSb to create Tls child and open the TLS protocol.
       //
+      if (HttpInstance->LocalAddressIsIPv6) {
+        ImageHandle = HttpInstance->Service->Ip6DriverBindingHandle;
+      } else {
+        ImageHandle = HttpInstance->Service->Ip4DriverBindingHandle;
+      }
+
       HttpInstance->TlsChildHandle = TlsCreateChild (
-                                       HttpInstance->Service->ImageHandle,
+                                       ImageHandle,
                                        &(HttpInstance->Tls),
                                        &(HttpInstance->TlsConfiguration)
                                        );

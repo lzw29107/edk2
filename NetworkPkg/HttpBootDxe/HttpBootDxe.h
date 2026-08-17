@@ -1,7 +1,7 @@
 /** @file
   UEFI HTTP boot driver's private data structure and interfaces declaration.
 
-Copyright (c) 2015 - 2016, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2015 - 2017, Intel Corporation. All rights reserved.<BR>
 (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
 This program and the accompanying materials are licensed and made available under 
 the terms and conditions of the BSD License that accompanies this distribution.  
@@ -36,6 +36,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Library/HttpLib.h>
 #include <Library/HiiLib.h>
 #include <Library/PrintLib.h>
+#include <Library/DpcLib.h>
 
 //
 // UEFI Driver Model Protocols
@@ -73,10 +74,12 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define HTTP_BOOT_DXE_VERSION  0xa
 
 //
-// Provisional Standard Media Types defined in 
-// http://www.iana.org/assignments/provisional-standard-media-types/provisional-standard-media-types.xhtml
+// Standard Media Types defined in 
+// http://www.iana.org/assignments/media-types
 //
 #define HTTP_CONTENT_TYPE_APP_EFI           "application/efi"
+#define HTTP_CONTENT_TYPE_APP_IMG           "application/vnd.efi-img"
+#define HTTP_CONTENT_TYPE_APP_ISO           "application/vnd.efi-iso"
 
 //
 // Protocol instances

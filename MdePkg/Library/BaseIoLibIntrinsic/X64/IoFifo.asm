@@ -1,6 +1,7 @@
 ;------------------------------------------------------------------------------
 ;
 ; Copyright (c) 2006 - 2012, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
 ;
 ; This program and the accompanying materials are licensed and made available
 ; under the terms and conditions of the BSD License which accompanies this
@@ -12,27 +13,23 @@
 ;
 ;------------------------------------------------------------------------------
 
-    .586P
-    .model  flat,C
     .code
 
 ;------------------------------------------------------------------------------
 ;  VOID
 ;  EFIAPI
 ;  IoReadFifo8 (
-;    IN UINTN                  Port,
-;    IN UINTN                  Size,
-;    IN VOID                   *Buffer
+;    IN  UINTN                 Port,              // rcx
+;    IN  UINTN                 Size,              // rdx
+;    OUT VOID                  *Buffer            // r8
 ;    );
 ;------------------------------------------------------------------------------
 IoReadFifo8 PROC
-    push    edi
     cld
-    mov     dx, [esp + 8]
-    mov     ecx, [esp + 12]
-    mov     edi, [esp + 16]
+    xchg    rcx, rdx
+    xchg    rdi, r8             ; rdi: buffer address; r8: save rdi
 rep insb
-    pop     edi
+    mov     rdi, r8             ; restore rdi
     ret
 IoReadFifo8 ENDP
 
@@ -40,19 +37,17 @@ IoReadFifo8 ENDP
 ;  VOID
 ;  EFIAPI
 ;  IoReadFifo16 (
-;    IN UINTN                  Port,
-;    IN UINTN                  Size,
-;    IN VOID                   *Buffer
+;    IN  UINTN                 Port,              // rcx
+;    IN  UINTN                 Size,              // rdx
+;    OUT VOID                  *Buffer            // r8
 ;    );
 ;------------------------------------------------------------------------------
 IoReadFifo16 PROC
-    push    edi
     cld
-    mov     dx, [esp + 8]
-    mov     ecx, [esp + 12]
-    mov     edi, [esp + 16]
+    xchg    rcx, rdx
+    xchg    rdi, r8             ; rdi: buffer address; r8: save rdi
 rep insw
-    pop     edi
+    mov     rdi, r8             ; restore rdi
     ret
 IoReadFifo16 ENDP
 
@@ -60,19 +55,17 @@ IoReadFifo16 ENDP
 ;  VOID
 ;  EFIAPI
 ;  IoReadFifo32 (
-;    IN UINTN                  Port,
-;    IN UINTN                  Size,
-;    IN VOID                   *Buffer
+;    IN  UINTN                 Port,              // rcx
+;    IN  UINTN                 Size,              // rdx
+;    OUT VOID                  *Buffer            // r8
 ;    );
 ;------------------------------------------------------------------------------
 IoReadFifo32 PROC
-    push    edi
     cld
-    mov     dx, [esp + 8]
-    mov     ecx, [esp + 12]
-    mov     edi, [esp + 16]
+    xchg    rcx, rdx
+    xchg    rdi, r8             ; rdi: buffer address; r8: save rdi
 rep insd
-    pop     edi
+    mov     rdi, r8             ; restore rdi
     ret
 IoReadFifo32 ENDP
 
@@ -80,19 +73,17 @@ IoReadFifo32 ENDP
 ;  VOID
 ;  EFIAPI
 ;  IoWriteFifo8 (
-;    IN UINTN                  Port,
-;    IN UINTN                  Size,
-;    IN VOID                   *Buffer
+;    IN UINTN                  Port,              // rcx
+;    IN UINTN                  Size,              // rdx
+;    IN VOID                   *Buffer            // r8
 ;    );
 ;------------------------------------------------------------------------------
 IoWriteFifo8 PROC
-    push    esi
     cld
-    mov     dx, [esp + 8]
-    mov     ecx, [esp + 12]
-    mov     esi, [esp + 16]
+    xchg    rcx, rdx
+    xchg    rsi, r8             ; rsi: buffer address; r8: save rsi
 rep outsb
-    pop     esi
+    mov     rsi, r8             ; restore rsi
     ret
 IoWriteFifo8 ENDP
 
@@ -100,19 +91,17 @@ IoWriteFifo8 ENDP
 ;  VOID
 ;  EFIAPI
 ;  IoWriteFifo16 (
-;    IN UINTN                  Port,
-;    IN UINTN                  Size,
-;    IN VOID                   *Buffer
+;    IN UINTN                  Port,              // rcx
+;    IN UINTN                  Size,              // rdx
+;    IN VOID                   *Buffer            // r8
 ;    );
 ;------------------------------------------------------------------------------
 IoWriteFifo16 PROC
-    push    esi
     cld
-    mov     dx, [esp + 8]
-    mov     ecx, [esp + 12]
-    mov     esi, [esp + 16]
+    xchg    rcx, rdx
+    xchg    rsi, r8             ; rsi: buffer address; r8: save rsi
 rep outsw
-    pop     esi
+    mov     rsi, r8             ; restore rsi
     ret
 IoWriteFifo16 ENDP
 
@@ -120,19 +109,17 @@ IoWriteFifo16 ENDP
 ;  VOID
 ;  EFIAPI
 ;  IoWriteFifo32 (
-;    IN UINTN                  Port,
-;    IN UINTN                  Size,
-;    IN VOID                   *Buffer
+;    IN UINTN                  Port,              // rcx
+;    IN UINTN                  Size,              // rdx
+;    IN VOID                   *Buffer            // r8
 ;    );
 ;------------------------------------------------------------------------------
 IoWriteFifo32 PROC
-    push    esi
     cld
-    mov     dx, [esp + 8]
-    mov     ecx, [esp + 12]
-    mov     esi, [esp + 16]
+    xchg    rcx, rdx
+    xchg    rsi, r8             ; rsi: buffer address; r8: save rsi
 rep outsd
-    pop     esi
+    mov     rsi, r8             ; restore rsi
     ret
 IoWriteFifo32 ENDP
 

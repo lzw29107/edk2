@@ -1,7 +1,7 @@
 /** @file
   Module for clarifying the content of the smbios structure element information.
 
-  Copyright (c) 2005 - 2016, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2005 - 2017, Intel Corporation. All rights reserved.<BR>
   (C) Copyright 2014 Hewlett-Packard Development Company, L.P.<BR>  
   (C) Copyright 2015-2017 Hewlett Packard Enterprise Development LP<BR>
   This program and the accompanying materials
@@ -335,7 +335,17 @@ SmbiosPrintStructure (
       PRINT_STRUCT_VALUE (Struct, Type0, EmbeddedControllerFirmwareMajorRelease);
       PRINT_STRUCT_VALUE (Struct, Type0, EmbeddedControllerFirmwareMinorRelease);
     }
-
+    if (AE_SMBIOS_VERSION (0x3, 0x1) && (Struct->Hdr->Length > 0x18)) {
+      ShellPrintHiiEx (
+        -1,
+        -1,
+        NULL,
+        STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_EXTENDED_BIOS_SIZE),
+        gShellDebug1HiiHandle,
+        Struct->Type0->ExtendedBiosSize.Size,
+        (Struct->Type0->ExtendedBiosSize.Unit == 0x0) ? L"MB": L"GB"
+        );
+    }
     break;
 
   //
@@ -510,6 +520,10 @@ SmbiosPrintStructure (
     DisplayCacheErrCorrectingType (Struct->Type7->ErrorCorrectionType, Option);
     DisplayCacheSystemCacheType (Struct->Type7->SystemCacheType, Option);
     DisplayCacheAssociativity (Struct->Type7->Associativity, Option);
+    if (AE_SMBIOS_VERSION (0x3, 0x1) && (Struct->Hdr->Length > 0x13)) {
+      PRINT_STRUCT_VALUE_H (Struct, Type7, MaximumCacheSize2);
+      PRINT_STRUCT_VALUE_H (Struct, Type7, InstalledSize2);
+    }
     break;
 
   //
@@ -556,7 +570,8 @@ SmbiosPrintStructure (
       UINTN NumOfDevice;
       NumOfDevice = (Struct->Type10->Hdr.Length - sizeof (SMBIOS_STRUCTURE)) / (2 * sizeof (UINT8));
       for (Index = 0; Index < NumOfDevice; Index++) {
-        DisplayOnboardDeviceTypes (Struct->Type10->Device[Index].DeviceType, Option);
+        ShellPrintEx(-1,-1,(((Struct->Type10->Device[Index].DeviceType) & 0x80) != 0) ? L"Device Enabled\n": L"Device Disabled\n");
+        DisplayOnboardDeviceTypes ((Struct->Type10->Device[Index].DeviceType) & 0x7F, Option);
         ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_DESC_STRING), gShellDebug1HiiHandle);
         ShellPrintEx(-1,-1,L"%a\n",LibGetSmbiosString (Struct, Struct->Type10->Device[Index].DescriptionString));
       }
@@ -1092,7 +1107,7 @@ SmbiosPrintStructure (
   // Management Controller Host Interface (Type 42)
   //
   case 42:
-    PRINT_STRUCT_VALUE_H (Struct, Type42, InterfaceType);
+    DisplayMCHostInterfaceType (Struct->Type42->InterfaceType, Option);
     break;
 
   //
@@ -1580,6 +1595,22 @@ DisplayProcessorFamily (
     ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_INTEL_ATOM), gShellDebug1HiiHandle);
     break;
 
+  case 0x2C:
+    Print (L"Intel(R) Core(TM) M processor\n");
+    break;
+
+  case 0x2D:
+    Print (L"Intel(R) Core(TM) m3 processor\n");
+    break;
+
+  case 0x2E:
+    Print (L"Intel(R) Core(TM) m5 processor\n");
+    break;
+
+  case 0x2F:
+    Print (L"Intel(R) Core(TM) m7 processor\n");
+    break;
+
   case 0x30:
     ShellPrintHiiEx(-1,-1,NULL,STRING_TOKEN (STR_SMBIOSVIEW_PRINTINFO_ALPHA_FAMILY_2), gShellDebug1HiiHandle);
     break;
@@ -1766,6 +1797,30 @@ DisplayProcessorFamily (
 
   case 0x65:
     Print (L"68030\n");
+    break;
+
+  case 0x66:
+    Print (L"AMD Athlon(TM) X4 Quad-Core Processor Family\n");
+    break;
+
+  case 0x67:
+    Print (L"AMD Opteron(TM) X1000 Series Processor\n");
+    break;
+
+  case 0x68:
+    Print (L"AMD Opteron(TM) X2000 Series APU\n");
+    break;
+
+  case 0x69:
+    Print (L"AMD Opteron(TM) A-Series Processor\n");
+    break;
+
+  case 0x6A:
+    Print (L"AMD Opteron(TM) X3000 Series APU\n");
+    break;
+
+  case 0x6B:
+    Print (L"AMD Zen Processor Family\n");
     break;
 
   case 0x70:
@@ -2199,6 +2254,14 @@ DisplayProcessorFamily2 (
   // Use switch to check
   //
   switch (Family2) {
+    case 0x100:
+      Print (L"ARMv7\n");
+      break;
+
+    case 0x101:
+      Print (L"ARMv8\n");
+      break;
+
     case 0x104:
       Print (L"SH-3\n");
       break;

@@ -1,6 +1,7 @@
 ;------------------------------------------------------------------------------
 ;
 ; Copyright (c) 2006 - 2012, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
 ;
 ; This program and the accompanying materials are licensed and made available
 ; under the terms and conditions of the BSD License which accompanies this
@@ -12,19 +13,20 @@
 ;
 ;------------------------------------------------------------------------------
 
-    SECTION .text
+    .586P
+    .model  flat,C
+    .code
 
 ;------------------------------------------------------------------------------
 ;  VOID
 ;  EFIAPI
 ;  IoReadFifo8 (
-;    IN UINTN                  Port,
-;    IN UINTN                  Size,
-;    IN VOID                   *Buffer
+;    IN  UINTN                 Port,
+;    IN  UINTN                 Size,
+;    OUT VOID                  *Buffer
 ;    );
 ;------------------------------------------------------------------------------
-global ASM_PFX(IoReadFifo8)
-ASM_PFX(IoReadFifo8):
+IoReadFifo8 PROC
     push    edi
     cld
     mov     dx, [esp + 8]
@@ -33,18 +35,18 @@ ASM_PFX(IoReadFifo8):
 rep insb
     pop     edi
     ret
+IoReadFifo8 ENDP
 
 ;------------------------------------------------------------------------------
 ;  VOID
 ;  EFIAPI
 ;  IoReadFifo16 (
-;    IN UINTN                  Port,
-;    IN UINTN                  Size,
-;    IN VOID                   *Buffer
+;    IN  UINTN                 Port,
+;    IN  UINTN                 Size,
+;    OUT VOID                  *Buffer
 ;    );
 ;------------------------------------------------------------------------------
-global ASM_PFX(IoReadFifo16)
-ASM_PFX(IoReadFifo16):
+IoReadFifo16 PROC
     push    edi
     cld
     mov     dx, [esp + 8]
@@ -53,18 +55,18 @@ ASM_PFX(IoReadFifo16):
 rep insw
     pop     edi
     ret
+IoReadFifo16 ENDP
 
 ;------------------------------------------------------------------------------
 ;  VOID
 ;  EFIAPI
 ;  IoReadFifo32 (
-;    IN UINTN                  Port,
-;    IN UINTN                  Size,
-;    IN VOID                   *Buffer
+;    IN  UINTN                 Port,
+;    IN  UINTN                 Size,
+;    OUT VOID                  *Buffer
 ;    );
 ;------------------------------------------------------------------------------
-global ASM_PFX(IoReadFifo32)
-ASM_PFX(IoReadFifo32):
+IoReadFifo32 PROC
     push    edi
     cld
     mov     dx, [esp + 8]
@@ -73,6 +75,7 @@ ASM_PFX(IoReadFifo32):
 rep insd
     pop     edi
     ret
+IoReadFifo32 ENDP
 
 ;------------------------------------------------------------------------------
 ;  VOID
@@ -83,8 +86,7 @@ rep insd
 ;    IN VOID                   *Buffer
 ;    );
 ;------------------------------------------------------------------------------
-global ASM_PFX(IoWriteFifo8)
-ASM_PFX(IoWriteFifo8):
+IoWriteFifo8 PROC
     push    esi
     cld
     mov     dx, [esp + 8]
@@ -93,6 +95,7 @@ ASM_PFX(IoWriteFifo8):
 rep outsb
     pop     esi
     ret
+IoWriteFifo8 ENDP
 
 ;------------------------------------------------------------------------------
 ;  VOID
@@ -103,8 +106,7 @@ rep outsb
 ;    IN VOID                   *Buffer
 ;    );
 ;------------------------------------------------------------------------------
-global ASM_PFX(IoWriteFifo16)
-ASM_PFX(IoWriteFifo16):
+IoWriteFifo16 PROC
     push    esi
     cld
     mov     dx, [esp + 8]
@@ -113,6 +115,7 @@ ASM_PFX(IoWriteFifo16):
 rep outsw
     pop     esi
     ret
+IoWriteFifo16 ENDP
 
 ;------------------------------------------------------------------------------
 ;  VOID
@@ -123,8 +126,7 @@ rep outsw
 ;    IN VOID                   *Buffer
 ;    );
 ;------------------------------------------------------------------------------
-global ASM_PFX(IoWriteFifo32)
-ASM_PFX(IoWriteFifo32):
+IoWriteFifo32 PROC
     push    esi
     cld
     mov     dx, [esp + 8]
@@ -133,4 +135,7 @@ ASM_PFX(IoWriteFifo32):
 rep outsd
     pop     esi
     ret
+IoWriteFifo32 ENDP
+
+    END
 

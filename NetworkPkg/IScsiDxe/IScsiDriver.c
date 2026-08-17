@@ -1,7 +1,9 @@
 /** @file
   The entry point of IScsi driver.
 
-Copyright (c) 2004 - 2016, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2004 - 2017, Intel Corporation. All rights reserved.<BR>
+(C) Copyright 2017 Hewlett Packard Enterprise Development LP<BR>
+
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -252,15 +254,19 @@ IScsiSupported (
   EFI_GUID                  *IScsiServiceBindingGuid;
   EFI_GUID                  *TcpServiceBindingGuid;
   EFI_GUID                  *DhcpServiceBindingGuid;
+  EFI_GUID                  *DnsServiceBindingGuid;
 
   if (IpVersion == IP_VERSION_4) {
     IScsiServiceBindingGuid  = &gIScsiV4PrivateGuid;
     TcpServiceBindingGuid    = &gEfiTcp4ServiceBindingProtocolGuid;
     DhcpServiceBindingGuid   = &gEfiDhcp4ServiceBindingProtocolGuid;
+    DnsServiceBindingGuid    = &gEfiDns4ServiceBindingProtocolGuid;
+
   } else {
     IScsiServiceBindingGuid  = &gIScsiV6PrivateGuid;
     TcpServiceBindingGuid    = &gEfiTcp6ServiceBindingProtocolGuid;
     DhcpServiceBindingGuid   = &gEfiDhcp6ServiceBindingProtocolGuid;
+    DnsServiceBindingGuid    = &gEfiDns6ServiceBindingProtocolGuid;
   }
 
   Status = gBS->OpenProtocol (
@@ -305,7 +311,21 @@ IScsiSupported (
       return EFI_UNSUPPORTED;
     }
   }
-  
+
+  if (IScsiDnsIsConfigured (ControllerHandle)) {
+    Status = gBS->OpenProtocol (
+                    ControllerHandle,
+                    DnsServiceBindingGuid,
+                    NULL,
+                    This->DriverBindingHandle,
+                    ControllerHandle,
+                    EFI_OPEN_PROTOCOL_TEST_PROTOCOL
+                    );
+    if (EFI_ERROR (Status)) {
+      return EFI_UNSUPPORTED;
+    }
+  }
+
   return EFI_SUCCESS;
 }
 
@@ -401,7 +421,11 @@ IScsiStart (
   }
 
   NetworkBootPolicy = PcdGet8 (PcdIScsiAIPNetworkBootPolicy);
-  if (NetworkBootPolicy != ALWAYS_USE_UEFI_ISCSI_AND_IGNORE_AIP) {
+  if (NetworkBootPolicy == ALWAYS_USE_ISCSI_HBA_AND_IGNORE_UEFI_ISCSI) {
+    return EFI_ABORTED;
+  }
+
+  if (NetworkBootPolicy != ALWAYS_USE_UEFI_ISCSI_AND_IGNORE_ISCSI_HBA) {
     //
     // Check existing iSCSI AIP.
     //

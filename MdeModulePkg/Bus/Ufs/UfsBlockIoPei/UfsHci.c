@@ -480,6 +480,7 @@ UfsCreateScsiCommandDesc (
   Trd->Int    = UFS_INTERRUPT_COMMAND;
   Trd->Dd     = DataDirection;
   Trd->Ct     = UFS_STORAGE_COMMAND_TYPE;
+  Trd->Ocs    = UFS_HC_TRD_OCS_INIT_VALUE;
   Trd->UcdBa  = (UINT32)RShiftU64 ((UINT64)(UINTN)CommandUpiu, 7);
   Trd->UcdBaU = (UINT32)RShiftU64 ((UINT64)(UINTN)CommandUpiu, 32);
   Trd->RuL    = (UINT16)DivU64x32 ((UINT64)ROUNDUP8 (sizeof (UTP_RESPONSE_UPIU)), sizeof (UINT32));
@@ -583,7 +584,7 @@ UfsCreateDMCommandDesc (
   Trd->Int    = UFS_INTERRUPT_COMMAND;
   Trd->Dd     = DataDirection;
   Trd->Ct     = UFS_STORAGE_COMMAND_TYPE;
-  Trd->Ocs    = 0x0F;
+  Trd->Ocs    = UFS_HC_TRD_OCS_INIT_VALUE;
   Trd->UcdBa  = (UINT32)RShiftU64 ((UINT64)(UINTN)QueryReqUpiu, 7);
   Trd->UcdBaU = (UINT32)RShiftU64 ((UINT64)(UINTN)QueryReqUpiu, 32);
   if (Opcode == UtpQueryFuncOpcodeWrDesc) {
@@ -637,6 +638,7 @@ UfsCreateNopCommandDesc (
   Trd->Int    = UFS_INTERRUPT_COMMAND;
   Trd->Dd     = 0x00;
   Trd->Ct     = UFS_STORAGE_COMMAND_TYPE;
+  Trd->Ocs    = UFS_HC_TRD_OCS_INIT_VALUE;
   Trd->UcdBa  = (UINT32)RShiftU64 ((UINT64)(UINTN)NopOutUpiu, 7);
   Trd->UcdBaU = (UINT32)RShiftU64 ((UINT64)(UINTN)NopOutUpiu, 32);
   Trd->RuL    = (UINT16)DivU64x32 ((UINT64)ROUNDUP8 (sizeof (UTP_NOP_IN_UPIU)), sizeof (UINT32));
@@ -842,7 +844,7 @@ UfsRwDeviceDesc (
   // Wait for the completion of the transfer request.
   //  
   Address = Private->UfsHcBase + UFS_HC_UTRLDBR_OFFSET;  
-  Status = UfsWaitMemSet (Address, BIT0, 0, Packet.Timeout);
+  Status = UfsWaitMemSet (Address, BIT0 << Slot, 0, Packet.Timeout);
   if (EFI_ERROR (Status)) {
     goto Exit;
   }
@@ -956,7 +958,7 @@ UfsRwAttributes (
   // Wait for the completion of the transfer request.
   //  
   Address = Private->UfsHcBase + UFS_HC_UTRLDBR_OFFSET;  
-  Status = UfsWaitMemSet (Address, BIT0, 0, Packet.Timeout);
+  Status = UfsWaitMemSet (Address, BIT0 << Slot, 0, Packet.Timeout);
   if (EFI_ERROR (Status)) {
     goto Exit;
   }
@@ -1070,7 +1072,7 @@ UfsRwFlags (
   // Wait for the completion of the transfer request.
   //  
   Address = Private->UfsHcBase + UFS_HC_UTRLDBR_OFFSET;  
-  Status = UfsWaitMemSet (Address, BIT0, 0, Packet.Timeout);
+  Status = UfsWaitMemSet (Address, BIT0 << Slot, 0, Packet.Timeout);
   if (EFI_ERROR (Status)) {
     goto Exit;
   }
@@ -1228,7 +1230,7 @@ UfsExecNopCmds (
   // Wait for the completion of the transfer request.
   //  
   Address = Private->UfsHcBase + UFS_HC_UTRLDBR_OFFSET;  
-  Status = UfsWaitMemSet (Address, BIT0, 0, UFS_TIMEOUT);
+  Status = UfsWaitMemSet (Address, BIT0 << Slot, 0, UFS_TIMEOUT);
   if (EFI_ERROR (Status)) {
     goto Exit;
   }
@@ -1312,7 +1314,7 @@ UfsExecScsiCmds (
   // Wait for the completion of the transfer request.
   //  
   Address = Private->UfsHcBase + UFS_HC_UTRLDBR_OFFSET;  
-  Status = UfsWaitMemSet (Address, BIT0, 0, Packet->Timeout);
+  Status = UfsWaitMemSet (Address, BIT0 << Slot, 0, Packet->Timeout);
   if (EFI_ERROR (Status)) {
     goto Exit;
   }

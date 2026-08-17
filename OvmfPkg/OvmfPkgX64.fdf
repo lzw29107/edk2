@@ -314,11 +314,7 @@ INF MdeModulePkg/Logo/LogoDxe.inf
   INF  NetworkPkg/Dhcp6Dxe/Dhcp6Dxe.inf
   INF  NetworkPkg/Mtftp6Dxe/Mtftp6Dxe.inf
   INF  NetworkPkg/UefiPxeBcDxe/UefiPxeBcDxe.inf
-!if $(SECURE_BOOT_ENABLE) == TRUE
   INF  NetworkPkg/IScsiDxe/IScsiDxe.inf
-!else
-  INF  MdeModulePkg/Universal/Network/IScsiDxe/IScsiDxe.inf
-!endif
 !else
   INF  MdeModulePkg/Universal/Network/Tcp4Dxe/Tcp4Dxe.inf
   INF  MdeModulePkg/Universal/Network/UefiPxeBcDxe/UefiPxeBcDxe.inf
@@ -329,6 +325,10 @@ INF MdeModulePkg/Logo/LogoDxe.inf
   INF  NetworkPkg/HttpUtilitiesDxe/HttpUtilitiesDxe.inf
   INF  NetworkPkg/HttpDxe/HttpDxe.inf
   INF  NetworkPkg/HttpBootDxe/HttpBootDxe.inf
+!endif
+!if $(TLS_ENABLE) == TRUE
+  INF  NetworkPkg/TlsDxe/TlsDxe.inf
+  INF  NetworkPkg/TlsAuthConfigDxe/TlsAuthConfigDxe.inf
 !endif
   INF  OvmfPkg/VirtioNetDxe/VirtioNet.inf
 

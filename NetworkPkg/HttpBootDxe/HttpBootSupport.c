@@ -1,7 +1,7 @@
 /** @file
   Support functions implementation for UEFI HTTP boot driver.
 
-Copyright (c) 2015 - 2016, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2015 - 2017, Intel Corporation. All rights reserved.<BR>
 (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
 This program and the accompanying materials are licensed and made available under
 the terms and conditions of the BSD License that accompanies this distribution.
@@ -625,6 +625,41 @@ HttpBootSetHeader (
 }
 
 /**
+  Notify the callback function when an event is triggered.
+
+  @param[in]  Context         The opaque parameter to the function.
+
+**/
+VOID
+EFIAPI
+HttpIoNotifyDpc (
+  IN VOID                *Context
+  )
+{
+  *((BOOLEAN *) Context) = TRUE;
+}
+
+/**
+  Request HttpIoNotifyDpc as a DPC at TPL_CALLBACK.
+
+  @param[in]  Event                 The event signaled.
+  @param[in]  Context               The opaque parameter to the function.
+
+**/
+VOID
+EFIAPI
+HttpIoNotify (
+  IN EFI_EVENT              Event,
+  IN VOID                   *Context
+  )
+{
+  //
+  // Request HttpIoNotifyDpc as a DPC at TPL_CALLBACK
+  //
+  QueueDpc (TPL_CALLBACK, HttpIoNotifyDpc, Context);
+}
+
+/**
   Create a HTTP_IO to access the HTTP service. It will create and configure
   a HTTP child handle.
 
@@ -730,7 +765,7 @@ HttpIoCreateIo (
   Status = gBS->CreateEvent (
                   EVT_NOTIFY_SIGNAL,
                   TPL_NOTIFY,
-                  HttpBootCommonNotify,
+                  HttpIoNotify,
                   &HttpIo->IsTxDone,
                   &Event
                   );
@@ -743,7 +778,7 @@ HttpIoCreateIo (
   Status = gBS->CreateEvent (
                   EVT_NOTIFY_SIGNAL,
                   TPL_NOTIFY,
-                  HttpBootCommonNotify,
+                  HttpIoNotify,
                   &HttpIo->IsRxDone,
                   &Event
                   );
@@ -989,6 +1024,57 @@ HttpIoRecvResponse (
 }
 
 /**
+  This function checks the HTTP(S) URI scheme.
+
+  @param[in]    Uri              The pointer to the URI string.
+  
+  @retval EFI_SUCCESS            The URI scheme is valid.
+  @retval EFI_INVALID_PARAMETER  The URI scheme is not HTTP or HTTPS.
+  @retval EFI_ACCESS_DENIED      HTTP is disabled and the URI is HTTP.
+
+**/
+EFI_STATUS
+HttpBootCheckUriScheme (
+  IN      CHAR8                  *Uri
+  )
+{
+  UINTN                Index;
+  EFI_STATUS           Status;
+
+  Status = EFI_SUCCESS;
+
+  //
+  // Convert the scheme to all lower case.
+  //
+  for (Index = 0; Index < AsciiStrLen (Uri); Index++) {
+    if (Uri[Index] == ':') {
+      break;
+    }
+    if (Uri[Index] >= 'A' && Uri[Index] <= 'Z') {
+      Uri[Index] -= (CHAR8)('A' - 'a');
+    }
+  }
+
+  //
+  // Return EFI_INVALID_PARAMETER if the URI is not HTTP or HTTPS.
+  //
+  if ((AsciiStrnCmp (Uri, "http://", 7) != 0) && (AsciiStrnCmp (Uri, "https://", 8) != 0)) {
+    DEBUG ((EFI_D_ERROR, "HttpBootCheckUriScheme: Invalid Uri.\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+  
+  //
+  // HTTP is disabled, return EFI_ACCESS_DENIED if the URI is HTTP.
+  //
+  if (!PcdGetBool (PcdAllowHttpConnections) && (AsciiStrnCmp (Uri, "http://", 7) == 0)) {
+    DEBUG ((EFI_D_ERROR, "HttpBootCheckUriScheme: HTTP is disabled.\n"));
+    return EFI_ACCESS_DENIED;
+  }
+
+  return Status;
+}
+
+/**
   Get the URI address string from the input device path.
 
   Caller need to free the buffer in the UriAddress pointer.
@@ -1092,12 +1178,20 @@ HttpBootCheckImageType (
 
   //
   // Determine the image type by the HTTP Content-Type header field first.
-  //   "application/efi" -> EFI Image
+  //   "application/efi"         -> EFI Image
+  //   "application/vnd.efi-iso" -> CD/DVD Image
+  //   "application/vnd.efi-img" -> Virtual Disk Image
   //
   Header = HttpFindHeader (HeaderCount, Headers, HTTP_HEADER_CONTENT_TYPE);
   if (Header != NULL) {
     if (AsciiStriCmp (Header->FieldValue, HTTP_CONTENT_TYPE_APP_EFI) == 0) {
       *ImageType = ImageTypeEfi;
+      return EFI_SUCCESS;
+    } else if (AsciiStriCmp (Header->FieldValue, HTTP_CONTENT_TYPE_APP_ISO) == 0) {
+      *ImageType = ImageTypeVirtualCd;
+      return EFI_SUCCESS;
+    } else if (AsciiStriCmp (Header->FieldValue, HTTP_CONTENT_TYPE_APP_IMG) == 0) {
+      *ImageType = ImageTypeVirtualDisk;
       return EFI_SUCCESS;
     }
   }

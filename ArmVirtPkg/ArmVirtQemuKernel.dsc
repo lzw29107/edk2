@@ -59,7 +59,6 @@
   NorFlashPlatformLib|ArmVirtPkg/Library/NorFlashQemuLib/NorFlashQemuLib.inf
 
   CapsuleLib|MdeModulePkg/Library/DxeCapsuleLibNull/DxeCapsuleLibNull.inf
-  UefiBootManagerLib|MdeModulePkg/Library/UefiBootManagerLib/UefiBootManagerLib.inf
   BootLogoLib|MdeModulePkg/Library/BootLogoLib/BootLogoLib.inf
   PlatformBootManagerLib|ArmVirtPkg/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf
   CustomizedDisplayLib|MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.inf
@@ -113,11 +112,6 @@
   # Size of the region used by UEFI in permanent memory (Reserved 64MB)
   gArmPlatformTokenSpaceGuid.PcdSystemMemoryUefiRegionSize|0x04000000
 
-  #
-  # ARM Pcds
-  #
-  gArmTokenSpaceGuid.PcdArmUncachedMemoryMask|0x0000000040000000
-
   ## Trustzone enable (to make the transition from EL3 to EL2 in ArmPlatformPkg/Sec)
   gArmTokenSpaceGuid.PcdTrustzoneSupport|FALSE
 
@@ -168,8 +162,6 @@
   # BuildCpuHob().
   #
   gEmbeddedTokenSpaceGuid.PcdPrePiCpuIoSize|16
-
-  gEfiMdeModulePkgTokenSpaceGuid.PcdSetNxForStack|TRUE
 
   # KVM limits it IPA space to 40 bits (1 TB), so there is no need to
   # support anything bigger, even if the host hardware does

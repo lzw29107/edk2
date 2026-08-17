@@ -1,7 +1,9 @@
 /** @file
 Agent Module to load other modules to deploy SMM Entry Vector for X86 CPU.
 
-Copyright (c) 2009 - 2016, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2009 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
+
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -95,6 +97,11 @@ BOOLEAN mSmmReadyToLock = FALSE;
 // Global used to cache PCD for SMM Code Access Check enable
 //
 BOOLEAN                  mSmmCodeAccessCheckEnable = FALSE;
+
+//
+// Global copy of the PcdPteMemoryEncryptionAddressOrMask
+//
+UINT64                   mAddressEncMask = 0;
 
 //
 // Spin lock used to serialize setting of SMM Code Access Check feature
@@ -603,6 +610,13 @@ PiCpuSmmEntry (
   //
   mSmmCodeAccessCheckEnable = PcdGetBool (PcdCpuSmmCodeAccessCheckEnable);
   DEBUG ((EFI_D_INFO, "PcdCpuSmmCodeAccessCheckEnable = %d\n", mSmmCodeAccessCheckEnable));
+
+  //
+  // Save the PcdPteMemoryEncryptionAddressOrMask value into a global variable.
+  // Make sure AddressEncMask is contained to smallest supported address field.
+  //
+  mAddressEncMask = PcdGet64 (PcdPteMemoryEncryptionAddressOrMask) & PAGING_1G_ADDRESS_MASK_64;
+  DEBUG ((EFI_D_INFO, "mAddressEncMask = 0x%lx\n", mAddressEncMask));
 
   //
   // If support CPU hot plug, we need to allocate resources for possibly hot-added processors
@@ -1268,7 +1282,7 @@ AllocateAlignedCodePages (
       Status = gSmst->SmmFreePages (Memory, UnalignedPages);
       ASSERT_EFI_ERROR (Status);
     }
-    Memory         = (EFI_PHYSICAL_ADDRESS) (AlignedMemory + EFI_PAGES_TO_SIZE (Pages));
+    Memory         = AlignedMemory + EFI_PAGES_TO_SIZE (Pages);
     UnalignedPages = RealPages - Pages - UnalignedPages;
     if (UnalignedPages > 0) {
       //

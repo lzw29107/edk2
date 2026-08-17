@@ -91,12 +91,12 @@ extern  EFI_IFR_GUID_LABEL         *mEndLabel;
 //
 // Support hash types
 //
-#define HASHALG_SHA224                         0x00000001
-#define HASHALG_SHA256                         0x00000002
-#define HASHALG_SHA384                         0x00000003
-#define HASHALG_SHA512                         0x00000004
-#define HASHALG_RAW                            0x00000005
-#define HASHALG_MAX                            0x00000005
+#define HASHALG_SHA224                         0x00000000
+#define HASHALG_SHA256                         0x00000001
+#define HASHALG_SHA384                         0x00000002
+#define HASHALG_SHA512                         0x00000003
+#define HASHALG_RAW                            0x00000004
+#define HASHALG_MAX                            0x00000004
 
 
 typedef struct {
@@ -474,26 +474,6 @@ Int2OctStr (
      OUT UINT8             *OctetString,
   IN     UINTN             OSSizeInBytes
   );
-
-
-/**
-  Convert a String to Guid Value.
-
-  @param[in]   Str        Specifies the String to be converted.
-  @param[in]   StrLen     Number of Unicode Characters of String (exclusive \0)
-  @param[out]  Guid       Return the result Guid value.
-
-  @retval    EFI_SUCCESS           The operation is finished successfully.
-  @retval    EFI_NOT_FOUND         Invalid string.
-
-**/
-EFI_STATUS
-StringToGuid (
-  IN   CHAR16           *Str,
-  IN   UINTN            StrLen,
-  OUT  EFI_GUID         *Guid
-  );
-
 
 /**
   Worker function that prints an EFI_GUID into specified Buffer.

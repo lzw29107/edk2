@@ -15,8 +15,6 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include "DxeMain.h"
 #include "Imem.h"
 
-#define EFI_DEFAULT_PAGE_ALLOCATION_ALIGNMENT  (EFI_PAGE_SIZE)
-
 //
 // Entry for tracking the memory regions for each memory type to coalesce similar memory types
 //
@@ -287,12 +285,14 @@ AllocateMemoryMapEntry (
     //
     // The list is empty, to allocate one page to refuel the list
     //
-    FreeDescriptorEntries = CoreAllocatePoolPages (EfiBootServicesData, EFI_SIZE_TO_PAGES(DEFAULT_PAGE_ALLOCATION), DEFAULT_PAGE_ALLOCATION);
-    if(FreeDescriptorEntries != NULL) {
+    FreeDescriptorEntries = CoreAllocatePoolPages (EfiBootServicesData,
+                              EFI_SIZE_TO_PAGES (DEFAULT_PAGE_ALLOCATION_GRANULARITY),
+                              DEFAULT_PAGE_ALLOCATION_GRANULARITY);
+    if (FreeDescriptorEntries != NULL) {
       //
       // Enque the free memmory map entries into the list
       //
-      for (Index = 0; Index< DEFAULT_PAGE_ALLOCATION / sizeof(MEMORY_MAP); Index++) {
+      for (Index = 0; Index < DEFAULT_PAGE_ALLOCATION_GRANULARITY / sizeof(MEMORY_MAP); Index++) {
         FreeDescriptorEntries[Index].Signature = MEMORY_MAP_SIGNATURE;
         InsertTailList (&mFreeMemoryMapEntryList, &FreeDescriptorEntries[Index].Link);
       }
@@ -552,6 +552,9 @@ CoreAddMemoryDescriptor (
   CoreAddRange (Type, Start, End, Attribute);
   CoreFreeMemoryMapStack ();
   CoreReleaseMemoryLock ();
+
+  ApplyMemoryProtectionPolicy (EfiMaxMemoryType, Type, Start,
+    LShiftU64 (NumberOfPages, EFI_PAGE_SHIFT));
 
   //
   // If Loading Module At Fixed Address feature is enabled. try to allocate memory with Runtime code & Boot time code type
@@ -1219,14 +1222,14 @@ CoreInternalAllocatePages (
     return EFI_INVALID_PARAMETER;
   }
 
-  Alignment = EFI_DEFAULT_PAGE_ALLOCATION_ALIGNMENT;
+  Alignment = DEFAULT_PAGE_ALLOCATION_GRANULARITY;
 
   if  (MemoryType == EfiACPIReclaimMemory   ||
        MemoryType == EfiACPIMemoryNVS       ||
        MemoryType == EfiRuntimeServicesCode ||
        MemoryType == EfiRuntimeServicesData) {
 
-    Alignment = EFI_ACPI_RUNTIME_PAGE_ALLOCATION_ALIGNMENT;
+    Alignment = RUNTIME_PAGE_ALLOCATION_GRANULARITY;
   }
 
   if (Type == AllocateAddress) {
@@ -1344,6 +1347,8 @@ CoreAllocatePages (
       NULL
       );
     InstallMemoryAttributesTableOnMemoryAllocation (MemoryType);
+    ApplyMemoryProtectionPolicy (EfiConventionalMemory, MemoryType, *Memory,
+      EFI_PAGES_TO_SIZE (NumberOfPages));
   }
   return Status;
 }
@@ -1393,7 +1398,7 @@ CoreInternalFreePages (
     goto Done;
   }
 
-  Alignment = EFI_DEFAULT_PAGE_ALLOCATION_ALIGNMENT;
+  Alignment = DEFAULT_PAGE_ALLOCATION_GRANULARITY;
 
   ASSERT (Entry != NULL);
   if  (Entry->Type == EfiACPIReclaimMemory   ||
@@ -1401,7 +1406,7 @@ CoreInternalFreePages (
        Entry->Type == EfiRuntimeServicesCode ||
        Entry->Type == EfiRuntimeServicesData) {
 
-    Alignment = EFI_ACPI_RUNTIME_PAGE_ALLOCATION_ALIGNMENT;
+    Alignment = RUNTIME_PAGE_ALLOCATION_GRANULARITY;
 
   }
 
@@ -1460,6 +1465,8 @@ CoreFreePages (
       NULL
       );
     InstallMemoryAttributesTableOnMemoryAllocation (MemoryType);
+    ApplyMemoryProtectionPolicy (MemoryType, EfiConventionalMemory, Memory,
+      EFI_PAGES_TO_SIZE (NumberOfPages));
   }
   return Status;
 }
@@ -1918,12 +1925,12 @@ CoreTerminateMemoryMap (
         if (mMemoryTypeStatistics[Entry->Type].Runtime) {
           ASSERT (Entry->Type != EfiACPIReclaimMemory);
           ASSERT (Entry->Type != EfiACPIMemoryNVS);
-          if ((Entry->Start & (EFI_ACPI_RUNTIME_PAGE_ALLOCATION_ALIGNMENT - 1)) != 0) {
+          if ((Entry->Start & (RUNTIME_PAGE_ALLOCATION_GRANULARITY - 1)) != 0) {
             DEBUG((DEBUG_ERROR | DEBUG_PAGE, "ExitBootServices: A RUNTIME memory entry is not on a proper alignment.\n"));
             Status =  EFI_INVALID_PARAMETER;
             goto Done;
           }
-          if (((Entry->End + 1) & (EFI_ACPI_RUNTIME_PAGE_ALLOCATION_ALIGNMENT - 1)) != 0) {
+          if (((Entry->End + 1) & (RUNTIME_PAGE_ALLOCATION_GRANULARITY - 1)) != 0) {
             DEBUG((DEBUG_ERROR | DEBUG_PAGE, "ExitBootServices: A RUNTIME memory entry is not on a proper alignment.\n"));
             Status =  EFI_INVALID_PARAMETER;
             goto Done;

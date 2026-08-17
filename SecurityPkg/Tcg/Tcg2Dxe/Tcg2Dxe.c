@@ -115,7 +115,6 @@ VARIABLE_TYPE  mVariableType[] = {
   {EFI_KEY_EXCHANGE_KEY_NAME,    &gEfiGlobalVariableGuid},
   {EFI_IMAGE_SECURITY_DATABASE,  &gEfiImageSecurityDatabaseGuid},
   {EFI_IMAGE_SECURITY_DATABASE1, &gEfiImageSecurityDatabaseGuid},
-  {EFI_IMAGE_SECURITY_DATABASE2, &gEfiImageSecurityDatabaseGuid},
 };
 
 EFI_HANDLE mImageHandle;
@@ -1982,7 +1981,8 @@ ReadAndMeasureVariable (
 }
 
 /**
-  Read then Measure and log an EFI boot variable, and extend the measurement result into PCR[5].
+  Read then Measure and log an EFI boot variable, and extend the measurement result into PCR[1].
+according to TCG PC Client PFP spec 0021 Section 2.4.4.2
 
   @param[in]   VarName          A Null-terminated string that is the name of the vendor's variable.
   @param[in]   VendorGuid       A unique identifier for the vendor.
@@ -2003,7 +2003,7 @@ ReadAndMeasureBootVariable (
   )
 {
   return ReadAndMeasureVariable (
-           5,
+           1,
            EV_EFI_VARIABLE_BOOT,
            VarName,
            VendorGuid,
@@ -2134,6 +2134,24 @@ MeasureAllSecureVariables (
         FreePool (Data);
       }
     }
+  }
+
+  //
+  // Measure DBT if present and not empty
+  //
+  Status = GetVariable2 (EFI_IMAGE_SECURITY_DATABASE2, &gEfiImageSecurityDatabaseGuid, &Data, &DataSize);
+  if (!EFI_ERROR(Status)) {
+    Status = MeasureVariable (
+               7,
+               EV_EFI_VARIABLE_DRIVER_CONFIG,
+               EFI_IMAGE_SECURITY_DATABASE2,
+               &gEfiImageSecurityDatabaseGuid,
+               Data,
+               DataSize
+               );
+    FreePool(Data);
+  } else {
+    DEBUG((DEBUG_INFO, "Skip measuring variable %s since it's deleted\n", EFI_IMAGE_SECURITY_DATABASE2));
   }
 
   return EFI_SUCCESS;

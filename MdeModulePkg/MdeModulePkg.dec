@@ -6,6 +6,8 @@
 # Copyright (c) 2007 - 2017, Intel Corporation. All rights reserved.<BR>
 # Copyright (c) 2016, Linaro Ltd. All rights reserved.<BR>
 # (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
+# Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
+#
 # This program and the accompanying materials are licensed and made available under
 # the terms and conditions of the BSD License that accompanies this distribution.
 # The full text of the license may be found at
@@ -1107,6 +1109,38 @@
   # @ValidRange 0x80000002 | 0x00000000 - 0x0000001F
   gEfiMdeModulePkgTokenSpaceGuid.PcdImageProtectionPolicy|0x00000002|UINT32|0x00001047
 
+  ## Set DXE memory protection policy. The policy is bitwise.
+  #  If a bit is set, memory regions of the associated type will be mapped
+  #  non-executable.<BR><BR>
+  #
+  # Below is bit mask for this PCD: (Order is same as UEFI spec)<BR>
+  #  EfiReservedMemoryType          0x0001<BR>
+  #  EfiLoaderCode                  0x0002<BR>
+  #  EfiLoaderData                  0x0004<BR>
+  #  EfiBootServicesCode            0x0008<BR>
+  #  EfiBootServicesData            0x0010<BR>
+  #  EfiRuntimeServicesCode         0x0020<BR>
+  #  EfiRuntimeServicesData         0x0040<BR>
+  #  EfiConventionalMemory          0x0080<BR>
+  #  EfiUnusableMemory              0x0100<BR>
+  #  EfiACPIReclaimMemory           0x0200<BR>
+  #  EfiACPIMemoryNVS               0x0400<BR>
+  #  EfiMemoryMappedIO              0x0800<BR>
+  #  EfiMemoryMappedIOPortSpace     0x1000<BR>
+  #  EfiPalCode                     0x2000<BR>
+  #  EfiPersistentMemory            0x4000<BR>
+  #  OEM Reserved       0x4000000000000000<BR>
+  #  OS Reserved        0x8000000000000000<BR>
+  #
+  # NOTE: User must NOT set NX protection for EfiLoaderCode / EfiBootServicesCode / EfiRuntimeServicesCode. <BR>
+  #       User MUST set the same NX protection for EfiBootServicesData and EfiConventionalMemory. <BR>
+  #
+  # e.g. 0x7FD5 can be used for all memory except Code. <BR>
+  # e.g. 0x7BD4 can be used for all memory except Code and ACPINVS/Reserved. <BR>
+  #
+  # @Prompt Set DXE memory protection policy.
+  gEfiMdeModulePkgTokenSpaceGuid.PcdDxeNxMemoryProtectionPolicy|0x0000000|UINT64|0x00001048
+
   ## PCI Serial Device Info. It is an array of Device, Function, and Power Management
   #  information that describes the path that contains zero or more PCI to PCI briges
   #  followed by a PCI serial device.  Each array entry is 4-bytes in length.  The
@@ -1701,6 +1735,12 @@
   #  FMP capsule is a system FMP.
   # @Prompt A list of system FMP ImageTypeId GUIDs
   gEfiMdeModulePkgTokenSpaceGuid.PcdSystemFmpCapsuleImageTypeIdGuid|{0x0}|VOID*|0x30001046
+
+  ## This PCD holds the address mask for page table entries when memory encryption is
+  #  enabled on AMD processors supporting the Secure Encrypted Virtualization (SEV) feature.
+  #  This mask should be applied when creating 1:1 virtual to physical mapping tables.
+  #
+  gEfiMdeModulePkgTokenSpaceGuid.PcdPteMemoryEncryptionAddressOrMask|0x0|UINT64|0x30001047
 
 [PcdsPatchableInModule]
   ## Specify memory size with page number for PEI code when

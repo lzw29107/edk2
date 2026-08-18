@@ -513,9 +513,8 @@ ReserveEmuVariableNvStore (
   //
   VariableStore =
     (EFI_PHYSICAL_ADDRESS)(UINTN)
-      AllocateAlignedRuntimePages (
-        EFI_SIZE_TO_PAGES (2 * PcdGet32 (PcdFlashNvStorageFtwSpareSize)),
-        PcdGet32 (PcdFlashNvStorageFtwSpareSize)
+      AllocateRuntimePages (
+        EFI_SIZE_TO_PAGES (2 * PcdGet32 (PcdFlashNvStorageFtwSpareSize))
         );
   DEBUG ((EFI_D_INFO,
           "Reserved variable store memory: 0x%lX; size: %dkb\n",
@@ -661,7 +660,9 @@ InitializePlatform (
   mHostBridgeDevId = PciRead16 (OVMF_HOSTBRIDGE_DID);
 
   if (mBootMode != BOOT_ON_S3_RESUME) {
-    ReserveEmuVariableNvStore ();
+    if (!FeaturePcdGet (PcdSmmSmramRequire)) {
+      ReserveEmuVariableNvStore ();
+    }
     PeiFvInitialization ();
     MemMapInitialization ();
     NoexecDxeInitialization ();

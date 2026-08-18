@@ -2201,7 +2201,9 @@ InternalHiiIfrValueAction (
   }
   
   StringPtr = ConfigAltResp;
-  
+
+  ASSERT (StringPtr != NULL);
+
   while (StringPtr != NULL) {
     //
     // 1. Find <ConfigHdr> GUID=...&NAME=...&PATH=...

@@ -2,7 +2,7 @@
 
   XHCI transfer scheduling routines.
 
-Copyright (c) 2011 - 2016, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2011 - 2017, Intel Corporation. All rights reserved.<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -1319,6 +1319,7 @@ XhciDelAsyncIntTransfer (
   LIST_ENTRY              *Next;
   URB                     *Urb;
   EFI_USB_DATA_DIRECTION  Direction;
+  EFI_STATUS              Status;
 
   Direction = ((EpNum & 0x80) != 0) ? EfiUsbDataIn : EfiUsbDataOut;
   EpNum    &= 0x0F;
@@ -1330,6 +1331,15 @@ XhciDelAsyncIntTransfer (
     if ((Urb->Ep.BusAddr == BusAddr) &&
         (Urb->Ep.EpAddr == EpNum) &&
         (Urb->Ep.Direction == Direction)) {
+      //
+      // Device doesn't finish the IntTransfer until real data comes
+      // So the TRB should be removed as well.
+      //
+      Status = XhcDequeueTrbFromEndpoint (Xhc, Urb);
+      if (EFI_ERROR (Status)) {
+        DEBUG ((EFI_D_ERROR, "XhciDelAsyncIntTransfer: XhcDequeueTrbFromEndpoint failed\n"));
+      }
+
       RemoveEntryList (&Urb->UrbList);
       FreePool (Urb->Data);
       XhcFreeUrb (Xhc, Urb);
@@ -1354,9 +1364,20 @@ XhciDelAllAsyncIntTransfers (
   LIST_ENTRY              *Entry;
   LIST_ENTRY              *Next;
   URB                     *Urb;
+  EFI_STATUS              Status;
 
   EFI_LIST_FOR_EACH_SAFE (Entry, Next, &Xhc->AsyncIntTransfers) {
     Urb = EFI_LIST_CONTAINER (Entry, URB, UrbList);
+
+    //
+    // Device doesn't finish the IntTransfer until real data comes
+    // So the TRB should be removed as well.
+    //
+    Status = XhcDequeueTrbFromEndpoint (Xhc, Urb);
+    if (EFI_ERROR (Status)) {
+      DEBUG ((EFI_D_ERROR, "XhciDelAllAsyncIntTransfers: XhcDequeueTrbFromEndpoint failed\n"));
+    }
+
     RemoveEntryList (&Urb->UrbList);
     FreePool (Urb->Data);
     XhcFreeUrb (Xhc, Urb);
@@ -2661,6 +2682,20 @@ XhcInitializeEndpointContext (
           InputContext->EP[Dci-1].EPType = ED_ISOCH_OUT;
         }
         //
+        // Get the bInterval from descriptor and init the the interval field of endpoint context.
+        // Refer to XHCI 1.1 spec section 6.2.3.6.
+        //
+        if (DeviceSpeed == EFI_USB_SPEED_FULL) {
+          Interval = EpDesc->Interval;
+          ASSERT (Interval >= 1 && Interval <= 16);
+          InputContext->EP[Dci-1].Interval = Interval + 2;
+        } else if ((DeviceSpeed == EFI_USB_SPEED_HIGH) || (DeviceSpeed == EFI_USB_SPEED_SUPER)) {
+          Interval = EpDesc->Interval;
+          ASSERT (Interval >= 1 && Interval <= 16);
+          InputContext->EP[Dci-1].Interval = Interval - 1;
+        }
+
+        //
         // Do not support isochronous transfer now.
         //
         DEBUG ((EFI_D_INFO, "XhcInitializeEndpointContext: Unsupport ISO EP found, Transfer ring is not allocated.\n"));
@@ -2828,6 +2863,20 @@ XhcInitializeEndpointContext64 (
           InputContext->EP[Dci-1].CErr   = 0;
           InputContext->EP[Dci-1].EPType = ED_ISOCH_OUT;
         }
+        //
+        // Get the bInterval from descriptor and init the the interval field of endpoint context.
+        // Refer to XHCI 1.1 spec section 6.2.3.6.
+        //
+        if (DeviceSpeed == EFI_USB_SPEED_FULL) {
+          Interval = EpDesc->Interval;
+          ASSERT (Interval >= 1 && Interval <= 16);
+          InputContext->EP[Dci-1].Interval = Interval + 2;
+        } else if ((DeviceSpeed == EFI_USB_SPEED_HIGH) || (DeviceSpeed == EFI_USB_SPEED_SUPER)) {
+          Interval = EpDesc->Interval;
+          ASSERT (Interval >= 1 && Interval <= 16);
+          InputContext->EP[Dci-1].Interval = Interval - 1;
+        }
+
         //
         // Do not support isochronous transfer now.
         //

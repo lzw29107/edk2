@@ -702,7 +702,7 @@ ShellOpenFileByName(
       // Create the directory to create the file in
       //
       FileNameCopy = AllocateCopyPool (StrSize (FileName), FileName);
-      if (FileName == NULL) {
+      if (FileNameCopy == NULL) {
         return (EFI_OUT_OF_RESOURCES);
       }
       PathCleanUpDirectories (FileNameCopy);
@@ -2828,7 +2828,7 @@ InternalShellPrintWorker(
     // update the attribute
     //
     if (ResumeLocation != NULL) {
-      if (*(ResumeLocation-1) == L'^') {
+      if ((ResumeLocation != mPostReplaceFormat2) && (*(ResumeLocation-1) == L'^')) {
         //
         // Move cursor back 1 position to overwrite the ^
         //

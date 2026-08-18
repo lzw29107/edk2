@@ -702,6 +702,7 @@ MtrrLibGetPositiveMtrrNumber (
   BOOLEAN        UseLeastAlignment;
 
   UseLeastAlignment = TRUE;
+  SubLength = 0;
 
   //
   // Calculate the alignment of the base address.
@@ -836,7 +837,7 @@ MtrrLibGetMtrrNumber (
   IN UINT64                 Alignment0,
   OUT UINT32                *SubLeft, // subtractive from BaseAddress to get more aligned address, to save MTRR
   OUT UINT32                *SubRight // subtractive from BaseAddress + Length, to save MTRR
-)
+  )
 {
   UINT64  Alignment;
   UINT32  LeastLeftMtrrNumber;
@@ -850,15 +851,23 @@ MtrrLibGetMtrrNumber (
   UINT64  SubtractiveLength;
   UINT64  BaseAlignment;
   UINT32  Index;
+  UINT64  OriginalBaseAddress;
+  UINT64  OriginalLength;
 
   *SubLeft = 0;
   *SubRight = 0;
   LeastSubtractiveMtrrNumber = 0;
+  BaseAlignment = 0;
 
   //
   // Get the optimal left subtraction solution.
   //
   if (BaseAddress != 0) {
+
+    OriginalBaseAddress    = BaseAddress;
+    OriginalLength         = Length;
+    SubtractiveBaseAddress = 0;
+    SubtractiveLength      = 0;
     //
     // Get the MTRR number needed without left subtraction.
     //
@@ -911,7 +920,10 @@ MtrrLibGetMtrrNumber (
     //
     if (*SubLeft != 0) {
       BaseAddress = SubtractiveBaseAddress;
-      Length = SubtractiveLength;
+      Length      = SubtractiveLength;
+    } else {
+      BaseAddress = OriginalBaseAddress;
+      Length      = OriginalLength;
     }
   }
 
@@ -1371,6 +1383,8 @@ MtrrLibSetMemoryType (
   UINT32                           EndIndex;
   UINT32                           DeltaCount;
 
+  LengthRight = 0;
+  LengthLeft  = 0;
   Limit = BaseAddress + Length;
   StartIndex = *Count;
   EndIndex = *Count;
@@ -1530,6 +1544,7 @@ MtrrLibAddVariableMtrr (
 
   MTRR_LIB_ASSERT_ALIGNED (BaseAddress, Length);
   if (Type == CacheInvalid) {
+    ASSERT (Ranges != NULL);
     for (Index = 0; Index < RangeCount; Index++) {
       if (Ranges[Index].BaseAddress <= BaseAddress && BaseAddress < Ranges[Index].BaseAddress + Ranges[Index].Length) {
 
@@ -1622,6 +1637,8 @@ MtrrLibSetMemoryAttributeInVariableMtrr (
   UINT32                    SubtractiveLeft;
   UINT32                    SubtractiveRight;
   BOOLEAN                   UseLeastAlignment;
+
+  Alignment = 0;
 
   MtrrNumber = MtrrLibGetMtrrNumber (Ranges, RangeCount, VariableMtrr, *VariableMtrrCount,
                                      BaseAddress, Length, Type, Alignment0, &SubtractiveLeft, &SubtractiveRight);
@@ -1847,6 +1864,8 @@ MtrrSetMemoryAttributeWorker (
   if (((BaseAddress & ~MtrrValidAddressMask) != 0) || (Length & ~MtrrValidAddressMask) != 0) {
     return RETURN_UNSUPPORTED;
   }
+  OriginalVariableMtrrCount = 0;
+  VariableSettings          = NULL;
 
   ZeroMem (&WorkingFixedSettings, sizeof (WorkingFixedSettings));
   for (Index = 0; Index < MTRR_NUMBER_OF_FIXED_MTRR; Index++) {
@@ -2017,25 +2036,27 @@ MtrrSetMemoryAttributeWorker (
   ASSERT (OriginalVariableMtrrCount - FreeVariableMtrrCount <= FirmwareVariableMtrrCount);
 
   //
-  // Move MTRRs after the FirmwraeVariableMtrrCount position to beginning
+  // Move MTRRs after the FirmwareVariableMtrrCount position to beginning
   //
-  WorkingIndex = FirmwareVariableMtrrCount;
-  for (Index = 0; Index < FirmwareVariableMtrrCount; Index++) {
-    if (!OriginalVariableMtrr[Index].Valid) {
-      //
-      // Found an empty MTRR in WorkingIndex position
-      //
-      for (; WorkingIndex < OriginalVariableMtrrCount; WorkingIndex++) {
-        if (OriginalVariableMtrr[WorkingIndex].Valid) {
-          break;
+  if (FirmwareVariableMtrrCount < OriginalVariableMtrrCount) {
+    WorkingIndex = FirmwareVariableMtrrCount;
+    for (Index = 0; Index < FirmwareVariableMtrrCount; Index++) {
+      if (!OriginalVariableMtrr[Index].Valid) {
+        //
+        // Found an empty MTRR in WorkingIndex position
+        //
+        for (; WorkingIndex < OriginalVariableMtrrCount; WorkingIndex++) {
+          if (OriginalVariableMtrr[WorkingIndex].Valid) {
+            break;
+          }
         }
-      }
 
-      if (WorkingIndex != OriginalVariableMtrrCount) {
-        CopyMem (&OriginalVariableMtrr[Index], &OriginalVariableMtrr[WorkingIndex], sizeof (VARIABLE_MTRR));
-        VariableSettingModified[Index] = TRUE;
-        VariableSettingModified[WorkingIndex] = TRUE;
-        OriginalVariableMtrr[WorkingIndex].Valid = FALSE;
+        if (WorkingIndex != OriginalVariableMtrrCount) {
+          CopyMem (&OriginalVariableMtrr[Index], &OriginalVariableMtrr[WorkingIndex], sizeof (VARIABLE_MTRR));
+          VariableSettingModified[Index] = TRUE;
+          VariableSettingModified[WorkingIndex] = TRUE;
+          OriginalVariableMtrr[WorkingIndex].Valid = FALSE;
+        }
       }
     }
   }
@@ -2048,7 +2069,7 @@ MtrrSetMemoryAttributeWorker (
     if (VariableSettingModified[Index]) {
       if (OriginalVariableMtrr[Index].Valid) {
         VariableSettings->Mtrr[Index].Base = (OriginalVariableMtrr[Index].BaseAddress & MtrrValidAddressMask) | (UINT8) OriginalVariableMtrr[Index].Type;
-        VariableSettings->Mtrr[Index].Mask = (~(OriginalVariableMtrr[Index].Length - 1)) & MtrrValidAddressMask | BIT11;
+        VariableSettings->Mtrr[Index].Mask = ((~(OriginalVariableMtrr[Index].Length - 1)) & MtrrValidAddressMask) | BIT11;
       } else {
         VariableSettings->Mtrr[Index].Base = 0;
         VariableSettings->Mtrr[Index].Mask = 0;
@@ -2081,6 +2102,8 @@ Done:
 
   //
   // Write variable MTRRs
+  // When only fixed MTRRs were changed, below loop doesn't run
+  // because OriginalVariableMtrrCount equals to 0.
   //
   for (Index = 0; Index < OriginalVariableMtrrCount; Index++) {
     if (VariableSettingModified[Index]) {
@@ -2102,7 +2125,7 @@ Done:
     MtrrLibPostMtrrChange (&MtrrContext);
   }
 
-  return Status;
+  return RETURN_SUCCESS;
 }
 
 /**

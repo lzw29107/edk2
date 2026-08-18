@@ -1,6 +1,6 @@
 /** @file
 
-  Copyright (c) 2014 - 2015, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2014 - 2017, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -479,10 +479,10 @@ UfsPassThruGetTargetLun (
   }
 
   //
-  // Check whether the DevicePath belongs to SCSI_DEVICE_PATH
+  // Check whether the DevicePath belongs to UFS_DEVICE_PATH
   //
   if ((DevicePath->Type != MESSAGING_DEVICE_PATH) || (DevicePath->SubType != MSG_UFS_DP) ||
-      (DevicePathNodeLength(DevicePath) != sizeof(SCSI_DEVICE_PATH))) {
+      (DevicePathNodeLength(DevicePath) != sizeof(UFS_DEVICE_PATH))) {
     return EFI_UNSUPPORTED;
   }
 
@@ -730,6 +730,48 @@ UfsPassThruDriverBindingSupported (
 }
 
 /**
+  Finishes device initialization by setting fDeviceInit flag and waiting untill device responds by
+  clearing it.
+
+  @param[in] Private  Pointer to the UFS_PASS_THRU_PRIVATE_DATA.
+
+  @retval EFI_SUCCESS  The operation succeeds.
+  @retval Others       The operation fails.
+
+**/
+EFI_STATUS
+UfsFinishDeviceInitialization (
+  IN UFS_PASS_THRU_PRIVATE_DATA  *Private
+  )
+{
+  EFI_STATUS  Status;
+  UINT8  DeviceInitStatus;
+  UINT8  Timeout;
+
+  DeviceInitStatus = 0xFF;
+
+  //
+  // The host enables the device initialization completion by setting fDeviceInit flag.
+  //
+  Status = UfsSetFlag (Private, UfsFlagDevInit);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  Timeout = 5;
+  do {
+    Status = UfsReadFlag (Private, UfsFlagDevInit, &DeviceInitStatus);
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+    MicroSecondDelay (1);
+    Timeout--;
+  } while (DeviceInitStatus != 0 && Timeout != 0);
+
+  return EFI_SUCCESS;
+}
+
+/**
   Starts a device controller or a bus controller.
 
   The Start() function is designed to be invoked from the EFI boot service ConnectController().
@@ -777,14 +819,14 @@ UfsPassThruDriverBindingStart (
   UFS_PASS_THRU_PRIVATE_DATA            *Private;
   UINTN                                 UfsHcBase;
   UINT32                                Index;
-  UFS_CONFIG_DESC                       Config;
+  UFS_UNIT_DESC                         UnitDescriptor;
 
   Status    = EFI_SUCCESS;
   UfsHc     = NULL;
   Private   = NULL;
   UfsHcBase = 0;
 
-  DEBUG ((EFI_D_INFO, "==UfsPassThru Start== Controller = %x\n", Controller));
+  DEBUG ((DEBUG_INFO, "==UfsPassThru Start== Controller = %x\n", Controller));
 
   Status  = gBS->OpenProtocol (
                    Controller,
@@ -796,7 +838,7 @@ UfsPassThruDriverBindingStart (
                    );
 
   if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "Open Ufs Host Controller Protocol Error, Status = %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "Open Ufs Host Controller Protocol Error, Status = %r\n", Status));
     goto Error;
   }
 
@@ -805,7 +847,7 @@ UfsPassThruDriverBindingStart (
   //
   Status = UfsHc->GetUfsHcMmioBar (UfsHc, &UfsHcBase);
   if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "Get Ufs Host Controller Mmio Bar Error, Status = %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "Get Ufs Host Controller Mmio Bar Error, Status = %r\n", Status));
     goto Error;
   }
 
@@ -814,7 +856,7 @@ UfsPassThruDriverBindingStart (
   //
   Private = AllocateCopyPool (sizeof (UFS_PASS_THRU_PRIVATE_DATA), &gUfsPassThruTemplate);
   if (Private == NULL) {
-    DEBUG ((EFI_D_ERROR, "Unable to allocate Ufs Pass Thru private data\n"));
+    DEBUG ((DEBUG_ERROR, "Unable to allocate Ufs Pass Thru private data\n"));
     Status = EFI_OUT_OF_RESOURCES;
     goto Error;
   }
@@ -829,7 +871,7 @@ UfsPassThruDriverBindingStart (
   //
   Status = UfsControllerInit (Private);
   if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "Ufs Host Controller Initialization Error, Status = %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "Ufs Host Controller Initialization Error, Status = %r\n", Status));
     goto Error;
   }
 
@@ -840,25 +882,13 @@ UfsPassThruDriverBindingStart (
   //
   Status = UfsExecNopCmds (Private);
   if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "Ufs Sending NOP IN command Error, Status = %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "Ufs Sending NOP IN command Error, Status = %r\n", Status));
     goto Error;
   }
 
-  //
-  // The host enables the device initialization completion by setting fDeviceInit flag.
-  //
-  Status = UfsSetFlag (Private, UfsFlagDevInit);
+  Status = UfsFinishDeviceInitialization (Private);
   if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "Ufs Set fDeviceInit Flag Error, Status = %r\n", Status));
-    goto Error;
-  }
-
-  //
-  // Get Ufs Device's Lun Info by reading Configuration Descriptor.
-  //
-  Status = UfsRwDeviceDesc (Private, TRUE, UfsConfigDesc, 0, 0, &Config, sizeof (UFS_CONFIG_DESC));
-  if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "Ufs Get Configuration Descriptor Error, Status = %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "Device failed to finish initialization, Status = %r\n", Status));
     goto Error;
   }
 
@@ -867,9 +897,14 @@ UfsPassThruDriverBindingStart (
   // TODO: Parse device descriptor to decide if exposing RPMB LUN to upper layer for authentication access.
   //
   for (Index = 0; Index < 8; Index++) {
-    if (Config.UnitDescConfParams[Index].LunEn != 0) {
+    Status = UfsRwDeviceDesc (Private, TRUE, UfsUnitDesc, (UINT8) Index, 0, &UnitDescriptor, sizeof (UFS_UNIT_DESC));
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "Failed to read unit descriptor, index = %X, status = %r\n", Index, Status));
+      continue;
+    }
+    if (UnitDescriptor.LunEn == 0x1) {
+      DEBUG ((DEBUG_INFO, "UFS LUN %X is enabled\n", Index));
       Private->Luns.BitMask |= (BIT0 << Index);
-      DEBUG ((EFI_D_INFO, "Ufs Lun %d is enabled\n", Index));
     }
   }
 
@@ -884,7 +919,7 @@ UfsPassThruDriverBindingStart (
                   &Private->TimerEvent
                   );
   if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "Ufs Create Async Tasks Event Error, Status = %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "Ufs Create Async Tasks Event Error, Status = %r\n", Status));
     goto Error;
   }
 
@@ -894,7 +929,7 @@ UfsPassThruDriverBindingStart (
                   UFS_HC_ASYNC_TIMER
                   );
   if (EFI_ERROR (Status)) {
-    DEBUG ((EFI_D_ERROR, "Ufs Set Periodic Timer Error, Status = %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "Ufs Set Periodic Timer Error, Status = %r\n", Status));
     goto Error;
   }
 
@@ -986,7 +1021,7 @@ UfsPassThruDriverBindingStop (
   LIST_ENTRY                            *Entry;
   LIST_ENTRY                            *NextEntry;
 
-  DEBUG ((EFI_D_INFO, "==UfsPassThru Stop== Controller Controller = %x\n", Controller));
+  DEBUG ((DEBUG_INFO, "==UfsPassThru Stop== Controller Controller = %x\n", Controller));
 
   Status = gBS->OpenProtocol (
                   Controller,

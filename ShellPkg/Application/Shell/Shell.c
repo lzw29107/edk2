@@ -1279,6 +1279,11 @@ DoStartupScript(
   if (FileStringPath != NULL) {
     Status = RunScriptFile (FileStringPath, NULL, L"", ShellInfoObject.NewShellParametersProtocol);
     FreePool (FileStringPath);
+  } else {
+    //
+    // we return success since startup script is not mandatory.
+    //
+    Status = EFI_SUCCESS;
   }
 
   return (Status);
@@ -1709,8 +1714,8 @@ ShellConvertVariables (
 EFI_STATUS
 RunSplitCommand(
   IN CONST CHAR16             *CmdLine,
-  IN       SHELL_FILE_HANDLE  *StdIn,
-  IN       SHELL_FILE_HANDLE  *StdOut
+  IN       SHELL_FILE_HANDLE  StdIn,
+  IN       SHELL_FILE_HANDLE  StdOut
   )
 {
   EFI_STATUS        Status;
@@ -1719,7 +1724,7 @@ RunSplitCommand(
   UINTN             Size1;
   UINTN             Size2;
   SPLIT_LIST        *Split;
-  SHELL_FILE_HANDLE *TempFileHandle;
+  SHELL_FILE_HANDLE TempFileHandle;
   BOOLEAN           Unicode;
 
   ASSERT(StdOut == NULL);
@@ -1785,7 +1790,7 @@ RunSplitCommand(
     Split->SplitStdOut  = Split->SplitStdIn;
   }
   Split->SplitStdIn   = TempFileHandle;
-  ShellInfoObject.NewEfiShellProtocol->SetFilePosition(ConvertShellHandleToEfiFileProtocol(Split->SplitStdIn), 0);
+  ShellInfoObject.NewEfiShellProtocol->SetFilePosition (Split->SplitStdIn, 0);
 
   if (!EFI_ERROR(Status)) {
     Status = RunCommand(NextCommandLine);
@@ -1801,11 +1806,10 @@ RunSplitCommand(
   // Note that the original StdIn is now the StdOut...
   //
   if (Split->SplitStdOut != NULL) {
-    ShellInfoObject.NewEfiShellProtocol->CloseFile(ConvertShellHandleToEfiFileProtocol(Split->SplitStdOut));
+    ShellInfoObject.NewEfiShellProtocol->CloseFile (Split->SplitStdOut);
   }
   if (Split->SplitStdIn != NULL) {
-    ShellInfoObject.NewEfiShellProtocol->CloseFile(ConvertShellHandleToEfiFileProtocol(Split->SplitStdIn));
-    FreePool (Split->SplitStdIn);
+    ShellInfoObject.NewEfiShellProtocol->CloseFile (Split->SplitStdIn);
   }
 
   FreePool(Split);

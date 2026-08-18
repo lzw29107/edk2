@@ -74,6 +74,8 @@ UINT32   mImageProtectionPolicy;
 
 extern LIST_ENTRY         mGcdMemorySpaceMap;
 
+STATIC LIST_ENTRY         mProtectedImageRecordList;
+
 /**
   Sort code section in image record, based upon CodeSegmentBase from low to high.
 
@@ -238,13 +240,10 @@ SetUefiImageMemoryAttributes (
   Set UEFI image protection attributes.
 
   @param[in]  ImageRecord    A UEFI image record
-  @param[in]  Protect        TRUE:  Protect the UEFI image.
-                             FALSE: Unprotect the UEFI image.
 **/
 VOID
 SetUefiImageProtectionAttributes (
-  IN IMAGE_PROPERTIES_RECORD     *ImageRecord,
-  IN BOOLEAN                     Protect
+  IN IMAGE_PROPERTIES_RECORD     *ImageRecord
   )
 {
   IMAGE_PROPERTIES_RECORD_CODE_SECTION      *ImageRecordCodeSection;
@@ -253,7 +252,6 @@ SetUefiImageProtectionAttributes (
   LIST_ENTRY                                *ImageRecordCodeSectionList;
   UINT64                                    CurrentBase;
   UINT64                                    ImageEnd;
-  UINT64                                    Attribute;
 
   ImageRecordCodeSectionList = &ImageRecord->CodeSegmentList;
 
@@ -276,29 +274,19 @@ SetUefiImageProtectionAttributes (
       //
       // DATA
       //
-      if (Protect) {
-        Attribute = EFI_MEMORY_XP;
-      } else {
-        Attribute = 0;
-      }
       SetUefiImageMemoryAttributes (
         CurrentBase,
         ImageRecordCodeSection->CodeSegmentBase - CurrentBase,
-        Attribute
+        EFI_MEMORY_XP
         );
     }
     //
     // CODE
     //
-    if (Protect) {
-      Attribute = EFI_MEMORY_RO;
-    } else {
-      Attribute = 0;
-    }
     SetUefiImageMemoryAttributes (
       ImageRecordCodeSection->CodeSegmentBase,
       ImageRecordCodeSection->CodeSegmentSize,
-      Attribute
+      EFI_MEMORY_RO
       );
     CurrentBase = ImageRecordCodeSection->CodeSegmentBase + ImageRecordCodeSection->CodeSegmentSize;
   }
@@ -310,15 +298,10 @@ SetUefiImageProtectionAttributes (
     //
     // DATA
     //
-    if (Protect) {
-      Attribute = EFI_MEMORY_XP;
-    } else {
-      Attribute = 0;
-    }
     SetUefiImageMemoryAttributes (
       CurrentBase,
       ImageEnd - CurrentBase,
-      Attribute
+      EFI_MEMORY_XP
       );
   }
   return ;
@@ -401,18 +384,15 @@ FreeImageRecord (
 }
 
 /**
-  Protect or unprotect UEFI image common function.
+  Protect UEFI PE/COFF image.
 
   @param[in]  LoadedImage              The loaded image protocol
   @param[in]  LoadedImageDevicePath    The loaded image device path protocol
-  @param[in]  Protect                  TRUE:  Protect the UEFI image.
-                                       FALSE: Unprotect the UEFI image.
 **/
 VOID
-ProtectUefiImageCommon (
+ProtectUefiImage (
   IN EFI_LOADED_IMAGE_PROTOCOL   *LoadedImage,
-  IN EFI_DEVICE_PATH_PROTOCOL    *LoadedImageDevicePath,
-  IN BOOLEAN                     Protect
+  IN EFI_DEVICE_PATH_PROTOCOL    *LoadedImageDevicePath
   )
 {
   VOID                                 *ImageAddress;
@@ -580,10 +560,18 @@ ProtectUefiImageCommon (
   }
 
   if (ImageRecord->CodeSegmentCount == 0) {
-    DEBUG ((DEBUG_ERROR, "!!!!!!!!  ProtectUefiImageCommon - CodeSegmentCount is 0  !!!!!!!!\n"));
+    //
+    // If a UEFI executable consists of a single read+write+exec PE/COFF
+    // section, that isn't actually an error. The image can be launched
+    // alright, only image protection cannot be applied to it fully.
+    //
+    // One example that elicits this is (some) Linux kernels (with the EFI stub
+    // of course).
+    //
+    DEBUG ((DEBUG_WARN, "!!!!!!!!  ProtectUefiImageCommon - CodeSegmentCount is 0  !!!!!!!!\n"));
     PdbPointer = PeCoffLoaderGetPdbPointer ((VOID*) (UINTN) ImageAddress);
     if (PdbPointer != NULL) {
-      DEBUG ((DEBUG_ERROR, "!!!!!!!!  Image - %a  !!!!!!!!\n", PdbPointer));
+      DEBUG ((DEBUG_WARN, "!!!!!!!!  Image - %a  !!!!!!!!\n", PdbPointer));
     }
     goto Finish;
   }
@@ -609,32 +597,15 @@ ProtectUefiImageCommon (
   //
   // CPU ARCH present. Update memory attribute directly.
   //
-  SetUefiImageProtectionAttributes (ImageRecord, Protect);
+  SetUefiImageProtectionAttributes (ImageRecord);
 
   //
-  // Clean up
+  // Record the image record in the list so we can undo the protections later
   //
-  FreeImageRecord (ImageRecord);
+  InsertTailList (&mProtectedImageRecordList, &ImageRecord->Link);
 
 Finish:
   return ;
-}
-
-/**
-  Protect UEFI image.
-
-  @param[in]  LoadedImage              The loaded image protocol
-  @param[in]  LoadedImageDevicePath    The loaded image device path protocol
-**/
-VOID
-ProtectUefiImage (
-  IN EFI_LOADED_IMAGE_PROTOCOL   *LoadedImage,
-  IN EFI_DEVICE_PATH_PROTOCOL    *LoadedImageDevicePath
-  )
-{
-  if (PcdGet32(PcdImageProtectionPolicy) != 0) {
-    ProtectUefiImageCommon (LoadedImage, LoadedImageDevicePath, TRUE);
-  }
 }
 
 /**
@@ -649,8 +620,28 @@ UnprotectUefiImage (
   IN EFI_DEVICE_PATH_PROTOCOL    *LoadedImageDevicePath
   )
 {
+  IMAGE_PROPERTIES_RECORD    *ImageRecord;
+  LIST_ENTRY                 *ImageRecordLink;
+
   if (PcdGet32(PcdImageProtectionPolicy) != 0) {
-    ProtectUefiImageCommon (LoadedImage, LoadedImageDevicePath, FALSE);
+    for (ImageRecordLink = mProtectedImageRecordList.ForwardLink;
+         ImageRecordLink != &mProtectedImageRecordList;
+         ImageRecordLink = ImageRecordLink->ForwardLink) {
+      ImageRecord = CR (
+                      ImageRecordLink,
+                      IMAGE_PROPERTIES_RECORD,
+                      Link,
+                      IMAGE_PROPERTIES_RECORD_SIGNATURE
+                      );
+
+      if (ImageRecord->ImageBase == (EFI_PHYSICAL_ADDRESS)(UINTN)LoadedImage->ImageBase) {
+        SetUefiImageMemoryAttributes (ImageRecord->ImageBase,
+                                      ImageRecord->ImageSize,
+                                      0);
+        FreeImageRecord (ImageRecord);
+        return;
+      }
+    }
   }
 }
 
@@ -1018,6 +1009,8 @@ CoreInitializeMemoryProtection (
   VOID        *Registration;
 
   mImageProtectionPolicy = PcdGet32(PcdImageProtectionPolicy);
+
+  InitializeListHead (&mProtectedImageRecordList);
 
   //
   // Sanity check the PcdDxeNxMemoryProtectionPolicy setting:

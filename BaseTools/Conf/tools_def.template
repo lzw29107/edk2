@@ -4341,7 +4341,7 @@ DEFINE GCC_X64_CC_FLAGS            = DEF(GCC_ALL_CC_FLAGS) -mno-red-zone -Wno-ad
 DEFINE GCC_IPF_CC_FLAGS            = DEF(GCC_ALL_CC_FLAGS) -minline-int-divide-min-latency
 DEFINE GCC_ARM_CC_FLAGS            = DEF(GCC_ALL_CC_FLAGS) -mlittle-endian -mabi=aapcs -fno-short-enums -funsigned-char -ffunction-sections -fdata-sections -fomit-frame-pointer -fno-builtin -Wno-address -mthumb -mfloat-abi=soft -fno-pic -fno-pie
 DEFINE GCC_ARM_CC_XIPFLAGS         = -mno-unaligned-access
-DEFINE GCC_AARCH64_CC_FLAGS        = DEF(GCC_ALL_CC_FLAGS) -mlittle-endian -fno-short-enums -fverbose-asm -funsigned-char  -ffunction-sections -fdata-sections -fno-builtin -Wno-address -fno-asynchronous-unwind-tables
+DEFINE GCC_AARCH64_CC_FLAGS        = DEF(GCC_ALL_CC_FLAGS) -mlittle-endian -fno-short-enums -fverbose-asm -funsigned-char  -ffunction-sections -fdata-sections -fno-builtin -Wno-address -fno-asynchronous-unwind-tables -fno-pic
 DEFINE GCC_AARCH64_CC_XIPFLAGS     = -mstrict-align
 DEFINE GCC_DLINK_FLAGS_COMMON      = -nostdlib --pie
 DEFINE GCC_DLINK2_FLAGS_COMMON     = -Wl,--script=$(EDK_TOOLS_PATH)/Scripts/GccBase.lds
@@ -5459,7 +5459,7 @@ DEFINE CLANG35_AARCH64_CC_FLAGS  = DEF(GCC_AARCH64_CC_FLAGS) DEF(CLANG35_AARCH64
 *_CLANG35_ARM_ASM_FLAGS          = DEF(GCC_ASM_FLAGS) DEF(CLANG35_ARM_TARGET) $(ARCHASM_FLAGS) $(PLATFORM_FLAGS) -Qunused-arguments
 *_CLANG35_ARM_DLINK_FLAGS        = DEF(CLANG35_ARM_TARGET) DEF(GCC_ARM_DLINK_FLAGS)
 *_CLANG35_ARM_DLINK2_FLAGS       = DEF(GCC_DLINK2_FLAGS_COMMON) -Wl,--defsym=PECOFF_HEADER_SIZE=0x220
-*_CLANG35_ARM_PLATFORM_FLAGS     =
+*_CLANG35_ARM_PLATFORM_FLAGS     = -march=armv7-a
 *_CLANG35_ARM_PP_FLAGS           = DEF(GCC_PP_FLAGS) DEF(CLANG35_ARM_TARGET) $(ARCHCC_FLAGS) $(PLATFORM_FLAGS)
 *_CLANG35_ARM_RC_FLAGS           = DEF(GCC_ARM_RC_FLAGS)
 *_CLANG35_ARM_VFRPP_FLAGS        = DEF(GCC_VFRPP_FLAGS) DEF(CLANG35_ARM_TARGET) $(ARCHCC_FLAGS) $(PLATFORM_FLAGS)
@@ -7705,6 +7705,12 @@ RELEASE_RVCTCYGWIN_ARM_CC_FLAGS  = "$(CCPATH_FLAG)" $(ARCHCC_FLAGS) $(PLATFORM_F
 ##################
 *_*_*_RSA2048SHA256SIGN_PATH = Rsa2048Sha256Sign
 *_*_*_RSA2048SHA256SIGN_GUID = A7717414-C616-4977-9420-844712A735BF
+
+##################
+# BrotliCompress tool definitions
+##################
+*_*_*_BROTLI_PATH        = BrotliCompress
+*_*_*_BROTLI_GUID        = 3D532050-5CDA-4FD0-879E-0F7F630D5AFB
 
 ##################
 # LzmaCompress tool definitions

@@ -692,12 +692,17 @@ HttpUrlGetPort (
 {
   CHAR8         *PortString;
   EFI_STATUS    Status;
+  UINTN         Index;
+  UINTN         Data;
   UINT32        ResultLength;
   HTTP_URL_PARSER      *Parser;
 
   if (Url == NULL || UrlParser == NULL || Port == NULL) {
     return EFI_INVALID_PARAMETER;
   }
+
+  *Port = 0;
+  Index = 0;
 
   Parser = (HTTP_URL_PARSER*) UrlParser;
 
@@ -722,7 +727,21 @@ HttpUrlGetPort (
 
   PortString[ResultLength] = '\0';
 
-  return AsciiStrDecimalToUintnS (Url + Parser->FieldData[HTTP_URI_FIELD_PORT].Offset, (CHAR8 **) NULL, (UINTN *) Port);
+  while (Index < ResultLength) {
+    if (!NET_IS_DIGIT (PortString[Index])) {
+      return EFI_INVALID_PARAMETER;
+    }
+    Index ++;
+  }
+
+  Status =  AsciiStrDecimalToUintnS (Url + Parser->FieldData[HTTP_URI_FIELD_PORT].Offset, (CHAR8 **) NULL, &Data);
+
+  if (Data > HTTP_URI_PORT_MAX_NUM || Data < HTTP_URI_PORT_MIN_NUM) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  *Port = (UINT16) Data;
+  return Status;
 }
 
 /**

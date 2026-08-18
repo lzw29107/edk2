@@ -25,63 +25,63 @@
 BOOLEAN                   InterruptState = FALSE;
 EFI_HANDLE                mCpuHandle = NULL;
 BOOLEAN                   mIsFlushingGCD;
-UINT64                    mValidMtrrAddressMask = MTRR_LIB_CACHE_VALID_ADDRESS;
-UINT64                    mValidMtrrBitsMask    = MTRR_LIB_MSR_VALID_MASK;
+UINT64                    mValidMtrrAddressMask;
+UINT64                    mValidMtrrBitsMask;
 UINT64                    mTimerPeriod = 0;
 
 FIXED_MTRR    mFixedMtrrTable[] = {
   {
-    MTRR_LIB_IA32_MTRR_FIX64K_00000,
+    MSR_IA32_MTRR_FIX64K_00000,
     0,
     0x10000
   },
   {
-    MTRR_LIB_IA32_MTRR_FIX16K_80000,
+    MSR_IA32_MTRR_FIX16K_80000,
     0x80000,
     0x4000
   },
   {
-    MTRR_LIB_IA32_MTRR_FIX16K_A0000,
+    MSR_IA32_MTRR_FIX16K_A0000,
     0xA0000,
     0x4000
   },
   {
-    MTRR_LIB_IA32_MTRR_FIX4K_C0000,
+    MSR_IA32_MTRR_FIX4K_C0000,
     0xC0000,
     0x1000
   },
   {
-    MTRR_LIB_IA32_MTRR_FIX4K_C8000,
+    MSR_IA32_MTRR_FIX4K_C8000,
     0xC8000,
     0x1000
   },
   {
-    MTRR_LIB_IA32_MTRR_FIX4K_D0000,
+    MSR_IA32_MTRR_FIX4K_D0000,
     0xD0000,
     0x1000
   },
   {
-    MTRR_LIB_IA32_MTRR_FIX4K_D8000,
+    MSR_IA32_MTRR_FIX4K_D8000,
     0xD8000,
     0x1000
   },
   {
-    MTRR_LIB_IA32_MTRR_FIX4K_E0000,
+    MSR_IA32_MTRR_FIX4K_E0000,
     0xE0000,
     0x1000
   },
   {
-    MTRR_LIB_IA32_MTRR_FIX4K_E8000,
+    MSR_IA32_MTRR_FIX4K_E8000,
     0xE8000,
     0x1000
   },
   {
-    MTRR_LIB_IA32_MTRR_FIX4K_F0000,
+    MSR_IA32_MTRR_FIX4K_F0000,
     0xF0000,
     0x1000
   },
   {
-    MTRR_LIB_IA32_MTRR_FIX4K_F8000,
+    MSR_IA32_MTRR_FIX4K_F8000,
     0xF8000,
     0x1000
   },
@@ -510,13 +510,12 @@ InitializeMtrrMask (
     AsmCpuid (0x80000008, &RegEax, NULL, NULL, NULL);
 
     PhysicalAddressBits = (UINT8) RegEax;
-
-    mValidMtrrBitsMask    = LShiftU64 (1, PhysicalAddressBits) - 1;
-    mValidMtrrAddressMask = mValidMtrrBitsMask & 0xfffffffffffff000ULL;
   } else {
-    mValidMtrrBitsMask    = MTRR_LIB_MSR_VALID_MASK;
-    mValidMtrrAddressMask = MTRR_LIB_CACHE_VALID_ADDRESS;
+    PhysicalAddressBits = 36;
   }
+
+  mValidMtrrBitsMask    = LShiftU64 (1, PhysicalAddressBits) - 1;
+  mValidMtrrAddressMask = mValidMtrrBitsMask & 0xfffffffffffff000ULL;
 }
 
 /**

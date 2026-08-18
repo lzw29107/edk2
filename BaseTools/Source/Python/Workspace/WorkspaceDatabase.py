@@ -237,7 +237,7 @@ class DscBuildData(PlatformBuildClassObject):
                         EdkLogger.error('build', FORMAT_INVALID, 'Missing double quotes in the end of %s statement.' % TAB_DSC_PREBUILD,
                                     File=self.MetaFile, Line=Record[-1])
                     PrebuildValue = Record[2][1:-1]
-                self._Prebuild = PathClass(NormPath(PrebuildValue, self._Macros), GlobalData.gWorkspace)
+                self._Prebuild = PrebuildValue
             elif Name == TAB_DSC_POSTBUILD:
                 PostbuildValue = Record[2]
                 if Record[2][0] == '"':
@@ -245,7 +245,7 @@ class DscBuildData(PlatformBuildClassObject):
                         EdkLogger.error('build', FORMAT_INVALID, 'Missing double quotes in the end of %s statement.' % TAB_DSC_POSTBUILD,
                                     File=self.MetaFile, Line=Record[-1])
                     PostbuildValue = Record[2][1:-1]
-                self._Postbuild = PathClass(NormPath(PostbuildValue, self._Macros), GlobalData.gWorkspace)
+                self._Postbuild = PostbuildValue
             elif Name == TAB_DSC_DEFINES_SUPPORTED_ARCHITECTURES:
                 self._SupArchList = GetSplitValueList(Record[2], TAB_VALUE_SPLIT)
             elif Name == TAB_DSC_DEFINES_BUILD_TARGETS:
@@ -1977,6 +1977,11 @@ class InfBuildData(ModuleBuildClassObject):
             if (self._Specification == None) or (not 'PI_SPECIFICATION_VERSION' in self._Specification) or (int(self._Specification['PI_SPECIFICATION_VERSION'], 16) < 0x0001000A):
                 if self._ModuleType == SUP_MODULE_SMM_CORE:
                     EdkLogger.error("build", FORMAT_NOT_SUPPORTED, "SMM_CORE module type can't be used in the module with PI_SPECIFICATION_VERSION less than 0x0001000A", File=self.MetaFile)
+            if (self._Specification == None) or (not 'PI_SPECIFICATION_VERSION' in self._Specification) or (int(self._Specification['PI_SPECIFICATION_VERSION'], 16) < 0x00010032):
+                if self._ModuleType == SUP_MODULE_MM_CORE_STANDALONE:
+                    EdkLogger.error("build", FORMAT_NOT_SUPPORTED, "MM_CORE_STANDALONE module type can't be used in the module with PI_SPECIFICATION_VERSION less than 0x00010032", File=self.MetaFile)
+                if self._ModuleType == SUP_MODULE_MM_STANDALONE:
+                    EdkLogger.error("build", FORMAT_NOT_SUPPORTED, "MM_STANDALONE module type can't be used in the module with PI_SPECIFICATION_VERSION less than 0x00010032", File=self.MetaFile)
             if self._Defs and 'PCI_DEVICE_ID' in self._Defs and 'PCI_VENDOR_ID' in self._Defs \
                and 'PCI_CLASS_CODE' in self._Defs and 'PCI_REVISION' in self._Defs:
                 self._BuildType = 'UEFI_OPTIONROM'

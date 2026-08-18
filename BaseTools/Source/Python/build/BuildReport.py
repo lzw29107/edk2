@@ -123,6 +123,8 @@ gDriverTypeMap = {
   'UEFI_APPLICATION'  : '0x9 (APPLICATION)',
   'SMM_CORE'          : '0xD (SMM_CORE)',
   'SMM_DRIVER'        : '0xA (SMM)', # Extension of module type to support PI 1.1 SMM drivers
+  'MM_STANDALONE'     : '0xE (MM_STANDALONE)',
+  'MM_CORE_STANDALONE' : '0xF (MM_CORE_STANDALONE)'
   }
 
 ## The look up table of the supported opcode in the dependency expression binaries
@@ -374,7 +376,7 @@ class DepexReport(object):
         if not ModuleType:
             ModuleType = gComponentType2ModuleType.get(M.ComponentType, "")
 
-        if ModuleType in ["SEC", "PEI_CORE", "DXE_CORE", "SMM_CORE", "UEFI_APPLICATION"]:
+        if ModuleType in ["SEC", "PEI_CORE", "DXE_CORE", "SMM_CORE", "MM_CORE_STANDALONE", "UEFI_APPLICATION"]:
             return
       
         for Source in M.SourceFileList:
@@ -735,6 +737,13 @@ class PcdReport(object):
             UnusedPcdFullList = []
             for item in Pa.Platform.Pcds:
                 Pcd = Pa.Platform.Pcds[item]
+                if not Pcd.Type:
+                    # check the Pcd in FDF file, whether it is used in module first
+                    for T in ["FixedAtBuild", "PatchableInModule", "FeatureFlag", "Dynamic", "DynamicEx"]:
+                        PcdList = self.AllPcds.setdefault(Pcd.TokenSpaceGuidCName, {}).setdefault(T, [])
+                        if Pcd in PcdList:
+                            Pcd.Type = T
+                            break
                 if not Pcd.Type:
                     PcdTypeFlag = False
                     for package in Pa.PackageList:

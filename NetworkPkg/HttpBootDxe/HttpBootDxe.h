@@ -179,6 +179,10 @@ struct _HTTP_BOOT_PRIVATE_DATA {
   UINT32                                    Id;
   EFI_HTTP_BOOT_CALLBACK_PROTOCOL           *HttpBootCallback;
   EFI_HTTP_BOOT_CALLBACK_PROTOCOL           LoadFileCallback;
+
+  //
+  // Data for the default HTTP Boot callback protocol
+  //
   UINT64                                    FileSize;
   UINT64                                    ReceivedSize;
   UINT32                                    Percentage;
@@ -198,6 +202,8 @@ struct _HTTP_BOOT_PRIVATE_DATA {
   EFI_IP_ADDRESS                            GatewayIp;
   EFI_IP_ADDRESS                            ServerIp;
   UINT16                                    Port;
+  UINT32                                    DnsServerCount;
+  EFI_IP_ADDRESS                            *DnsServerIp;
 
   //
   // The URI string attempt to download through HTTP, may point to

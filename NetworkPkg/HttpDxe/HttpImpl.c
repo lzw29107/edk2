@@ -130,7 +130,7 @@ EFI_STATUS
 EFIAPI
 EfiHttpConfigure (
   IN  EFI_HTTP_PROTOCOL         *This,
-  IN  EFI_HTTP_CONFIG_DATA      *HttpConfigData
+  IN  EFI_HTTP_CONFIG_DATA      *HttpConfigData OPTIONAL
   ) 
 {
   HTTP_PROTOCOL                 *HttpInstance;
@@ -150,6 +150,10 @@ EfiHttpConfigure (
   ASSERT (HttpInstance != NULL && HttpInstance->Service != NULL);
 
   if (HttpConfigData != NULL) {
+
+    if (HttpConfigData->HttpVersion >= HttpVersionUnsupported) {
+      return EFI_UNSUPPORTED;
+    }
 
     //
     // Now configure this HTTP instance.
@@ -276,10 +280,11 @@ EfiHttpRequest (
   Request = HttpMsg->Data.Request;
 
   //
-  // Only support GET, HEAD, PUT and POST method in current implementation.
+  // Only support GET, HEAD, PATCH, PUT and POST method in current implementation.
   //
   if ((Request != NULL) && (Request->Method != HttpMethodGet) &&
-      (Request->Method != HttpMethodHead) && (Request->Method != HttpMethodPut) && (Request->Method != HttpMethodPost)) {
+      (Request->Method != HttpMethodHead) && (Request->Method != HttpMethodPut) && 
+      (Request->Method != HttpMethodPost) && (Request->Method != HttpMethodPatch)) {
     return EFI_UNSUPPORTED;
   }
 
@@ -299,14 +304,16 @@ EfiHttpRequest (
 
   if (Request == NULL) {
     //
-    // Request would be NULL only for PUT/POST operation (in the current implementation)
+    // Request would be NULL only for PUT/POST/PATCH operation (in the current implementation)
     //
-    if ((HttpInstance->Method != HttpMethodPut) && (HttpInstance->Method != HttpMethodPost)) {
+    if ((HttpInstance->Method != HttpMethodPut) && 
+        (HttpInstance->Method != HttpMethodPost) && 
+        (HttpInstance->Method != HttpMethodPatch)) {
       return EFI_INVALID_PARAMETER;
     }
 
     //
-    // For PUT/POST, we need to have the TCP already configured. Bail out if it is not!
+    // For PUT/POST/PATCH, we need to have the TCP already configured. Bail out if it is not!
     //
     if (HttpInstance->State < HTTP_STATE_TCP_CONFIGED) {
       return EFI_INVALID_PARAMETER;
@@ -380,6 +387,7 @@ EfiHttpRequest (
 
       HttpInstance->TlsChildHandle = TlsCreateChild (
                                        ImageHandle,
+                                       &(HttpInstance->TlsSb),
                                        &(HttpInstance->Tls),
                                        &(HttpInstance->TlsConfiguration)
                                        );
@@ -616,7 +624,7 @@ EfiHttpRequest (
 
   //
   // Every request we insert a TxToken and a response call would remove the TxToken.
-  // In cases of PUT/POST, after an initial request-response pair, we would do a
+  // In cases of PUT/POST/PATCH, after an initial request-response pair, we would do a
   // continuous request without a response call. So, in such cases, where Request
   // structure is NULL, we would not insert a TxToken.
   //
@@ -1112,7 +1120,7 @@ HttpResponseWorker (
     ValueInItem = NULL;
 
     //
-    // In cases of PUT/POST, after an initial request-response pair, we would do a
+    // In cases of PUT/POST/PATCH, after an initial request-response pair, we would do a
     // continuous request without a response call. So, we would not do an insert of
     // TxToken. After we have sent the complete file, we will call a response to get
     // a final response from server. In such a case, we would not have any TxTokens.

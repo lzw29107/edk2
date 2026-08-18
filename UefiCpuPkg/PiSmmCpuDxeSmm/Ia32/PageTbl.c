@@ -36,6 +36,8 @@ SmmInitPageTable (
   //
   InitializeSpinLock (mPFLock);
 
+  mPhysicalAddressBits = 32;
+
   if (FeaturePcdGet (PcdCpuSmmProfileEnable)) {
     //
     // Set own Page Fault entry instead of the default one, because SMM Profile
@@ -153,6 +155,18 @@ SmiPFHandler (
     }
   }
 
+  //
+  // If NULL pointer was just accessed
+  //
+  if ((PcdGet8 (PcdNullPointerDetectionPropertyMask) & BIT1) != 0 &&
+      (PFAddress < EFI_PAGE_SIZE)) {
+    DEBUG ((DEBUG_ERROR, "!!! NULL pointer access !!!\n"));
+    DEBUG_CODE (
+      DumpModuleInfoByIp ((UINTN)SystemContext.SystemContextIa32->Eip);
+    );
+    CpuDeadLoop ();
+  }
+
   if (FeaturePcdGet (PcdCpuSmmProfileEnable)) {
     SmmProfilePFHandler (
       SystemContext.SystemContextIa32->Eip,
@@ -181,6 +195,16 @@ SetPageTableAttributes (
   UINT64                *L3PageTable;
   BOOLEAN               IsSplitted;
   BOOLEAN               PageTableSplitted;
+
+  //
+  // Don't mark page table as read-only if heap guard is enabled.
+  //
+  //      BIT2: SMM page guard enabled
+  //      BIT3: SMM pool guard enabled
+  //
+  if ((PcdGet8 (PcdHeapGuardPropertyMask) & (BIT3 | BIT2)) != 0) {
+    return ;
+  }
 
   DEBUG ((DEBUG_INFO, "SetPageTableAttributes\n"));
 

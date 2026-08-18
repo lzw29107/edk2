@@ -808,7 +808,8 @@ BdsEntry (
   ASSERT_EFI_ERROR (Status);
 
   //
-  // Cache and remove the "BootNext" NV variable.
+  // Cache the "BootNext" NV variable before calling any PlatformBootManagerLib APIs
+  // This could avoid the "BootNext" set by PlatformBootManagerLib be consumed in this boot.
   //
   GetEfiGlobalVariable2 (EFI_BOOT_NEXT_VARIABLE_NAME, (VOID **) &BootNext, &DataSize);
   if (DataSize != sizeof (UINT16)) {
@@ -817,17 +818,6 @@ BdsEntry (
     }
     BootNext = NULL;
   }
-  Status = gRT->SetVariable (
-                  EFI_BOOT_NEXT_VARIABLE_NAME,
-                  &gEfiGlobalVariableGuid,
-                  0,
-                  0,
-                  NULL
-                  );
-  //
-  // Deleting NV variable shouldn't fail unless it doesn't exist.
-  //
-  ASSERT (Status == EFI_SUCCESS || Status == EFI_NOT_FOUND);
 
   //
   // Initialize the platform language variables
@@ -1052,10 +1042,25 @@ BdsEntry (
 
     EfiBootManagerHotkeyBoot ();
 
-    //
-    // Boot to "BootNext"
-    //
     if (BootNext != NULL) {
+      //
+      // Delete "BootNext" NV variable before transferring control to it to prevent loops.
+      //
+      Status = gRT->SetVariable (
+                      EFI_BOOT_NEXT_VARIABLE_NAME,
+                      &gEfiGlobalVariableGuid,
+                      0,
+                      0,
+                      NULL
+                      );
+      //
+      // Deleting NV variable shouldn't fail unless it doesn't exist.
+      //
+      ASSERT (Status == EFI_SUCCESS || Status == EFI_NOT_FOUND);
+
+      //
+      // Boot to "BootNext"
+      //
       UnicodeSPrint (BootNextVariableName, sizeof (BootNextVariableName), L"Boot%04x", *BootNext);
       Status = EfiBootManagerVariableToLoadOption (BootNextVariableName, &LoadOption);
       if (!EFI_ERROR (Status)) {
@@ -1107,8 +1112,7 @@ BdsEntry (
   @param  VendorGuid             A unique identifier for the vendor.
   @param  Attributes             Attributes bitmask to set for the variable.
   @param  DataSize               The size in bytes of the Data buffer. Unless the EFI_VARIABLE_APPEND_WRITE, 
-                                 EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS, or 
-                                 EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS attribute is set, a size of zero 
+                                 or EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS attribute is set, a size of zero
                                  causes the variable to be deleted. When the EFI_VARIABLE_APPEND_WRITE attribute is 
                                  set, then a SetVariable() call with a DataSize of zero will not cause any change to 
                                  the variable value (the timestamp associated with the variable may be updated however 
@@ -1126,9 +1130,8 @@ BdsEntry (
   @retval EFI_DEVICE_ERROR       The variable could not be retrieved due to a hardware error.
   @retval EFI_WRITE_PROTECTED    The variable in question is read-only.
   @retval EFI_WRITE_PROTECTED    The variable in question cannot be deleted.
-  @retval EFI_SECURITY_VIOLATION The variable could not be written due to EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS 
-                                 or EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACESS being set, but the AuthInfo 
-                                 does NOT pass the validation check carried out by the firmware.
+  @retval EFI_SECURITY_VIOLATION The variable could not be written due to EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACESS
+                                 being set, but the AuthInfo does NOT pass the validation check carried out by the firmware.
 
   @retval EFI_NOT_FOUND          The variable trying to be updated or deleted was not found.
 **/

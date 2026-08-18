@@ -33,16 +33,26 @@ typedef struct {
 } MAP_INFO;
 
 //
-// List of MAP_INFO structures recycled by Unmap().
+// List of the MAP_INFO structures that have been set up by IoMmuMap() and not
+// yet torn down by IoMmuUnmap(). The list represents the full set of mappings
+// currently in effect.
 //
-// Recycled MAP_INFO structures are equally good for future recycling and
-// freeing.
-//
-STATIC LIST_ENTRY mRecycledMapInfos = INITIALIZE_LIST_HEAD_VARIABLE (
-                                        mRecycledMapInfos
-                                        );
+STATIC LIST_ENTRY mMapInfos = INITIALIZE_LIST_HEAD_VARIABLE (mMapInfos);
 
 #define COMMON_BUFFER_SIG SIGNATURE_64 ('C', 'M', 'N', 'B', 'U', 'F', 'F', 'R')
+
+//
+// ASCII names for EDKII_IOMMU_OPERATION constants, for debug logging.
+//
+STATIC CONST CHAR8 * CONST
+mBusMasterOperationName[EdkiiIoMmuOperationMaximum] = {
+  "Read",
+  "Write",
+  "CommonBuffer",
+  "Read64",
+  "Write64",
+  "CommonBuffer64"
+};
 
 //
 // The following structure enables Map() and Unmap() to perform in-place
@@ -110,11 +120,22 @@ IoMmuMap (
   )
 {
   EFI_STATUS                                        Status;
-  LIST_ENTRY                                        *RecycledMapInfo;
   MAP_INFO                                          *MapInfo;
   EFI_ALLOCATE_TYPE                                 AllocateType;
   COMMON_BUFFER_HEADER                              *CommonBufferHeader;
   VOID                                              *DecryptionSource;
+
+  DEBUG ((
+    DEBUG_VERBOSE,
+    "%a: Operation=%a Host=0x%p Bytes=0x%Lx\n",
+    __FUNCTION__,
+    ((Operation >= 0 &&
+      Operation < ARRAY_SIZE (mBusMasterOperationName)) ?
+     mBusMasterOperationName[Operation] :
+     "Invalid"),
+    HostAddress,
+    (UINT64)((NumberOfBytes == NULL) ? 0 : *NumberOfBytes)
+    ));
 
   if (HostAddress == NULL || NumberOfBytes == NULL || DeviceAddress == NULL ||
       Mapping == NULL) {
@@ -125,19 +146,10 @@ IoMmuMap (
   // Allocate a MAP_INFO structure to remember the mapping when Unmap() is
   // called later.
   //
-  RecycledMapInfo = GetFirstNode (&mRecycledMapInfos);
-  if (RecycledMapInfo == &mRecycledMapInfos) {
-    //
-    // No recycled MAP_INFO structure, allocate a new one.
-    //
-    MapInfo = AllocatePool (sizeof (MAP_INFO));
-    if (MapInfo == NULL) {
-      Status = EFI_OUT_OF_RESOURCES;
-      goto Failed;
-    }
-  } else {
-    MapInfo = CR (RecycledMapInfo, MAP_INFO, Link, MAP_INFO_SIG);
-    RemoveEntryList (RecycledMapInfo);
+  MapInfo = AllocatePool (sizeof (MAP_INFO));
+  if (MapInfo == NULL) {
+    Status = EFI_OUT_OF_RESOURCES;
+    goto Failed;
   }
 
   //
@@ -274,6 +286,10 @@ IoMmuMap (
   }
 
   //
+  // Track all MAP_INFO structures.
+  //
+  InsertHeadList (&mMapInfos, &MapInfo->Link);
+  //
   // Populate output parameters.
   //
   *DeviceAddress = MapInfo->PlainTextAddress;
@@ -281,12 +297,12 @@ IoMmuMap (
 
   DEBUG ((
     DEBUG_VERBOSE,
-    "%a PlainText 0x%Lx Crypted 0x%Lx Pages 0x%Lx Bytes 0x%Lx\n",
+    "%a: Mapping=0x%p Device(PlainText)=0x%Lx Crypted=0x%Lx Pages=0x%Lx\n",
     __FUNCTION__,
+    MapInfo,
     MapInfo->PlainTextAddress,
     MapInfo->CryptedAddress,
-    (UINT64)MapInfo->NumberOfPages,
-    (UINT64)MapInfo->NumberOfBytes
+    (UINT64)MapInfo->NumberOfPages
     ));
 
   return EFI_SUCCESS;
@@ -302,8 +318,14 @@ Failed:
 /**
   Completes the Map() operation and releases any corresponding resources.
 
+  This is an internal worker function that only extends the Map() API with
+  the MemoryMapLocked parameter.
+
   @param  This                  The protocol instance pointer.
   @param  Mapping               The mapping value returned from Map().
+  @param  MemoryMapLocked       The function is executing on the stack of
+                                gBS->ExitBootServices(); changes to the UEFI
+                                memory map are forbidden.
 
   @retval EFI_SUCCESS           The range was unmapped.
   @retval EFI_INVALID_PARAMETER Mapping is not a value that was returned by
@@ -311,17 +333,27 @@ Failed:
   @retval EFI_DEVICE_ERROR      The data was not committed to the target system
                                 memory.
 **/
+STATIC
 EFI_STATUS
 EFIAPI
-IoMmuUnmap (
+IoMmuUnmapWorker (
   IN  EDKII_IOMMU_PROTOCOL                     *This,
-  IN  VOID                                     *Mapping
+  IN  VOID                                     *Mapping,
+  IN  BOOLEAN                                  MemoryMapLocked
   )
 {
   MAP_INFO                 *MapInfo;
   EFI_STATUS               Status;
   COMMON_BUFFER_HEADER     *CommonBufferHeader;
   VOID                     *EncryptionTarget;
+
+  DEBUG ((
+    DEBUG_VERBOSE,
+    "%a: Mapping=0x%p MemoryMapLocked=%d\n",
+    __FUNCTION__,
+    Mapping,
+    MemoryMapLocked
+    ));
 
   if (Mapping == NULL) {
     return EFI_INVALID_PARAMETER;
@@ -374,16 +406,6 @@ IoMmuUnmap (
     break;
   }
 
-  DEBUG ((
-    DEBUG_VERBOSE,
-    "%a PlainText 0x%Lx Crypted 0x%Lx Pages 0x%Lx Bytes 0x%Lx\n",
-    __FUNCTION__,
-    MapInfo->PlainTextAddress,
-    MapInfo->CryptedAddress,
-    (UINT64)MapInfo->NumberOfPages,
-    (UINT64)MapInfo->NumberOfBytes
-    ));
-
   //
   // Restore the memory encryption mask on the area we used to hold the
   // plaintext.
@@ -404,7 +426,8 @@ IoMmuUnmap (
   // original (now encrypted) location.
   //
   // For all other operations, fill the late bounce buffer (which existed as
-  // plaintext at some point) with zeros, and then release it.
+  // plaintext at some point) with zeros, and then release it (unless the UEFI
+  // memory map is locked).
   //
   if (MapInfo->Operation == EdkiiIoMmuOperationBusMasterCommonBuffer ||
       MapInfo->Operation == EdkiiIoMmuOperationBusMasterCommonBuffer64) {
@@ -413,25 +436,52 @@ IoMmuUnmap (
       CommonBufferHeader->StashBuffer,
       MapInfo->NumberOfBytes
       );
-
-    //
-    // Recycle the MAP_INFO structure.
-    //
-    InsertTailList (&mRecycledMapInfos, &MapInfo->Link);
   } else {
     ZeroMem (
       (VOID *)(UINTN)MapInfo->PlainTextAddress,
       EFI_PAGES_TO_SIZE (MapInfo->NumberOfPages)
       );
-    gBS->FreePages (MapInfo->PlainTextAddress, MapInfo->NumberOfPages);
+    if (!MemoryMapLocked) {
+      gBS->FreePages (MapInfo->PlainTextAddress, MapInfo->NumberOfPages);
+    }
+  }
 
-    //
-    // Free the MAP_INFO structure.
-    //
+  //
+  // Forget the MAP_INFO structure, then free it (unless the UEFI memory map is
+  // locked).
+  //
+  RemoveEntryList (&MapInfo->Link);
+  if (!MemoryMapLocked) {
     FreePool (MapInfo);
   }
 
   return EFI_SUCCESS;
+}
+
+/**
+  Completes the Map() operation and releases any corresponding resources.
+
+  @param  This                  The protocol instance pointer.
+  @param  Mapping               The mapping value returned from Map().
+
+  @retval EFI_SUCCESS           The range was unmapped.
+  @retval EFI_INVALID_PARAMETER Mapping is not a value that was returned by
+                                Map().
+  @retval EFI_DEVICE_ERROR      The data was not committed to the target system
+                                memory.
+**/
+EFI_STATUS
+EFIAPI
+IoMmuUnmap (
+  IN  EDKII_IOMMU_PROTOCOL                     *This,
+  IN  VOID                                     *Mapping
+  )
+{
+  return IoMmuUnmapWorker (
+           This,
+           Mapping,
+           FALSE    // MemoryMapLocked
+           );
 }
 
 /**
@@ -472,6 +522,15 @@ IoMmuAllocateBuffer (
   VOID                      *StashBuffer;
   UINTN                     CommonBufferPages;
   COMMON_BUFFER_HEADER      *CommonBufferHeader;
+
+  DEBUG ((
+    DEBUG_VERBOSE,
+    "%a: MemoryType=%u Pages=0x%Lx Attributes=0x%Lx\n",
+    __FUNCTION__,
+    (UINT32)MemoryType,
+    (UINT64)Pages,
+    Attributes
+    ));
 
   //
   // Validate Attributes
@@ -549,10 +608,10 @@ IoMmuAllocateBuffer (
 
   DEBUG ((
     DEBUG_VERBOSE,
-    "%a Address 0x%Lx Pages 0x%Lx\n",
+    "%a: Host=0x%Lx Stash=0x%p\n",
     __FUNCTION__,
     PhysicalAddress,
-    (UINT64)Pages
+    StashBuffer
     ));
   return EFI_SUCCESS;
 
@@ -585,6 +644,14 @@ IoMmuFreeBuffer (
   UINTN                CommonBufferPages;
   COMMON_BUFFER_HEADER *CommonBufferHeader;
 
+  DEBUG ((
+    DEBUG_VERBOSE,
+    "%a: Host=0x%p Pages=0x%Lx\n",
+    __FUNCTION__,
+    HostAddress,
+    (UINT64)Pages
+    ));
+
   CommonBufferPages = Pages + 1;
   CommonBufferHeader = (COMMON_BUFFER_HEADER *)(
                          (UINTN)HostAddress - EFI_PAGE_SIZE
@@ -603,14 +670,6 @@ IoMmuFreeBuffer (
   // zero it.
   //
   FreePages (CommonBufferHeader->StashBuffer, Pages);
-
-  DEBUG ((
-    DEBUG_VERBOSE,
-    "%a Address 0x%Lx Pages 0x%Lx\n",
-    __FUNCTION__,
-    (UINT64)(UINTN)HostAddress,
-    (UINT64)Pages
-    ));
 
   //
   // Release the common buffer itself. Unmap() has re-encrypted it in-place, so
@@ -690,6 +749,107 @@ EDKII_IOMMU_PROTOCOL  mAmdSev = {
 };
 
 /**
+  Notification function that is queued when gBS->ExitBootServices() signals the
+  EFI_EVENT_GROUP_EXIT_BOOT_SERVICES event group. This function signals another
+  event, received as Context, and returns.
+
+  Signaling an event in this context is safe. The UEFI spec allows
+  gBS->SignalEvent() to return EFI_SUCCESS only; EFI_OUT_OF_RESOURCES is not
+  listed, hence memory is not allocated. The edk2 implementation also does not
+  release memory (and we only have to care about the edk2 implementation
+  because EDKII_IOMMU_PROTOCOL is edk2-specific anyway).
+
+  @param[in] Event          Event whose notification function is being invoked.
+                            Event is permitted to request the queueing of this
+                            function at TPL_CALLBACK or TPL_NOTIFY task
+                            priority level.
+
+  @param[in] EventToSignal  Identifies the EFI_EVENT to signal. EventToSignal
+                            is permitted to request the queueing of its
+                            notification function only at TPL_CALLBACK level.
+**/
+STATIC
+VOID
+EFIAPI
+AmdSevExitBoot (
+  IN EFI_EVENT Event,
+  IN VOID      *EventToSignal
+  )
+{
+  //
+  // (1) The NotifyFunctions of all the events in
+  //     EFI_EVENT_GROUP_EXIT_BOOT_SERVICES will have been queued before
+  //     AmdSevExitBoot() is entered.
+  //
+  // (2) AmdSevExitBoot() is executing minimally at TPL_CALLBACK.
+  //
+  // (3) AmdSevExitBoot() has been queued in unspecified order relative to the
+  //     NotifyFunctions of all the other events in
+  //     EFI_EVENT_GROUP_EXIT_BOOT_SERVICES whose NotifyTpl is the same as
+  //     Event's.
+  //
+  // Consequences:
+  //
+  // - If Event's NotifyTpl is TPL_CALLBACK, then some other NotifyFunctions
+  //   queued at TPL_CALLBACK may be invoked after AmdSevExitBoot() returns.
+  //
+  // - If Event's NotifyTpl is TPL_NOTIFY, then some other NotifyFunctions
+  //   queued at TPL_NOTIFY may be invoked after AmdSevExitBoot() returns; plus
+  //   *all* NotifyFunctions queued at TPL_CALLBACK will be invoked strictly
+  //   after all NotifyFunctions queued at TPL_NOTIFY, including
+  //   AmdSevExitBoot(), have been invoked.
+  //
+  // - By signaling EventToSignal here, whose NotifyTpl is TPL_CALLBACK, we
+  //   queue EventToSignal's NotifyFunction after the NotifyFunctions of *all*
+  //   events in EFI_EVENT_GROUP_EXIT_BOOT_SERVICES.
+  //
+  DEBUG ((DEBUG_VERBOSE, "%a\n", __FUNCTION__));
+  gBS->SignalEvent (EventToSignal);
+}
+
+/**
+  Notification function that is queued after the notification functions of all
+  events in the EFI_EVENT_GROUP_EXIT_BOOT_SERVICES event group. The same memory
+  map restrictions apply.
+
+  This function unmaps all currently existing IOMMU mappings.
+
+  @param[in] Event    Event whose notification function is being invoked. Event
+                      is permitted to request the queueing of this function
+                      only at TPL_CALLBACK task priority level.
+
+  @param[in] Context  Ignored.
+**/
+STATIC
+VOID
+EFIAPI
+AmdSevUnmapAllMappings (
+  IN EFI_EVENT Event,
+  IN VOID      *Context
+  )
+{
+  LIST_ENTRY *Node;
+  LIST_ENTRY *NextNode;
+  MAP_INFO   *MapInfo;
+
+  DEBUG ((DEBUG_VERBOSE, "%a\n", __FUNCTION__));
+
+  //
+  // All drivers that had set up IOMMU mappings have halted their respective
+  // controllers by now; tear down the mappings.
+  //
+  for (Node = GetFirstNode (&mMapInfos); Node != &mMapInfos; Node = NextNode) {
+    NextNode = GetNextNode (&mMapInfos, Node);
+    MapInfo = CR (Node, MAP_INFO, Link, MAP_INFO_SIG);
+    IoMmuUnmapWorker (
+      &mAmdSev, // This
+      MapInfo,  // Mapping
+      TRUE      // MemoryMapLocked
+      );
+  }
+}
+
+/**
   Initialize Iommu Protocol.
 
 **/
@@ -700,7 +860,39 @@ AmdSevInstallIoMmuProtocol (
   )
 {
   EFI_STATUS  Status;
+  EFI_EVENT   UnmapAllMappingsEvent;
+  EFI_EVENT   ExitBootEvent;
   EFI_HANDLE  Handle;
+
+  //
+  // Create the "late" event whose notification function will tear down all
+  // left-over IOMMU mappings.
+  //
+  Status = gBS->CreateEvent (
+                  EVT_NOTIFY_SIGNAL,      // Type
+                  TPL_CALLBACK,           // NotifyTpl
+                  AmdSevUnmapAllMappings, // NotifyFunction
+                  NULL,                   // NotifyContext
+                  &UnmapAllMappingsEvent  // Event
+                  );
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  //
+  // Create the event whose notification function will be queued by
+  // gBS->ExitBootServices() and will signal the event created above.
+  //
+  Status = gBS->CreateEvent (
+                  EVT_SIGNAL_EXIT_BOOT_SERVICES, // Type
+                  TPL_CALLBACK,                  // NotifyTpl
+                  AmdSevExitBoot,                // NotifyFunction
+                  UnmapAllMappingsEvent,         // NotifyContext
+                  &ExitBootEvent                 // Event
+                  );
+  if (EFI_ERROR (Status)) {
+    goto CloseUnmapAllMappingsEvent;
+  }
 
   Handle = NULL;
   Status = gBS->InstallMultipleProtocolInterfaces (
@@ -708,5 +900,17 @@ AmdSevInstallIoMmuProtocol (
                   &gEdkiiIoMmuProtocolGuid, &mAmdSev,
                   NULL
                   );
+  if (EFI_ERROR (Status)) {
+    goto CloseExitBootEvent;
+  }
+
+  return EFI_SUCCESS;
+
+CloseExitBootEvent:
+  gBS->CloseEvent (ExitBootEvent);
+
+CloseUnmapAllMappingsEvent:
+  gBS->CloseEvent (UnmapAllMappingsEvent);
+
   return Status;
 }

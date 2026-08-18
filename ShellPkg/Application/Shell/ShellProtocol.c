@@ -598,7 +598,8 @@ EfiShellGetDevicePathFromFilePath(
   //
   // build the full device path
   //
-  if (*(Path+StrLen(MapName)+1) == CHAR_NULL) {
+  if ((*(Path+StrLen(MapName)) != CHAR_NULL) &&
+      (*(Path+StrLen(MapName)+1) == CHAR_NULL)) {
     DevicePathForReturn = FileDevicePath(Handle, L"\\");
   } else {
     DevicePathForReturn = FileDevicePath(Handle, Path+StrLen(MapName));
@@ -826,7 +827,8 @@ EfiShellGetDeviceName(
   @retval EFI_NOT_FOUND         EFI_SIMPLE_FILE_SYSTEM could not be found or the root directory
                                 could not be opened.
   @retval EFI_VOLUME_CORRUPTED  The data structures in the volume were corrupted.
-  @retval EFI_DEVICE_ERROR      The device had an error
+  @retval EFI_DEVICE_ERROR      The device had an error.
+  @retval Others                Error status returned from EFI_SIMPLE_FILE_SYSTEM_PROTOCOL->OpenVolume().
 **/
 EFI_STATUS
 EFIAPI
@@ -866,8 +868,12 @@ EfiShellOpenRootByHandle(
   // Open the root volume now...
   //
   Status = SimpleFileSystem->OpenVolume(SimpleFileSystem, &RealFileHandle);
+  if (EFI_ERROR(Status)) {
+    return Status;
+  }
+
   *FileHandle = ConvertEfiFileProtocolToShellHandle(RealFileHandle, EfiShellGetMapFromDevicePath(&DevPath));
-  return (Status);
+  return (EFI_SUCCESS);
 }
 
 /**
@@ -1678,6 +1684,7 @@ InternalShellExecute(
 STATIC
 BOOLEAN
 NestingEnabled(
+  VOID
 )
 {
   EFI_STATUS  Status;
@@ -3079,10 +3086,10 @@ EfiShellSetCurDir(
       // make that the current file system mapping
       //
       if (MapListItem != NULL) {
-        gShellCurDir = MapListItem;
+        gShellCurMapping = MapListItem;
       }
     } else {
-      MapListItem = gShellCurDir;
+      MapListItem = gShellCurMapping;
     }
 
     if (MapListItem == NULL) {
@@ -3131,7 +3138,7 @@ EfiShellSetCurDir(
       FreePool (DirectoryName);
       return (EFI_INVALID_PARAMETER);
     }
-//    gShellCurDir = MapListItem;
+//    gShellCurMapping = MapListItem;
     if (DirectoryName != NULL) {
       //
       // change current dir on that file system
@@ -3157,7 +3164,7 @@ EfiShellSetCurDir(
   //
   // if updated the current directory then update the environment variable
   //
-  if (MapListItem == gShellCurDir) {
+  if (MapListItem == gShellCurMapping) {
     Size = 0;
     ASSERT((TempString == NULL && Size == 0) || (TempString != NULL));
     StrnCatGrow(&TempString, &Size, MapListItem->MapName, 0);
@@ -3285,6 +3292,7 @@ EfiShellIsRootShell(
 **/
 CHAR16 *
 InternalEfiShellGetListAlias(
+  VOID
   )
 {
   

@@ -40,6 +40,7 @@
   SmramProfileRecord.c
   MemoryAttributesTable.c
   SmiHandlerProfile.c
+  HeapGuard.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -79,6 +80,7 @@
   gEdkiiSmmExitBootServicesProtocolGuid         ## SOMETIMES_PRODUCES
   gEdkiiSmmLegacyBootProtocolGuid               ## SOMETIMES_PRODUCES
   gEdkiiSmmReadyToBootProtocolGuid              ## PRODUCES
+  gEdkiiSmmEndOfS3ResumeProtocolGuid            ## SOMETIMES_PRODUCES
 
   gEfiSmmSwDispatch2ProtocolGuid                ## SOMETIMES_CONSUMES
   gEfiSmmSxDispatch2ProtocolGuid                ## SOMETIMES_CONSUMES
@@ -88,6 +90,8 @@
   gEfiSmmGpiDispatch2ProtocolGuid               ## SOMETIMES_CONSUMES
   gEfiSmmIoTrapDispatch2ProtocolGuid            ## SOMETIMES_CONSUMES
   gEfiSmmUsbDispatch2ProtocolGuid               ## SOMETIMES_CONSUMES
+  gEfiSmmCpuProtocolGuid                        ## SOMETIMES_CONSUMES
+  gEdkiiSmmMemoryAttributeProtocolGuid          ## CONSUMES
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdLoadFixAddressSmmCodePageNumber     ## SOMETIMES_CONSUMES
@@ -96,6 +100,9 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdMemoryProfilePropertyMask           ## CONSUMES
   gEfiMdeModulePkgTokenSpaceGuid.PcdMemoryProfileDriverPath             ## CONSUMES
   gEfiMdeModulePkgTokenSpaceGuid.PcdSmiHandlerProfilePropertyMask       ## CONSUMES
+  gEfiMdeModulePkgTokenSpaceGuid.PcdHeapGuardPageType                   ## CONSUMES
+  gEfiMdeModulePkgTokenSpaceGuid.PcdHeapGuardPoolType                   ## CONSUMES
+  gEfiMdeModulePkgTokenSpaceGuid.PcdHeapGuardPropertyMask               ## CONSUMES
 
 [Guids]
   gAprioriGuid                                  ## SOMETIMES_CONSUMES   ## File
@@ -109,7 +116,7 @@
   gEdkiiMemoryProfileGuid
   ## SOMETIMES_PRODUCES   ## GUID # Install protocol
   gEdkiiSmmMemoryProfileGuid
-  gEdkiiPiSmmMemoryAttributesTableGuid          ## SOMETIMES_PRODUCES   ## SystemTable
+  gEdkiiPiSmmMemoryAttributesTableGuid          ## PRODUCES   ## SystemTable
   ## SOMETIMES_CONSUMES   ## SystemTable
   gLoadFixedAddressConfigurationTableGuid
   ## SOMETIMES_PRODUCES   ## GUID # Install protocol

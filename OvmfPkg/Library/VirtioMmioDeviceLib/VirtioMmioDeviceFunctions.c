@@ -181,10 +181,13 @@ VirtioMmioSetQueueSel (
 EFI_STATUS
 VirtioMmioSetQueueAddress (
   IN VIRTIO_DEVICE_PROTOCOL  *This,
-  IN VRING                   *Ring
+  IN VRING                   *Ring,
+  IN UINT64                  RingBaseShift
   )
 {
   VIRTIO_MMIO_DEVICE *Device;
+
+  ASSERT (RingBaseShift == 0);
 
   Device = VIRTIO_MMIO_DEVICE_FROM_VIRTIO_DEVICE (This);
 
@@ -291,5 +294,62 @@ VirtioMmioDeviceRead (
   //
   MmioReadBuffer8 (SrcBaseAddress, BufferSize, Buffer);
 
+  return EFI_SUCCESS;
+}
+
+EFI_STATUS
+EFIAPI
+VirtioMmioAllocateSharedPages (
+  IN  VIRTIO_DEVICE_PROTOCOL  *This,
+  IN  UINTN                   NumPages,
+  OUT VOID                    **HostAddress
+  )
+{
+  VOID        *Buffer;
+
+  Buffer = AllocatePages (NumPages);
+  if (Buffer == NULL) {
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  *HostAddress = Buffer;
+  return EFI_SUCCESS;
+}
+
+VOID
+EFIAPI
+VirtioMmioFreeSharedPages (
+  IN  VIRTIO_DEVICE_PROTOCOL  *This,
+  IN  UINTN                   NumPages,
+  IN  VOID                    *HostAddress
+  )
+{
+  FreePages (HostAddress, NumPages);
+}
+
+EFI_STATUS
+EFIAPI
+VirtioMmioMapSharedBuffer (
+  IN      VIRTIO_DEVICE_PROTOCOL  *This,
+  IN      VIRTIO_MAP_OPERATION    Operation,
+  IN      VOID                    *HostAddress,
+  IN OUT  UINTN                   *NumberOfBytes,
+  OUT     EFI_PHYSICAL_ADDRESS    *DeviceAddress,
+  OUT     VOID                    **Mapping
+  )
+{
+  *DeviceAddress = (EFI_PHYSICAL_ADDRESS) (UINTN) HostAddress;
+  *Mapping = NULL;
+
+  return EFI_SUCCESS;
+}
+
+EFI_STATUS
+EFIAPI
+VirtioMmioUnmapSharedBuffer (
+  IN VIRTIO_DEVICE_PROTOCOL    *This,
+  IN VOID                      *Mapping
+  )
+{
   return EFI_SUCCESS;
 }

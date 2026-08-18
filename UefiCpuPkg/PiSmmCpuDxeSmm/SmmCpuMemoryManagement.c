@@ -1,6 +1,6 @@
 /** @file
 
-Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2016 - 2017, Intel Corporation. All rights reserved.<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -380,6 +380,7 @@ ConvertMemoryPageAttributes (
   PAGE_ATTRIBUTE                    SplitAttribute;
   RETURN_STATUS                     Status;
   BOOLEAN                           IsEntryModified;
+  EFI_PHYSICAL_ADDRESS              MaximumSupportMemAddress;
 
   ASSERT (Attributes != 0);
   ASSERT ((Attributes & ~(EFI_MEMORY_RP | EFI_MEMORY_RO | EFI_MEMORY_XP)) == 0);
@@ -389,6 +390,17 @@ ConvertMemoryPageAttributes (
 
   if (Length == 0) {
     return RETURN_INVALID_PARAMETER;
+  }
+
+  MaximumSupportMemAddress = (EFI_PHYSICAL_ADDRESS)(UINTN)(LShiftU64 (1, mPhysicalAddressBits) - 1);
+  if (BaseAddress > MaximumSupportMemAddress) {
+    return RETURN_UNSUPPORTED;
+  }
+  if (Length > MaximumSupportMemAddress) {
+    return RETURN_UNSUPPORTED;
+  }
+  if ((Length != 0) && (BaseAddress > MaximumSupportMemAddress - (Length - 1))) {
+    return RETURN_UNSUPPORTED;
   }
 
 //  DEBUG ((DEBUG_ERROR, "ConvertMemoryPageAttributes(%x) - %016lx, %016lx, %02lx\n", IsSet, BaseAddress, Length, Attributes));
@@ -1037,6 +1049,7 @@ SetUefiMemMapAttributes (
   VOID
   )
 {
+  EFI_STATUS            Status;
   EFI_MEMORY_DESCRIPTOR *MemoryMap;
   UINTN                 MemoryMapEntryCount;
   UINTN                 Index;
@@ -1052,12 +1065,18 @@ SetUefiMemMapAttributes (
   MemoryMap = mUefiMemoryMap;
   for (Index = 0; Index < MemoryMapEntryCount; Index++) {
     if (IsUefiPageNotPresent(MemoryMap)) {
-      DEBUG ((DEBUG_INFO, "UefiMemory protection: 0x%lx - 0x%lx\n", MemoryMap->PhysicalStart, MemoryMap->PhysicalStart + (UINT64)EFI_PAGES_TO_SIZE((UINTN)MemoryMap->NumberOfPages)));
-      SmmSetMemoryAttributes (
+      Status = SmmSetMemoryAttributes (
+                 MemoryMap->PhysicalStart,
+                 EFI_PAGES_TO_SIZE((UINTN)MemoryMap->NumberOfPages),
+                 EFI_MEMORY_RP
+                 );
+      DEBUG ((
+        DEBUG_INFO,
+        "UefiMemory protection: 0x%lx - 0x%lx %r\n",
         MemoryMap->PhysicalStart,
-        EFI_PAGES_TO_SIZE((UINTN)MemoryMap->NumberOfPages),
-        EFI_MEMORY_RP
-        );
+        MemoryMap->PhysicalStart + (UINT64)EFI_PAGES_TO_SIZE((UINTN)MemoryMap->NumberOfPages),
+        Status
+        ));
     }
     MemoryMap = NEXT_MEMORY_DESCRIPTOR(MemoryMap, mUefiDescriptorSize);
   }
@@ -1101,3 +1120,166 @@ IsSmmCommBufferForbiddenAddress (
   }
   return FALSE;
 }
+
+/**
+  This function set given attributes of the memory region specified by
+  BaseAddress and Length.
+
+  @param  This              The EDKII_SMM_MEMORY_ATTRIBUTE_PROTOCOL instance.
+  @param  BaseAddress       The physical address that is the start address of
+                            a memory region.
+  @param  Length            The size in bytes of the memory region.
+  @param  Attributes        The bit mask of attributes to set for the memory
+                            region.
+
+  @retval EFI_SUCCESS           The attributes were set for the memory region.
+  @retval EFI_INVALID_PARAMETER Length is zero.
+                                Attributes specified an illegal combination of
+                                attributes that cannot be set together.
+  @retval EFI_UNSUPPORTED       The processor does not support one or more
+                                bytes of the memory resource range specified
+                                by BaseAddress and Length.
+                                The bit mask of attributes is not support for
+                                the memory resource range specified by
+                                BaseAddress and Length.
+
+**/
+EFI_STATUS
+EFIAPI
+EdkiiSmmSetMemoryAttributes (
+  IN  EDKII_SMM_MEMORY_ATTRIBUTE_PROTOCOL   *This,
+  IN  EFI_PHYSICAL_ADDRESS                  BaseAddress,
+  IN  UINT64                                Length,
+  IN  UINT64                                Attributes
+  )
+{
+  return SmmSetMemoryAttributes (BaseAddress, Length, Attributes);
+}
+
+/**
+  This function clears given attributes of the memory region specified by
+  BaseAddress and Length.
+
+  @param  This              The EDKII_SMM_MEMORY_ATTRIBUTE_PROTOCOL instance.
+  @param  BaseAddress       The physical address that is the start address of
+                            a memory region.
+  @param  Length            The size in bytes of the memory region.
+  @param  Attributes        The bit mask of attributes to set for the memory
+                            region.
+
+  @retval EFI_SUCCESS           The attributes were set for the memory region.
+  @retval EFI_INVALID_PARAMETER Length is zero.
+                                Attributes specified an illegal combination of
+                                attributes that cannot be set together.
+  @retval EFI_UNSUPPORTED       The processor does not support one or more
+                                bytes of the memory resource range specified
+                                by BaseAddress and Length.
+                                The bit mask of attributes is not support for
+                                the memory resource range specified by
+                                BaseAddress and Length.
+
+**/
+EFI_STATUS
+EFIAPI
+EdkiiSmmClearMemoryAttributes (
+  IN  EDKII_SMM_MEMORY_ATTRIBUTE_PROTOCOL   *This,
+  IN  EFI_PHYSICAL_ADDRESS                  BaseAddress,
+  IN  UINT64                                Length,
+  IN  UINT64                                Attributes
+  )
+{
+  return SmmClearMemoryAttributes (BaseAddress, Length, Attributes);
+}
+
+/**
+  This function retrieve the attributes of the memory region specified by
+  BaseAddress and Length. If different attributes are got from different part
+  of the memory region, EFI_NO_MAPPING will be returned.
+
+  @param  This              The EDKII_SMM_MEMORY_ATTRIBUTE_PROTOCOL instance.
+  @param  BaseAddress       The physical address that is the start address of
+                            a memory region.
+  @param  Length            The size in bytes of the memory region.
+  @param  Attributes        Pointer to attributes returned.
+
+  @retval EFI_SUCCESS           The attributes got for the memory region.
+  @retval EFI_INVALID_PARAMETER Length is zero.
+                                Attributes is NULL.
+  @retval EFI_NO_MAPPING        Attributes are not consistent cross the memory
+                                region.
+  @retval EFI_UNSUPPORTED       The processor does not support one or more
+                                bytes of the memory resource range specified
+                                by BaseAddress and Length.
+                                The bit mask of attributes is not support for
+                                the memory resource range specified by
+                                BaseAddress and Length.
+
+**/
+EFI_STATUS
+EFIAPI
+EdkiiSmmGetMemoryAttributes (
+  IN  EDKII_SMM_MEMORY_ATTRIBUTE_PROTOCOL   *This,
+  IN  EFI_PHYSICAL_ADDRESS                  BaseAddress,
+  IN  UINT64                                Length,
+  OUT UINT64                                *Attributes
+  )
+{
+  EFI_PHYSICAL_ADDRESS  Address;
+  UINT64                *PageEntry;
+  UINT64                MemAttr;
+  PAGE_ATTRIBUTE        PageAttr;
+  INT64                 Size;
+
+  if (Length < SIZE_4KB || Attributes == NULL) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  Size = (INT64)Length;
+  MemAttr = (UINT64)-1;
+
+  do {
+
+    PageEntry = GetPageTableEntry (BaseAddress, &PageAttr);
+    if (PageEntry == NULL || PageAttr == PageNone) {
+      return EFI_UNSUPPORTED;
+    }
+
+    //
+    // If the memory range is cross page table boundary, make sure they
+    // share the same attribute. Return EFI_NO_MAPPING if not.
+    //
+    *Attributes = GetAttributesFromPageEntry (PageEntry);
+    if (MemAttr != (UINT64)-1 && *Attributes != MemAttr) {
+      return EFI_NO_MAPPING;
+    }
+
+    switch (PageAttr) {
+    case Page4K:
+      Address     = *PageEntry & ~mAddressEncMask & PAGING_4K_ADDRESS_MASK_64;
+      Size        -= (SIZE_4KB - (BaseAddress - Address));
+      BaseAddress += (SIZE_4KB - (BaseAddress - Address));
+      break;
+
+    case Page2M:
+      Address     = *PageEntry & ~mAddressEncMask & PAGING_2M_ADDRESS_MASK_64;
+      Size        -= SIZE_2MB - (BaseAddress - Address);
+      BaseAddress += SIZE_2MB - (BaseAddress - Address);
+      break;
+
+    case Page1G:
+      Address     = *PageEntry & ~mAddressEncMask & PAGING_1G_ADDRESS_MASK_64;
+      Size        -= SIZE_1GB - (BaseAddress - Address);
+      BaseAddress += SIZE_1GB - (BaseAddress - Address);
+      break;
+
+    default:
+      return EFI_UNSUPPORTED;
+    }
+
+    MemAttr = *Attributes;
+
+  } while (Size > 0);
+
+  return EFI_SUCCESS;
+}
+

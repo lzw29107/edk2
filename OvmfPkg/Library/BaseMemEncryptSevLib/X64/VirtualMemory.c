@@ -239,6 +239,18 @@ SetMemoryEncDec (
   UINT64                         PgTableMask;
   UINT64                         AddressEncMask;
 
+  DEBUG ((
+    DEBUG_VERBOSE,
+    "%a:%a: Cr3Base=0x%Lx Physical=0x%Lx Length=0x%Lx Mode=%a CacheFlush=%u\n",
+    gEfiCallerBaseName,
+    __FUNCTION__,
+    Cr3BaseAddress,
+    PhysicalAddress,
+    (UINT64)Length,
+    (Mode == SetCBit) ? "Encrypt" : "Decrypt",
+    (UINT32)CacheFlush
+    ));
+
   //
   // Check if we have a valid memory encryption mask
   //
@@ -274,18 +286,26 @@ SetMemoryEncDec (
     PageMapLevel4Entry = (VOID*) (Cr3BaseAddress & ~PgTableMask);
     PageMapLevel4Entry += PML4_OFFSET(PhysicalAddress);
     if (!PageMapLevel4Entry->Bits.Present) {
-      DEBUG ((DEBUG_WARN,
-        "%a:%a ERROR bad PML4 for %lx\n", gEfiCallerBaseName, __FUNCTION__,
-        PhysicalAddress));
+      DEBUG ((
+        DEBUG_ERROR,
+        "%a:%a: bad PML4 for Physical=0x%Lx\n",
+        gEfiCallerBaseName,
+        __FUNCTION__,
+        PhysicalAddress
+        ));
       return RETURN_NO_MAPPING;
     }
 
     PageDirectory1GEntry = (VOID*) ((PageMapLevel4Entry->Bits.PageTableBaseAddress<<12) & ~PgTableMask);
     PageDirectory1GEntry += PDP_OFFSET(PhysicalAddress);
     if (!PageDirectory1GEntry->Bits.Present) {
-      DEBUG ((DEBUG_WARN,
-        "%a:%a ERROR bad PDPE for %lx\n", gEfiCallerBaseName,
-         __FUNCTION__, PhysicalAddress));
+      DEBUG ((
+        DEBUG_ERROR,
+        "%a:%a: bad PDPE for Physical=0x%Lx\n",
+        gEfiCallerBaseName,
+        __FUNCTION__,
+        PhysicalAddress
+        ));
       return RETURN_NO_MAPPING;
     }
 
@@ -299,17 +319,26 @@ SetMemoryEncDec (
       //
       if (!(PhysicalAddress & (BIT30 - 1)) && Length >= BIT30) {
         SetOrClearCBit(&PageDirectory1GEntry->Uint64, Mode);
-        DEBUG ((DEBUG_VERBOSE,
-          "%a:%a Updated 1GB entry for %lx\n", gEfiCallerBaseName,
-          __FUNCTION__, PhysicalAddress));
+        DEBUG ((
+          DEBUG_VERBOSE,
+          "%a:%a: updated 1GB entry for Physical=0x%Lx\n",
+          gEfiCallerBaseName,
+          __FUNCTION__,
+          PhysicalAddress
+          ));
         PhysicalAddress += BIT30;
         Length -= BIT30;
       } else {
         //
         // We must split the page
         //
-        DEBUG ((DEBUG_VERBOSE,
-          "%a:%a Spliting 1GB page\n", gEfiCallerBaseName, __FUNCTION__));
+        DEBUG ((
+          DEBUG_VERBOSE,
+          "%a:%a: splitting 1GB page for Physical=0x%Lx\n",
+          gEfiCallerBaseName,
+          __FUNCTION__,
+          PhysicalAddress
+          ));
         Split1GPageTo2M(((UINT64)PageDirectory1GEntry->Bits.PageTableBaseAddress)<<30, (UINT64*) PageDirectory1GEntry, 0, 0);
         continue;
       }
@@ -321,9 +350,13 @@ SetMemoryEncDec (
       PageDirectory2MEntry = (VOID*) ((PageUpperDirectoryPointerEntry->Bits.PageTableBaseAddress<<12) & ~PgTableMask);
       PageDirectory2MEntry += PDE_OFFSET(PhysicalAddress);
       if (!PageDirectory2MEntry->Bits.Present) {
-        DEBUG ((DEBUG_WARN,
-          "%a:%a ERROR bad PDE for %lx\n", gEfiCallerBaseName, __FUNCTION__,
-          PhysicalAddress));
+        DEBUG ((
+          DEBUG_ERROR,
+          "%a:%a: bad PDE for Physical=0x%Lx\n",
+          gEfiCallerBaseName,
+          __FUNCTION__,
+          PhysicalAddress
+          ));
         return RETURN_NO_MAPPING;
       }
       //
@@ -342,9 +375,13 @@ SetMemoryEncDec (
           //
           // We must split up this page into 4K pages
           //
-          DEBUG ((DEBUG_VERBOSE,
-            "%a:%a Spliting 2MB page at %lx\n", gEfiCallerBaseName,__FUNCTION__,
-            PhysicalAddress));
+          DEBUG ((
+            DEBUG_VERBOSE,
+            "%a:%a: splitting 2MB page for Physical=0x%Lx\n",
+            gEfiCallerBaseName,
+            __FUNCTION__,
+            PhysicalAddress
+            ));
           Split2MPageTo4K (((UINT64)PageDirectory2MEntry->Bits.PageTableBaseAddress) << 21, (UINT64*) PageDirectory2MEntry, 0, 0);
           continue;
         }
@@ -353,9 +390,13 @@ SetMemoryEncDec (
         PageTableEntry = (VOID*) (PageDirectoryPointerEntry->Bits.PageTableBaseAddress<<12 & ~PgTableMask);
         PageTableEntry += PTE_OFFSET(PhysicalAddress);
         if (!PageTableEntry->Bits.Present) {
-          DEBUG ((DEBUG_WARN,
-            "%a:%a ERROR bad PTE for %lx\n", gEfiCallerBaseName,
-            __FUNCTION__, PhysicalAddress));
+          DEBUG ((
+            DEBUG_ERROR,
+            "%a:%a: bad PTE for Physical=0x%Lx\n",
+            gEfiCallerBaseName,
+            __FUNCTION__,
+            PhysicalAddress
+            ));
           return RETURN_NO_MAPPING;
         }
         SetOrClearCBit (&PageTableEntry->Uint64, Mode);
@@ -399,10 +440,6 @@ InternalMemEncryptSevSetMemoryDecrypted (
   )
 {
 
-  DEBUG ((DEBUG_VERBOSE,
-    "%a:%a Clear C-bit Cr3 %Lx Base %Lx Length %Lx flush %d\n",
-    gEfiCallerBaseName, __FUNCTION__, Cr3BaseAddress, PhysicalAddress, Length,
-    Flush));
   return SetMemoryEncDec (Cr3BaseAddress, PhysicalAddress, Length, ClearCBit, Flush);
 }
 
@@ -431,9 +468,5 @@ InternalMemEncryptSevSetMemoryEncrypted (
   IN  BOOLEAN                 Flush
   )
 {
-  DEBUG ((DEBUG_VERBOSE,
-    "%a:%a Set C-bit Cr3 %Lx Base %Lx Length %Lx flush %d\n",
-    gEfiCallerBaseName, __FUNCTION__, Cr3BaseAddress, PhysicalAddress, Length,
-    Flush));
   return SetMemoryEncDec (Cr3BaseAddress, PhysicalAddress, Length, SetCBit, Flush);
 }

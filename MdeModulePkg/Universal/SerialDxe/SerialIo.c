@@ -220,7 +220,6 @@ SerialReset (
   )
 {
   EFI_STATUS    Status;
-  EFI_TPL       Tpl;
 
   Status = SerialPortInitialize ();
   if (EFI_ERROR (Status)) {
@@ -228,49 +227,17 @@ SerialReset (
   }
 
   //
-  // Set the Serial I/O mode and update the device path
+  // Go set the current attributes
   //
-
-  Tpl = gBS->RaiseTPL (TPL_NOTIFY);
-
-  //
-  // Set the Serial I/O mode
-  //
-  This->Mode->ReceiveFifoDepth  = PcdGet16 (PcdUartDefaultReceiveFifoDepth);
-  This->Mode->Timeout           = 1000 * 1000;
-  This->Mode->BaudRate          = PcdGet64 (PcdUartDefaultBaudRate);
-  This->Mode->DataBits          = (UINT32) PcdGet8 (PcdUartDefaultDataBits);
-  This->Mode->Parity            = (UINT32) PcdGet8 (PcdUartDefaultParity);
-  This->Mode->StopBits          = (UINT32) PcdGet8 (PcdUartDefaultStopBits);
-
-  //
-  // Check if the device path has actually changed
-  //
-  if (mSerialDevicePath.Uart.BaudRate == This->Mode->BaudRate &&
-      mSerialDevicePath.Uart.DataBits == (UINT8) This->Mode->DataBits &&
-      mSerialDevicePath.Uart.Parity   == (UINT8) This->Mode->Parity &&
-      mSerialDevicePath.Uart.StopBits == (UINT8) This->Mode->StopBits
-     ) {
-    gBS->RestoreTPL (Tpl);
-    return EFI_SUCCESS;
-  }
-
-  //
-  // Update the device path
-  //
-  mSerialDevicePath.Uart.BaudRate = This->Mode->BaudRate;
-  mSerialDevicePath.Uart.DataBits = (UINT8) This->Mode->DataBits;
-  mSerialDevicePath.Uart.Parity   = (UINT8) This->Mode->Parity;
-  mSerialDevicePath.Uart.StopBits = (UINT8) This->Mode->StopBits;
-
-  Status = gBS->ReinstallProtocolInterface (
-                  mSerialHandle,
-                  &gEfiDevicePathProtocolGuid,
-                  &mSerialDevicePath,
-                  &mSerialDevicePath
-                  );
-
-  gBS->RestoreTPL (Tpl);
+  Status = This->SetAttributes (
+                   This,
+                   This->Mode->BaudRate,
+                   This->Mode->ReceiveFifoDepth,
+                   This->Mode->Timeout,
+                   (EFI_PARITY_TYPE) This->Mode->Parity,
+                   (UINT8) This->Mode->DataBits,
+                   (EFI_STOP_BITS_TYPE) This->Mode->StopBits
+                   );
 
   return Status;
 }
@@ -313,12 +280,52 @@ SerialSetAttributes (
   IN EFI_STOP_BITS_TYPE     StopBits
   )
 {
-  EFI_STATUS    Status;
-  EFI_TPL       Tpl;
+  EFI_STATUS                Status;
+  EFI_TPL                   Tpl;
+  UINT64                    OriginalBaudRate;
+  UINT32                    OriginalReceiveFifoDepth;
+  UINT32                    OriginalTimeout;
+  EFI_PARITY_TYPE           OriginalParity;
+  UINT8                     OriginalDataBits;
+  EFI_STOP_BITS_TYPE        OriginalStopBits;
 
+  //
+  // Preserve the original input values in case
+  // SerialPortSetAttributes() updates the input/output
+  // parameters even on error.
+  //
+  OriginalBaudRate = BaudRate;
+  OriginalReceiveFifoDepth = ReceiveFifoDepth;
+  OriginalTimeout = Timeout;
+  OriginalParity = Parity;
+  OriginalDataBits = DataBits;
+  OriginalStopBits = StopBits;
   Status = SerialPortSetAttributes (&BaudRate, &ReceiveFifoDepth, &Timeout, &Parity, &DataBits, &StopBits);
   if (EFI_ERROR (Status)) {
-    return Status;
+    //
+    // If it is just to set Timeout value and unsupported is returned,
+    // do not return error.
+    //
+    if ((Status == EFI_UNSUPPORTED) &&
+        (This->Mode->Timeout          != OriginalTimeout) &&
+        (This->Mode->ReceiveFifoDepth == OriginalReceiveFifoDepth) &&
+        (This->Mode->BaudRate         == OriginalBaudRate) &&
+        (This->Mode->DataBits         == (UINT32) OriginalDataBits) &&
+        (This->Mode->Parity           == (UINT32) OriginalParity) &&
+        (This->Mode->StopBits         == (UINT32) OriginalStopBits)) {
+      //
+      // Restore to the original input values.
+      //
+      BaudRate = OriginalBaudRate;
+      ReceiveFifoDepth = OriginalReceiveFifoDepth;
+      Timeout = OriginalTimeout;
+      Parity = OriginalParity;
+      DataBits = OriginalDataBits;
+      StopBits = OriginalStopBits;
+      Status = EFI_SUCCESS;
+    } else {
+      return Status;
+    }
   }
 
   //
@@ -513,11 +520,6 @@ SerialDxeInitialize (
 {
   EFI_STATUS            Status;
 
-  Status = SerialPortInitialize ();
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
   mSerialIoMode.BaudRate = PcdGet64 (PcdUartDefaultBaudRate);
   mSerialIoMode.DataBits = (UINT32) PcdGet8 (PcdUartDefaultDataBits);
   mSerialIoMode.Parity   = (UINT32) PcdGet8 (PcdUartDefaultParity);
@@ -527,6 +529,14 @@ SerialDxeInitialize (
   mSerialDevicePath.Uart.DataBits = PcdGet8 (PcdUartDefaultDataBits);
   mSerialDevicePath.Uart.Parity   = PcdGet8 (PcdUartDefaultParity);
   mSerialDevicePath.Uart.StopBits = PcdGet8 (PcdUartDefaultStopBits);
+
+  //
+  // Issue a reset to initialize the Serial Port
+  //
+  Status = mSerialIoTemplate.Reset (&mSerialIoTemplate);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
 
   //
   // Make a new handle with Serial IO protocol and its device path on it.

@@ -21,7 +21,6 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 LIST_ENTRY                          mPagePool = INITIALIZE_LIST_HEAD_VARIABLE (mPagePool);
 BOOLEAN                             m1GPageTableSupport = FALSE;
-UINT8                               mPhysicalAddressBits;
 BOOLEAN                             mCpuSmmStaticPageTable;
 
 /**
@@ -873,6 +872,18 @@ SmiPFHandler (
     }
   }
 
+  //
+  // If NULL pointer was just accessed
+  //
+  if ((PcdGet8 (PcdNullPointerDetectionPropertyMask) & BIT1) != 0 &&
+      (PFAddress < EFI_PAGE_SIZE)) {
+    DEBUG ((DEBUG_ERROR, "!!! NULL pointer access !!!\n"));
+    DEBUG_CODE (
+      DumpModuleInfoByIp ((UINTN)SystemContext.SystemContextX64->Rip);
+    );
+    CpuDeadLoop ();
+  }
+
   if (FeaturePcdGet (PcdCpuSmmProfileEnable)) {
     SmmProfilePFHandler (
       SystemContext.SystemContextX64->Rip,
@@ -903,7 +914,20 @@ SetPageTableAttributes (
   BOOLEAN               IsSplitted;
   BOOLEAN               PageTableSplitted;
 
-  if (!mCpuSmmStaticPageTable) {
+  //
+  // Don't do this if
+  //  - no static page table; or
+  //  - SMM heap guard feature enabled
+  //      BIT2: SMM page guard enabled
+  //      BIT3: SMM pool guard enabled
+  //
+  if (!mCpuSmmStaticPageTable ||
+      (PcdGet8 (PcdHeapGuardPropertyMask) & (BIT3 | BIT2)) != 0) {
+    //
+    // Static paging and heap guard should not be enabled at the same time.
+    //
+    ASSERT (!(mCpuSmmStaticPageTable &&
+              (PcdGet8 (PcdHeapGuardPropertyMask) & (BIT3 | BIT2)) != 0));
     return ;
   }
 

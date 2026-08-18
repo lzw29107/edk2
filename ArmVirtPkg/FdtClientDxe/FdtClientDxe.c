@@ -17,9 +17,12 @@
 #include <Library/DebugLib.h>
 #include <Library/UefiDriverEntryPoint.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
 #include <Library/HobLib.h>
 #include <libfdt.h>
 
+#include <Guid/Acpi.h>
+#include <Guid/EventGroup.h>
 #include <Guid/Fdt.h>
 #include <Guid/FdtHob.h>
 
@@ -29,6 +32,7 @@ STATIC VOID  *mDeviceTreeBase;
 
 STATIC
 EFI_STATUS
+EFIAPI
 GetNodeProperty (
   IN  FDT_CLIENT_PROTOCOL     *This,
   IN  INT32                   Node,
@@ -55,6 +59,7 @@ GetNodeProperty (
 
 STATIC
 EFI_STATUS
+EFIAPI
 SetNodeProperty (
   IN  FDT_CLIENT_PROTOCOL     *This,
   IN  INT32                   Node,
@@ -267,6 +272,7 @@ FindMemoryNodeReg (
 
 STATIC
 EFI_STATUS
+EFIAPI
 GetOrInsertChosenNode (
   IN  FDT_CLIENT_PROTOCOL     *This,
   OUT INT32                   *Node
@@ -303,6 +309,34 @@ STATIC FDT_CLIENT_PROTOCOL mFdtClientProtocol = {
   GetOrInsertChosenNode,
 };
 
+STATIC
+VOID
+EFIAPI
+OnReadyToBoot (
+  EFI_EVENT       Event,
+  VOID            *Context
+  )
+{
+  EFI_STATUS      Status;
+  VOID            *Table;
+
+  //
+  // Only install the FDT as a configuration table if we are not exposing
+  // ACPI 2.0 (or later) tables. Note that the legacy ACPI table GUID has
+  // no meaning on ARM since we need at least ACPI 5.0 support, and the
+  // 64-bit ACPI 2.0 table GUID is mandatory in that case.
+  //
+  Status = EfiGetSystemConfigurationTable (&gEfiAcpi20TableGuid, &Table);
+  if (EFI_ERROR (Status) || Table == NULL) {
+    Status = gBS->InstallConfigurationTable (&gFdtTableGuid, mDeviceTreeBase);
+    ASSERT_EFI_ERROR (Status);
+  }
+
+  gBS->CloseEvent (Event);
+}
+
+STATIC EFI_EVENT         mReadyToBootEvent;
+
 EFI_STATUS
 EFIAPI
 InitializeFdtClientDxe (
@@ -330,15 +364,21 @@ InitializeFdtClientDxe (
 
   DEBUG ((EFI_D_INFO, "%a: DTB @ 0x%p\n", __FUNCTION__, mDeviceTreeBase));
 
-  if (!FeaturePcdGet (PcdPureAcpiBoot)) {
-    //
-    // Only install the FDT as a configuration table if we want to leave it up
-    // to the OS to decide whether it prefers ACPI over DT.
-    //
-    Status = gBS->InstallConfigurationTable (&gFdtTableGuid, DeviceTreeBase);
-    ASSERT_EFI_ERROR (Status);
+  Status = gBS->InstallProtocolInterface (&ImageHandle, &gFdtClientProtocolGuid,
+                  EFI_NATIVE_INTERFACE, &mFdtClientProtocol);
+  if (EFI_ERROR (Status)) {
+    return Status;
   }
 
-  return gBS->InstallProtocolInterface (&ImageHandle, &gFdtClientProtocolGuid,
-                EFI_NATIVE_INTERFACE, &mFdtClientProtocol);
+  Status = gBS->CreateEventEx (
+                  EVT_NOTIFY_SIGNAL,
+                  TPL_CALLBACK,
+                  OnReadyToBoot,
+                  NULL,
+                  &gEfiEventReadyToBootGuid,
+                  &mReadyToBootEvent
+                  );
+  ASSERT_EFI_ERROR (Status);
+
+  return EFI_SUCCESS;
 }

@@ -2,13 +2,7 @@
 # The engine for building files
 #
 # Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 ##
@@ -92,8 +86,8 @@ class FileBuildRule:
 
     ## constructor
     #
-    #   @param  Input       The dictionary represeting input file(s) for a rule
-    #   @param  Output      The list represeting output file(s) for a rule
+    #   @param  Input       The dictionary representing input file(s) for a rule
+    #   @param  Output      The list representing output file(s) for a rule
     #   @param  Command     The list containing commands to generate the output from input
     #
     def __init__(self, Type, Input, Output, Command, ExtraDependency=None):
@@ -193,7 +187,7 @@ class FileBuildRule:
     #   @param  RelativeToDir   The relative path of the source file
     #   @param  PathSeparator   Path separator
     #
-    #   @retval     tuple       (Source file in full path, List of individual sourcefiles, Destionation file, List of build commands)
+    #   @retval     tuple       (Source file in full path, List of individual sourcefiles, Destination file, List of build commands)
     #
     def Apply(self, SourceFile, BuildRuleOrder=None):
         if not self.CommandList or not self.DestFileList:
@@ -396,7 +390,7 @@ class BuildRule:
     #   @param  LineIndex   The line index of build rule text
     #
     def ParseSubSection(self, LineIndex):
-        # currenly nothing here
+        # currently nothing here
         pass
 
     ## Placeholder for not supported sections
@@ -409,7 +403,7 @@ class BuildRule:
     ## Merge section information just got into rule database
     def EndOfSection(self):
         Database = self.RuleDatabase
-        # if there's specific toochain family, 'COMMON' doesn't make sense any more
+        # if there's specific toolchain family, 'COMMON' doesn't make sense any more
         if len(self._TotalToolChainFamilySet) > 1 and TAB_COMMON in self._TotalToolChainFamilySet:
             self._TotalToolChainFamilySet.remove(TAB_COMMON)
         for Family in self._TotalToolChainFamilySet:
@@ -554,7 +548,7 @@ class BuildRule:
     #   @param  FileExt             The extension of a file
     #   @param  ToolChainFamily     The tool chain family name
     #   @param  BuildVersion        The build version number. TAB_STAR means any rule
-    #                               is applicalbe.
+    #                               is applicable.
     #
     #   @retval FileType        The file type string
     #   @retval FileBuildRule   The object of FileBuildRule

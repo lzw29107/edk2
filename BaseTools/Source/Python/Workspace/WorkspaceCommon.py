@@ -2,13 +2,7 @@
 # Common routines used by workspace
 #
 # Copyright (c) 2012 - 2018, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 from __future__ import absolute_import
@@ -90,10 +84,7 @@ def GetDeclaredPcd(Platform, BuildDatabase, Arch, Target, Toolchain, additionalP
 #  @retval: List of dependent libraries which are InfBuildData instances
 #
 def GetLiabraryInstances(Module, Platform, BuildDatabase, Arch, Target, Toolchain):
-    if Module.AutoGenVersion >= 0x00010005:
-        return GetModuleLibInstances(Module, Platform, BuildDatabase, Arch, Target, Toolchain)
-    else:
-        return _ResolveLibraryReference(Module, Platform)
+    return GetModuleLibInstances(Module, Platform, BuildDatabase, Arch, Target, Toolchain)
 
 def GetModuleLibInstances(Module, Platform, BuildDatabase, Arch, Target, Toolchain, FileName = '', EdkLogger = None):
     ModuleType = Module.ModuleType
@@ -250,32 +241,8 @@ def GetModuleLibInstances(Module, Platform, BuildDatabase, Arch, Target, Toolcha
             SortedLibraryList.append(Item)
 
     #
-    # Build the list of constructor and destructir names
+    # Build the list of constructor and destructor names
     # The DAG Topo sort produces the destructor order, so the list of constructors must generated in the reverse order
     #
     SortedLibraryList.reverse()
     return SortedLibraryList
-
-def _ResolveLibraryReference(Module, Platform):
-    LibraryConsumerList = [Module]
-
-    # "CompilerStub" is a must for Edk modules
-    if Module.Libraries:
-        Module.Libraries.append("CompilerStub")
-    LibraryList = []
-    while len(LibraryConsumerList) > 0:
-        M = LibraryConsumerList.pop()
-        for LibraryName in M.Libraries:
-            Library = Platform.LibraryClasses[LibraryName, ':dummy:']
-            if Library is None:
-                for Key in Platform.LibraryClasses.data:
-                    if LibraryName.upper() == Key.upper():
-                        Library = Platform.LibraryClasses[Key, ':dummy:']
-                        break
-                if Library is None:
-                    continue
-
-            if Library not in LibraryList:
-                LibraryList.append(Library)
-                LibraryConsumerList.append(Library)
-    return LibraryList

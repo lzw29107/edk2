@@ -2,13 +2,7 @@
 # This file is used to create/update/query/erase a meta file table
 #
 # Copyright (c) 2008 - 2018, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 ##
@@ -26,8 +20,8 @@ from Common.DataType import *
 
 class MetaFileTable():
     # TRICK: use file ID as the part before '.'
-    _ID_STEP_ = 0.00000001
-    _ID_MAX_ = 0.99999999
+    _ID_STEP_ = 1
+    _ID_MAX_ = 99999999
 
     ## Constructor
     def __init__(self, DB, MetaFile, FileType, Temporary, FromItem=None):
@@ -35,8 +29,7 @@ class MetaFileTable():
         self.TableName = ""
         self.DB = DB
         self._NumpyTab = None
-        self.FileId = len(DB.TblFile)
-        self.ID = self.FileId
+
         self.CurrentContent = []
         DB.TblFile.append([MetaFile.Name,
                         MetaFile.Ext,
@@ -45,6 +38,8 @@ class MetaFileTable():
                         FileType,
                         MetaFile.TimeStamp,
                         FromItem])
+        self.FileId = len(DB.TblFile)
+        self.ID = self.FileId * 10**8
         if Temporary:
             self.TableName = "_%s_%s_%s" % (FileType, len(DB.TblFile), uuid.uuid4().hex)
         else:
@@ -53,7 +48,10 @@ class MetaFileTable():
     def IsIntegrity(self):
         try:
             TimeStamp = self.MetaFile.TimeStamp
-            Result = int(self.CurrentContent[-1][0]) < 0
+            if not self.CurrentContent:
+                Result = False
+            else:
+                Result = self.CurrentContent[-1][0] < 0
             if not Result:
                 # update the timestamp in database
                 self.DB.SetFileTimeStamp(self.FileId, TimeStamp)
@@ -72,12 +70,10 @@ class MetaFileTable():
         self.CurrentContent.append(self._DUMMY_)
 
     def GetAll(self):
-        return [item for item in self.CurrentContent if item[0] > 0 ]
+        return [item for item in self.CurrentContent if item[0] >= 0 and item[-1]>=0]
 
 ## Python class representation of table storing module data
 class ModuleTable(MetaFileTable):
-    _ID_STEP_ = 0.00000001
-    _ID_MAX_  = 0.99999999
     _COLUMN_ = '''
         ID REAL PRIMARY KEY,
         Model INTEGER NOT NULL,
@@ -139,7 +135,6 @@ class ModuleTable(MetaFileTable):
             ]
         self.CurrentContent.append(row)
         return self.ID
-
 
     ## Query table
     #
@@ -215,8 +210,6 @@ class PackageTable(MetaFileTable):
                BelongsToItem=-1, StartLine=-1, StartColumn=-1, EndLine=-1, EndColumn=-1, Enabled=0):
         (Value1, Value2, Value3, Scope1, Scope2) = (Value1.strip(), Value2.strip(), Value3.strip(), Scope1.strip(), Scope2.strip())
         self.ID = self.ID + self._ID_STEP_
-        if self.ID >= (MODEL_FILE_INF + self._ID_MAX_):
-            self.ID = MODEL_FILE_INF + self._ID_STEP_
 
         row = [ self.ID,
                 Model,
@@ -290,6 +283,7 @@ class PackageTable(MetaFileTable):
                             ExtraData=oricomment, File=self.MetaFile, Line=LineNum)
             return set(), set(), set()
         return set(validateranges), set(validlists), set(expressions)
+
 ## Python class representation of table storing platform data
 class PlatformTable(MetaFileTable):
     _COLUMN_ = '''
@@ -338,8 +332,6 @@ class PlatformTable(MetaFileTable):
                FromItem=-1, StartLine=-1, StartColumn=-1, EndLine=-1, EndColumn=-1, Enabled=1):
         (Value1, Value2, Value3, Scope1, Scope2, Scope3) = (Value1.strip(), Value2.strip(), Value3.strip(), Scope1.strip(), Scope2.strip(), Scope3.strip())
         self.ID = self.ID + self._ID_STEP_
-        if self.ID >= (MODEL_FILE_INF + self._ID_MAX_):
-            self.ID = MODEL_FILE_INF + self._ID_STEP_
 
         row = [ self.ID,
                 Model,
@@ -375,7 +367,6 @@ class PlatformTable(MetaFileTable):
 
         QueryTab = self.CurrentContent
         result = [item for item in QueryTab if item[1] == Model and item[-1]>0 ]
-
         if Scope1 is not None and Scope1 != TAB_ARCH_COMMON:
             Sc1 = set(['COMMON'])
             Sc1.add(Scope1)
@@ -396,9 +387,13 @@ class PlatformTable(MetaFileTable):
         if FromItem is not None:
             result = [item for item in result if item[9] == FromItem]
 
-        result = [ [r[2],r[3],r[4],r[5],r[6],r[7],r[0],r[9]] for r in result ]
+        result = [ [r[2],r[3],r[4],r[5],r[6],r[7],r[0],r[10]] for r in result ]
         return result
 
+    def DisableComponent(self,comp_id):
+        for item in self.CurrentContent:
+            if item[0] == comp_id or item[8] == comp_id:
+                item[-1] = -1
 
 ## Factory class to produce different storage for different type of meta-file
 class MetaFileStorage(object):
@@ -414,10 +409,13 @@ class MetaFileStorage(object):
         ".dec"  : MODEL_FILE_DEC,
         ".dsc"  : MODEL_FILE_DSC,
     }
-
+    _ObjectCache = {}
     ## Constructor
     def __new__(Class, Cursor, MetaFile, FileType=None, Temporary=False, FromItem=None):
         # no type given, try to find one
+        key = (MetaFile.Path, FileType,Temporary,FromItem)
+        if key in Class._ObjectCache:
+            return Class._ObjectCache[key]
         if not FileType:
             if MetaFile.Type in self._FILE_TYPE_:
                 FileType = Class._FILE_TYPE_[MetaFile.Type]
@@ -433,5 +431,8 @@ class MetaFileStorage(object):
             Args = Args + (FromItem,)
 
         # create the storage object and return it to caller
-        return Class._FILE_TABLE_[FileType](*Args)
+        reval = Class._FILE_TABLE_[FileType](*Args)
+        if not Temporary:
+            Class._ObjectCache[key] = reval
+        return reval
 

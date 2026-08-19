@@ -1,7 +1,7 @@
 /** @file
 SMM MP service implementation
 
-Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2009 - 2019, Intel Corporation. All rights reserved.<BR>
 Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
 
 This program and the accompanying materials
@@ -1112,9 +1112,11 @@ SmiRendezvous (
   ASSERT(CpuIndex < mMaxNumberOfCpus);
 
   //
-  // Save Cr2 because Page Fault exception in SMM may override its value
+  // Save Cr2 because Page Fault exception in SMM may override its value,
+  // when using on-demand paging for above 4G memory.
   //
-  Cr2 = AsmReadCr2 ();
+  Cr2 = 0;
+  SaveCr2 (&Cr2);
 
   //
   // Perform CPU specific entry hooks
@@ -1253,10 +1255,11 @@ SmiRendezvous (
 
 Exit:
   SmmCpuFeaturesRendezvousExit (CpuIndex);
+
   //
   // Restore Cr2
   //
-  AsmWriteCr2 (Cr2);
+  RestoreCr2 (Cr2);
 }
 
 /**
@@ -1369,14 +1372,16 @@ InitializeMpSyncData (
 /**
   Initialize global data for MP synchronization.
 
-  @param Stacks       Base address of SMI stack buffer for all processors.
-  @param StackSize    Stack size for each processor in SMM.
+  @param Stacks             Base address of SMI stack buffer for all processors.
+  @param StackSize          Stack size for each processor in SMM.
+  @param ShadowStackSize    Shadow Stack size for each processor in SMM.
 
 **/
 UINT32
 InitializeMpServiceData (
   IN VOID        *Stacks,
-  IN UINTN       StackSize
+  IN UINTN       StackSize,
+  IN UINTN       ShadowStackSize
   )
 {
   UINT32                    Cr3;
@@ -1428,7 +1433,7 @@ InitializeMpServiceData (
     InstallSmiHandler (
       Index,
       (UINT32)mCpuHotPlugData.SmBase[Index],
-      (VOID*)((UINTN)Stacks + (StackSize * Index)),
+      (VOID*)((UINTN)Stacks + (StackSize + ShadowStackSize) * Index),
       StackSize,
       (UINTN)(GdtTssTables + GdtTableStepSize * Index),
       gcSmiGdtr.Limit + 1,

@@ -6,13 +6,7 @@
 # PCD setting in DEC/DSC/INF files.
 #
 # Copyright (c) 2018, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 '''
@@ -135,7 +129,7 @@ class parser_lst(object):
                       tmp_dict[offset] = tmp_name
                       pcdname_num = int(pcdname_num_re.findall(t_name)[0],10)
                       uint = int(unit_num.findall(uint)[0],10)
-                      bit = uint / 8
+                      bit = uint // 8
                       for i in range(1, pcdname_num):
                         offset += bit
                         tmp_name = pcdname2_re.findall(t_name)[0] + '[%s]' % i

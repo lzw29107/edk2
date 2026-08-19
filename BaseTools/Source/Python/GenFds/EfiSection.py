@@ -3,13 +3,7 @@
 #
 #  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
 #
-#  This program and the accompanying materials
-#  are licensed and made available under the terms and conditions of the BSD License
-#  which accompanies this distribution.  The full text of the license may be found at
-#  http://opensource.org/licenses/bsd-license.php
-#
-#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 ##
@@ -68,7 +62,7 @@ class EfiSection (EfiSectionClassObject):
             StringData = FfsInf.__ExtendMacro__(self.StringData)
             ModuleNameStr = FfsInf.__ExtendMacro__('$(MODULE_NAME)')
             NoStrip = True
-            if FfsInf.ModuleType in (SUP_MODULE_SEC, SUP_MODULE_PEI_CORE, SUP_MODULE_PEIM) and SectionType in (BINARY_FILE_TYPE_TE, BINARY_FILE_TYPE_PE32):
+            if FfsInf.ModuleType in (SUP_MODULE_SEC, SUP_MODULE_PEI_CORE, SUP_MODULE_PEIM, SUP_MODULE_MM_CORE_STANDALONE) and SectionType in (BINARY_FILE_TYPE_TE, BINARY_FILE_TYPE_PE32):
                 if FfsInf.KeepReloc is not None:
                     NoStrip = FfsInf.KeepReloc
                 elif FfsInf.KeepRelocFromRule is not None:
@@ -248,9 +242,9 @@ class EfiSection (EfiSectionClassObject):
                         if ImageObj.SectionAlignment < 0x400:
                             Align = str (ImageObj.SectionAlignment)
                         elif ImageObj.SectionAlignment < 0x100000:
-                            Align = str (ImageObj.SectionAlignment / 0x400) + 'K'
+                            Align = str (ImageObj.SectionAlignment // 0x400) + 'K'
                         else:
-                            Align = str (ImageObj.SectionAlignment / 0x100000) + 'M'
+                            Align = str (ImageObj.SectionAlignment // 0x100000) + 'M'
 
                     if File[(len(File)-4):] == '.efi':
                         MapFile = File.replace('.efi', '.map')

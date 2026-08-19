@@ -3,13 +3,7 @@
 #
 # Copyright (c) 2008 - 2018, Intel Corporation. All rights reserved.<BR>
 # (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 ##
@@ -37,7 +31,7 @@ from Workspace.InfBuildData import InfBuildData
 #
 # @param DbPath             Path of database file
 # @param GlobalMacros       Global macros used for replacement during file parsing
-# @prarm RenewDb=False      Create new database file if it's already there
+# @param RenewDb=False      Create new database file if it's already there
 #
 class WorkspaceDatabase(object):
 
@@ -82,7 +76,7 @@ class WorkspaceDatabase(object):
                 Arch = None
             return (FilePath, Arch) in self._CACHE_
 
-        # key = (FilePath, Arch=None, Target=None, Toochain=None)
+        # key = (FilePath, Arch=None, Target=None, Toolchain=None)
         def __getitem__(self, Key):
             FilePath = Key[0]
             KeyLength = len(Key)
@@ -123,7 +117,7 @@ class WorkspaceDatabase(object):
                                 Arch,
                                 MetaFileStorage(self.WorkspaceDb, FilePath, FileType)
                                 )
-            # alwasy do post-process, in case of macros change
+            # always do post-process, in case of macros change
             MetaFile.DoPostProcess()
             # object the build is based on
             BuildObject = self._GENERATOR_[FileType](
@@ -149,7 +143,7 @@ class WorkspaceDatabase(object):
     #
     # @param DbPath             Path of database file
     # @param GlobalMacros       Global macros used for replacement during file parsing
-    # @prarm RenewDb=False      Create new database file if it's already there
+    # @param RenewDb=False      Create new database file if it's already there
     #
     def __init__(self):
         self.DB = dict()
@@ -163,10 +157,10 @@ class WorkspaceDatabase(object):
         self.TransformObject = WorkspaceDatabase.TransformObjectFactory(self)
 
     def SetFileTimeStamp(self,FileId,TimeStamp):
-        self.TblFile[FileId][6] = TimeStamp
+        self.TblFile[FileId-1][6] = TimeStamp
 
     def GetFileTimeStamp(self,FileId):
-        return self.TblFile[FileId][6]
+        return self.TblFile[FileId-1][6]
 
 
     ## Summarize all packages in the database

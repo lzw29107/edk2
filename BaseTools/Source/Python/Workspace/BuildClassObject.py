@@ -2,13 +2,7 @@
 # This file is used to define each component of the build database
 #
 # Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 from collections import OrderedDict, namedtuple
@@ -19,7 +13,7 @@ from collections import OrderedDict
 from Common.Misc import CopyDict
 import copy
 StructPattern = re.compile(r'[_a-zA-Z][0-9A-Za-z_\[\]]*$')
-ArrayIndex = re.compile("\[\s*\d{0,1}\s*\]")
+ArrayIndex = re.compile("\[\s*[0-9a-fA-FxX]*\s*\]")
 ## PcdClassObject
 #
 # This Class is used for PcdObject
@@ -84,6 +78,7 @@ class PcdClassObject(object):
             maxsize = item.lstrip("[").rstrip("]").strip()
             if not maxsize:
                 maxsize = "-1"
+            maxsize = str(int(maxsize,16)) if maxsize.startswith(("0x","0X")) else maxsize
             self._Capacity.append(maxsize)
         if hasattr(self, "SkuOverrideValues"):
             for sku in self.SkuOverrideValues:
@@ -93,14 +88,13 @@ class PcdClassObject(object):
                         deme = ArrayIndex.findall(demesionattr)
                         for i in range(len(deme)-1):
                             if int(deme[i].lstrip("[").rstrip("]").strip()) > int(self._Capacity[i]):
-                                print "error"
+                                print ("error")
         if hasattr(self,"DefaultValues"):
             for demesionattr in self.DefaultValues:
                 deme = ArrayIndex.findall(demesionattr)
                 for i in range(len(deme)-1):
                     if int(deme[i].lstrip("[").rstrip("]").strip()) > int(self._Capacity[i]):
-                        print "error"
-        self._Capacity = [str(int(d) + 1) for d in self._Capacity]
+                        print ("error")
         return self._Capacity
     @property
     def DatumType(self):
@@ -176,7 +170,7 @@ class PcdClassObject(object):
     ## Convert the class to a string
     #
     #  Convert each member of the class to string
-    #  Organize to a signle line format string
+    #  Organize to a single line format string
     #
     #  @retval Rtn Formatted String
     #
@@ -222,6 +216,7 @@ class PcdClassObject(object):
         new_pcd.DefaultValue = self.DefaultValue
         new_pcd.TokenValue = self.TokenValue
         new_pcd.MaxDatumSize = self.MaxDatumSize
+        new_pcd.MaxSizeUserSet = self.MaxSizeUserSet
 
         new_pcd.Phase = self.Phase
         new_pcd.Pending = self.Pending
@@ -270,6 +265,7 @@ class StructurePcd(PcdClassObject):
         self.ValueChain = set()
         self.PcdFieldValueFromComm = OrderedDict()
         self.PcdFieldValueFromFdf = OrderedDict()
+        self.DefaultFromDSC=None
     def __repr__(self):
         return self.TypeName
 
@@ -291,7 +287,7 @@ class StructurePcd(PcdClassObject):
         if DimensionAttr not in self.SkuOverrideValues[SkuName][DefaultStoreName]:
             self.SkuOverrideValues[SkuName][DefaultStoreName][DimensionAttr] = collections.OrderedDict()
         if FieldName in self.SkuOverrideValues[SkuName][DefaultStoreName][DimensionAttr]:
-            del self.SkuOverrideValues[SkuName][DefaultStoreName][FieldName][DimensionAttr]
+            del self.SkuOverrideValues[SkuName][DefaultStoreName][DimensionAttr][FieldName]
         self.SkuOverrideValues[SkuName][DefaultStoreName][DimensionAttr][FieldName] = [Value.strip(), FileName, LineNo]
         return self.SkuOverrideValues[SkuName][DefaultStoreName][DimensionAttr][FieldName]
 
@@ -326,7 +322,6 @@ class StructurePcd(PcdClassObject):
             self.PackageDecs = PcdObject.PackageDecs if PcdObject.PackageDecs else self.PackageDecs
             self.DefaultValues = PcdObject.DefaultValues if PcdObject.DefaultValues else self.DefaultValues
             self.PcdMode = PcdObject.PcdMode if PcdObject.PcdMode else self.PcdMode
-            self.DefaultFromDSC=None
             self.DefaultValueFromDec = PcdObject.DefaultValueFromDec if PcdObject.DefaultValueFromDec else self.DefaultValueFromDec
             self.SkuOverrideValues = PcdObject.SkuOverrideValues if PcdObject.SkuOverrideValues else self.SkuOverrideValues
             self.StructName = PcdObject.DatumType if PcdObject.DatumType else self.StructName
@@ -355,7 +350,7 @@ class StructurePcd(PcdClassObject):
         new_pcd.ValueChain = {item for item in self.ValueChain}
         return new_pcd
 
-LibraryClassObject = namedtuple('LibraryClassObject', ['LibraryClass','SupModList'], verbose=False)
+LibraryClassObject = namedtuple('LibraryClassObject', ['LibraryClass','SupModList'])
 
 ## ModuleBuildClassObject
 #
@@ -412,7 +407,6 @@ class ModuleBuildClassObject(object):
         self.PcdIsDriver             = ''
         self.BinaryModule            = ''
         self.Shadow                  = ''
-        self.SourceOverridePath      = ''
         self.CustomMakefile          = {}
         self.Specification           = {}
         self.LibraryClass            = []

@@ -1,7 +1,7 @@
 /** @file
   Reset Architectural and Reset Notification protocols implementation.
 
-  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
 
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
@@ -187,7 +187,7 @@ InitializeResetSystem (
   //
   // Hook the runtime service table
   //
-  gRT->ResetSystem = ResetSystem;
+  gRT->ResetSystem = RuntimeServiceResetSystem;
 
   //
   // Now install the Reset RT AP on a new handle
@@ -204,22 +204,6 @@ InitializeResetSystem (
   ASSERT_EFI_ERROR (Status);
 
   return Status;
-}
-
-/**
-  Put the system into S3 power state.
-**/
-VOID
-DoS3 (
-  VOID
-  )
-{
-  EnterS3WithImmediateWake ();
-
-  //
-  // Should not return
-  //
-  CpuDeadLoop ();
 }
 
 /**
@@ -242,21 +226,18 @@ DoS3 (
 **/
 VOID
 EFIAPI
-ResetSystem (
+RuntimeServiceResetSystem (
   IN EFI_RESET_TYPE   ResetType,
   IN EFI_STATUS       ResetStatus,
   IN UINTN            DataSize,
   IN VOID             *ResetData OPTIONAL
   )
 {
-  EFI_STATUS          Status;
-  UINTN               Size;
-  UINTN               CapsuleDataPtr;
   LIST_ENTRY          *Link;
   RESET_NOTIFY_ENTRY  *Entry;
 
   //
-  // Only do REPORT_STATUS_CODE() on first call to ResetSystem()
+  // Only do REPORT_STATUS_CODE() on first call to RuntimeServiceResetSystem()
   //
   if (mResetNotifyDepth == 0) {
     //
@@ -314,25 +295,6 @@ ResetSystem (
 
   switch (ResetType) {
   case EfiResetWarm:
-
-    //
-    //Check if there are pending capsules to process
-    //
-    Size = sizeof (CapsuleDataPtr);
-    Status =  EfiGetVariable (
-                 EFI_CAPSULE_VARIABLE_NAME,
-                 &gEfiCapsuleVendorGuid,
-                 NULL,
-                 &Size,
-                 (VOID *) &CapsuleDataPtr
-                 );
-
-    if (Status == EFI_SUCCESS) {
-      //
-      //Process capsules across a system reset.
-      //
-      DoS3();
-    }
 
     ResetWarm ();
     break;

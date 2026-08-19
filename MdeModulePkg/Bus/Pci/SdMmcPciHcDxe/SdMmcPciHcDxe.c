@@ -1,10 +1,13 @@
 /** @file
   This driver is used to manage SD/MMC PCI host controllers which are compliance
-  with SD Host Controller Simplified Specification version 3.00.
+  with SD Host Controller Simplified Specification version 3.00 plus the 64-bit
+  System Addressing support in SD Host Controller Simplified Specification version
+  4.20.
 
   It would expose EFI_SD_MMC_PASS_THRU_PROTOCOL for upper layer use.
 
-  Copyright (c) 2015 - 2016, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
+  Copyright (c) 2015 - 2019, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -62,7 +65,9 @@ SD_MMC_HC_PRIVATE_DATA gSdMmcPciHcTemplate = {
   {                                 // MaxCurrent
     0,
   },
-  0                                 // ControllerVersion
+  {
+    0                               // ControllerVersion
+  }
 };
 
 SD_DEVICE_PATH    mSdDpTemplate = {
@@ -621,6 +626,14 @@ SdMmcPciHcDriverBindingStart (
   for (Slot = FirstBar; Slot < (FirstBar + SlotNum); Slot++) {
     Private->Slot[Slot].Enable = TRUE;
 
+    //
+    // Get SD/MMC Pci Host Controller Version
+    //
+    Status = SdMmcHcGetControllerVersion (PciIo, Slot, &Private->ControllerVersion[Slot]);
+    if (EFI_ERROR (Status)) {
+      continue;
+    }
+
     Status = SdMmcHcGetCapability (PciIo, Slot, &Private->Capability[Slot]);
     if (EFI_ERROR (Status)) {
       continue;
@@ -649,7 +662,18 @@ SdMmcPciHcDriverBindingStart (
       Private->BaseClkFreq[Slot]
       ));
 
-    Support64BitDma &= Private->Capability[Slot].SysBus64;
+    //
+    // If any of the slots does not support 64b system bus
+    // do not enable 64b DMA in the PCI layer.
+    //
+    if ((Private->ControllerVersion[Slot] == SD_MMC_HC_CTRL_VER_300 &&
+         Private->Capability[Slot].SysBus64V3 == 0) ||
+        (Private->ControllerVersion[Slot] == SD_MMC_HC_CTRL_VER_400 &&
+         Private->Capability[Slot].SysBus64V3 == 0) ||
+        (Private->ControllerVersion[Slot] >= SD_MMC_HC_CTRL_VER_410 &&
+         Private->Capability[Slot].SysBus64V4 == 0)) {
+      Support64BitDma = FALSE;
+    }
 
     Status = SdMmcHcGetMaxCurrent (PciIo, Slot, &Private->MaxCurrent[Slot]);
     if (EFI_ERROR (Status)) {

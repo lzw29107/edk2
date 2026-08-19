@@ -3,13 +3,7 @@
 #
 #  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
 #
-#  This program and the accompanying materials
-#  are licensed and made available under the terms and conditions of the BSD License
-#  which accompanies this distribution.  The full text of the license may be found at
-#  http://opensource.org/licenses/bsd-license.php
-#
-#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 ##
@@ -50,13 +44,11 @@ class GenFdsGlobalVariable:
     WorkSpace = None
     WorkSpaceDir = ''
     ConfDir = ''
-    EdkSourceDir = ''
     OutputDirFromDscDict = {}
     TargetName = ''
     ToolChainTag = ''
     RuleDict = {}
     ArchList = None
-    VtfDict = {}
     ActivePlatform = None
     FvAddressFileName = ''
     VerboseMode = False
@@ -341,7 +333,6 @@ class GenFdsGlobalVariable:
         GenFdsGlobalVariable.ToolChainTag = GlobalData.gGlobalDefines["TOOL_CHAIN_TAG"]
         GenFdsGlobalVariable.TargetName = GlobalData.gGlobalDefines["TARGET"]
         GenFdsGlobalVariable.ActivePlatform = GlobalData.gActivePlatform
-        GenFdsGlobalVariable.EdkSourceDir = GlobalData.gGlobalDefines["EDK_SOURCE"]
         GenFdsGlobalVariable.ConfDir  = GlobalData.gConfDirectory
         GenFdsGlobalVariable.EnableGenfdsMultiThread = GlobalData.gEnableGenfdsMultiThread
         for Arch in ArchList:
@@ -725,8 +716,8 @@ class GenFdsGlobalVariable:
             return
         if PopenObject.returncode != 0 or GenFdsGlobalVariable.VerboseMode or GenFdsGlobalVariable.DebugLevel != -1:
             GenFdsGlobalVariable.InfLogger ("Return Value = %d" % PopenObject.returncode)
-            GenFdsGlobalVariable.InfLogger (out)
-            GenFdsGlobalVariable.InfLogger (error)
+            GenFdsGlobalVariable.InfLogger(out.decode(encoding='utf-8', errors='ignore'))
+            GenFdsGlobalVariable.InfLogger(error.decode(encoding='utf-8', errors='ignore'))
             if PopenObject.returncode != 0:
                 print("###", cmd)
                 EdkLogger.error("GenFds", COMMAND_FAILURE, errorMess)
@@ -758,7 +749,6 @@ class GenFdsGlobalVariable:
             return None
 
         Dict = {'$(WORKSPACE)': GenFdsGlobalVariable.WorkSpaceDir,
-                '$(EDK_SOURCE)': GenFdsGlobalVariable.EdkSourceDir,
 #                '$(OUTPUT_DIRECTORY)': GenFdsGlobalVariable.OutputDirFromDsc,
                 '$(TARGET)': GenFdsGlobalVariable.TargetName,
                 '$(TOOL_CHAIN_TAG)': GenFdsGlobalVariable.ToolChainTag,

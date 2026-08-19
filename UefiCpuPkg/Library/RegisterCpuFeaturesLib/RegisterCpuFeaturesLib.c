@@ -1,7 +1,7 @@
 /** @file
   CPU Register Table Library functions.
 
-  Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2017 - 2019, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -31,7 +31,7 @@ IsCpuFeatureMatch (
 {
   UINTN                 BitMaskSize;
 
-  BitMaskSize = PcdGetSize (PcdCpuFeaturesSupport);
+  BitMaskSize = PcdGetSize (PcdCpuFeaturesSetting);
   if (CompareMem (FirstFeatureMask, SecondFeatureMask, BitMaskSize) == 0) {
     return TRUE;
   } else {
@@ -53,7 +53,7 @@ DumpCpuFeatureMask (
   UINT8                  *Data8;
   UINTN                  BitMaskSize;
 
-  BitMaskSize = PcdGetSize (PcdCpuFeaturesSupport);
+  BitMaskSize = PcdGetSize (PcdCpuFeaturesSetting);
   Data8       = (UINT8 *) FeatureMask;
   for (Index = 0; Index < BitMaskSize; Index++) {
     DEBUG ((DEBUG_INFO, " %02x ", *Data8++));
@@ -100,7 +100,7 @@ IsBitMaskMatchCheck (
   UINT8      *Data1;
   UINT8      *Data2;
 
-  BitMaskSize = PcdGetSize (PcdCpuFeaturesSupport);
+  BitMaskSize = PcdGetSize (PcdCpuFeaturesSetting);
 
   Data1 = FeatureMask;
   Data2 = DependentBitMask;
@@ -656,7 +656,7 @@ RegisterCpuFeatureWorker (
   UINTN                      BitMaskSize;
   BOOLEAN                    FeatureExist;
 
-  BitMaskSize     = PcdGetSize (PcdCpuFeaturesSupport);
+  BitMaskSize     = PcdGetSize (PcdCpuFeaturesSetting);
   CpuFeaturesData = GetCpuFeaturesData ();
   if (CpuFeaturesData->FeaturesCount == 0) {
     InitializeListHead (&CpuFeaturesData->FeatureList);
@@ -870,7 +870,7 @@ RegisterCpuFeature (
   BeforeAll            = FALSE;
   AfterAll             = FALSE;
 
-  BitMaskSize = PcdGetSize (PcdCpuFeaturesSupport);
+  BitMaskSize = PcdGetSize (PcdCpuFeaturesSetting);
 
   VA_START (Marker, InitializeFunc);
   Feature = VA_ARG (Marker, UINT32);
@@ -1174,8 +1174,8 @@ PreSmmCpuRegisterTableWrite (
   @param[in]  CpuBitMaskSize  The size of CPU feature bit mask buffer
   @param[in]  Feature         The bit number of the CPU feature
 
-  @retval  TRUE   The CPU feature is set in PcdCpuFeaturesSupport.
-  @retval  FALSE  The CPU feature is not set in PcdCpuFeaturesSupport.
+  @retval  TRUE   The CPU feature is set in CpuBitMask.
+  @retval  FALSE  The CPU feature is not set in CpuBitMask.
 
 **/
 BOOLEAN
@@ -1240,56 +1240,6 @@ IsCpuFeatureInSetting (
            PcdGetSize (PcdCpuFeaturesSetting),
            Feature
            );
-}
-
-/**
-  Determines if a CPU feature is set in PcdCpuFeaturesCapability bit mask.
-
-  @param[in]  Feature  The bit number of the CPU feature to check in the PCD
-                       PcdCpuFeaturesCapability
-
-  @retval  TRUE   The CPU feature is set in PcdCpuFeaturesCapability.
-  @retval  FALSE  The CPU feature is not set in PcdCpuFeaturesCapability.
-
-  @note This service could be called by BSP only.
-**/
-BOOLEAN
-EFIAPI
-IsCpuFeatureCapability (
-  IN UINT32              Feature
-  )
-{
-  return IsCpuFeatureSetInCpuPcd (
-           (UINT8 *)PcdGetPtr (PcdCpuFeaturesCapability),
-           PcdGetSize (PcdCpuFeaturesCapability),
-           Feature
-           );
-
-}
-
-/**
-  Determines if a CPU feature is set in PcdCpuFeaturesUserConfiguration bit mask.
-
-  @param[in]  Feature  The bit number of the CPU feature to check in the PCD
-                       PcdCpuFeaturesUserConfiguration
-
-  @retval  TRUE   The CPU feature is set in PcdCpuFeaturesUserConfiguration.
-  @retval  FALSE  The CPU feature is not set in PcdCpuFeaturesUserConfiguration.
-
-  @note This service could be called by BSP only.
-**/
-BOOLEAN
-EFIAPI
-IsCpuFeatureUserConfiguration (
-  IN UINT32              Feature
-  )
-{
-  return IsCpuFeatureSetInCpuPcd (
-           (UINT8 *)PcdGetPtr (PcdCpuFeaturesUserConfiguration),
-           PcdGetSize (PcdCpuFeaturesUserConfiguration),
-           Feature
-           );
-
 }
 
 /**

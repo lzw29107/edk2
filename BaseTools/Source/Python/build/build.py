@@ -2,15 +2,10 @@
 # build a platform or a module
 #
 #  Copyright (c) 2014, Hewlett-Packard Development Company, L.P.<BR>
-#  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+#  Copyright (c) 2007 - 2019, Intel Corporation. All rights reserved.<BR>
+#  Copyright (c) 2018, Hewlett Packard Enterprise Development, L.P.<BR>
 #
-#  This program and the accompanying materials
-#  are licensed and made available under the terms and conditions of the BSD License
-#  which accompanies this distribution.  The full text of the license may be found at
-#  http://opensource.org/licenses/bsd-license.php
-#
-#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 ##
@@ -19,25 +14,24 @@
 from __future__ import print_function
 import Common.LongFilePathOs as os
 import re
-from io import BytesIO
 import sys
 import glob
 import time
 import platform
 import traceback
 import encodings.ascii
-import itertools
 import multiprocessing
 
 from struct import *
 from threading import *
+import threading
 from optparse import OptionParser
 from subprocess import *
 from Common import Misc as Utils
 
 from Common.LongFilePathSupport import OpenLongFilePath as open
-from Common.TargetTxtClassObject import *
-from Common.ToolDefClassObject import *
+from Common.TargetTxtClassObject import TargetTxtClassObject
+from Common.ToolDefClassObject import ToolDefClassObject
 from Common.DataType import *
 from Common.BuildVersion import gBUILD_VERSION
 from AutoGen.AutoGen import *
@@ -121,64 +115,8 @@ def CheckEnvVariable():
             elif ' ' in Path:
                 EdkLogger.error("build", FORMAT_NOT_SUPPORTED, "No space is allowed in PACKAGES_PATH", ExtraData=Path)
 
-    #
-    # Check EFI_SOURCE (Edk build convention). EDK_SOURCE will always point to ECP
-    #
-    if "ECP_SOURCE" not in os.environ:
-        os.environ["ECP_SOURCE"] = mws.join(WorkspaceDir, GlobalData.gEdkCompatibilityPkg)
-    if "EFI_SOURCE" not in os.environ:
-        os.environ["EFI_SOURCE"] = os.environ["ECP_SOURCE"]
-    if "EDK_SOURCE" not in os.environ:
-        os.environ["EDK_SOURCE"] = os.environ["ECP_SOURCE"]
 
-    #
-    # Unify case of characters on case-insensitive systems
-    #
-    EfiSourceDir = os.path.normcase(os.path.normpath(os.environ["EFI_SOURCE"]))
-    EdkSourceDir = os.path.normcase(os.path.normpath(os.environ["EDK_SOURCE"]))
-    EcpSourceDir = os.path.normcase(os.path.normpath(os.environ["ECP_SOURCE"]))
-
-    os.environ["EFI_SOURCE"] = EfiSourceDir
-    os.environ["EDK_SOURCE"] = EdkSourceDir
-    os.environ["ECP_SOURCE"] = EcpSourceDir
     os.environ["EDK_TOOLS_PATH"] = os.path.normcase(os.environ["EDK_TOOLS_PATH"])
-
-    if not os.path.exists(EcpSourceDir):
-        EdkLogger.verbose("ECP_SOURCE = %s doesn't exist. Edk modules could not be built." % EcpSourceDir)
-    elif ' ' in EcpSourceDir:
-        EdkLogger.error("build", FORMAT_NOT_SUPPORTED, "No space is allowed in ECP_SOURCE path",
-                        ExtraData=EcpSourceDir)
-    if not os.path.exists(EdkSourceDir):
-        if EdkSourceDir == EcpSourceDir:
-            EdkLogger.verbose("EDK_SOURCE = %s doesn't exist. Edk modules could not be built." % EdkSourceDir)
-        else:
-            EdkLogger.error("build", PARAMETER_INVALID, "EDK_SOURCE does not exist",
-                            ExtraData=EdkSourceDir)
-    elif ' ' in EdkSourceDir:
-        EdkLogger.error("build", FORMAT_NOT_SUPPORTED, "No space is allowed in EDK_SOURCE path",
-                        ExtraData=EdkSourceDir)
-    if not os.path.exists(EfiSourceDir):
-        if EfiSourceDir == EcpSourceDir:
-            EdkLogger.verbose("EFI_SOURCE = %s doesn't exist. Edk modules could not be built." % EfiSourceDir)
-        else:
-            EdkLogger.error("build", PARAMETER_INVALID, "EFI_SOURCE does not exist",
-                            ExtraData=EfiSourceDir)
-    elif ' ' in EfiSourceDir:
-        EdkLogger.error("build", FORMAT_NOT_SUPPORTED, "No space is allowed in EFI_SOURCE path",
-                        ExtraData=EfiSourceDir)
-
-    # check those variables on single workspace case
-    if not PackagesPath:
-        # change absolute path to relative path to WORKSPACE
-        if EfiSourceDir.upper().find(WorkspaceDir.upper()) != 0:
-            EdkLogger.error("build", PARAMETER_INVALID, "EFI_SOURCE is not under WORKSPACE",
-                            ExtraData="WORKSPACE = %s\n    EFI_SOURCE = %s" % (WorkspaceDir, EfiSourceDir))
-        if EdkSourceDir.upper().find(WorkspaceDir.upper()) != 0:
-            EdkLogger.error("build", PARAMETER_INVALID, "EDK_SOURCE is not under WORKSPACE",
-                            ExtraData="WORKSPACE = %s\n    EDK_SOURCE = %s" % (WorkspaceDir, EdkSourceDir))
-        if EcpSourceDir.upper().find(WorkspaceDir.upper()) != 0:
-            EdkLogger.error("build", PARAMETER_INVALID, "ECP_SOURCE is not under WORKSPACE",
-                            ExtraData="WORKSPACE = %s\n    ECP_SOURCE = %s" % (WorkspaceDir, EcpSourceDir))
 
     # check EDK_TOOLS_PATH
     if "EDK_TOOLS_PATH" not in os.environ:
@@ -191,14 +129,8 @@ def CheckEnvVariable():
                         ExtraData="PATH")
 
     GlobalData.gWorkspace = WorkspaceDir
-    GlobalData.gEfiSource = EfiSourceDir
-    GlobalData.gEdkSource = EdkSourceDir
-    GlobalData.gEcpSource = EcpSourceDir
 
     GlobalData.gGlobalDefines["WORKSPACE"]  = WorkspaceDir
-    GlobalData.gGlobalDefines["EFI_SOURCE"] = EfiSourceDir
-    GlobalData.gGlobalDefines["EDK_SOURCE"] = EdkSourceDir
-    GlobalData.gGlobalDefines["ECP_SOURCE"] = EcpSourceDir
     GlobalData.gGlobalDefines["EDK_TOOLS_PATH"] = os.environ["EDK_TOOLS_PATH"]
 
 ## Get normalized file path
@@ -243,8 +175,8 @@ def ReadMessage(From, To, ExitFlag):
         # read one line a time
         Line = From.readline()
         # empty string means "end"
-        if Line is not None and Line != "":
-            To(Line.rstrip())
+        if Line is not None and Line != b"":
+            To(Line.rstrip().decode(encoding='utf-8', errors='ignore'))
         else:
             break
         if ExitFlag.isSet():
@@ -504,7 +436,7 @@ class BuildTask:
 
                 # get all pending tasks
                 BuildTask._PendingQueueLock.acquire()
-                BuildObjectList = BuildTask._PendingQueue.keys()
+                BuildObjectList = list(BuildTask._PendingQueue.keys())
                 #
                 # check if their dependency is resolved, and if true, move them
                 # into ready queue
@@ -550,7 +482,7 @@ class BuildTask:
                 time.sleep(0.1)
         except BaseException as X:
             #
-            # TRICK: hide the output of threads left runing, so that the user can
+            # TRICK: hide the output of threads left running, so that the user can
             #        catch the error message easily
             #
             EdkLogger.SetLevel(EdkLogger.ERROR)
@@ -675,7 +607,7 @@ class BuildTask:
             self.CompleteFlag = True
         except:
             #
-            # TRICK: hide the output of threads left runing, so that the user can
+            # TRICK: hide the output of threads left running, so that the user can
             #        catch the error message easily
             #
             if not BuildTask._ErrorFlag.isSet():
@@ -725,7 +657,7 @@ class PeImageInfo():
         self.OutputDir        = OutputDir
         self.DebugDir         = DebugDir
         self.Image            = ImageClass
-        self.Image.Size       = (self.Image.Size / 0x1000 + 1) * 0x1000
+        self.Image.Size       = (self.Image.Size // 0x1000 + 1) * 0x1000
 
 ## The class implementing the EDK2 build process
 #
@@ -781,6 +713,7 @@ class Build():
         GlobalData.gBinCacheDest   = BuildOptions.BinCacheDest
         GlobalData.gBinCacheSource = BuildOptions.BinCacheSource
         GlobalData.gEnableGenfdsMultiThread = BuildOptions.GenfdsMultiThread
+        GlobalData.gDisableIncludePathCheck = BuildOptions.DisableIncludePathCheck
 
         if GlobalData.gBinCacheDest and not GlobalData.gUseHashCache:
             EdkLogger.error("build", OPTION_NOT_SUPPORTED, ExtraData="--binary-destination must be used together with --hash.")
@@ -847,14 +780,18 @@ class Build():
         if "PACKAGES_PATH" in os.environ:
             # WORKSPACE env has been converted before. Print the same path style with WORKSPACE env.
             EdkLogger.quiet("%-16s = %s" % ("PACKAGES_PATH", os.path.normcase(os.path.normpath(os.environ["PACKAGES_PATH"]))))
-        EdkLogger.quiet("%-16s = %s" % ("ECP_SOURCE", os.environ["ECP_SOURCE"]))
-        EdkLogger.quiet("%-16s = %s" % ("EDK_SOURCE", os.environ["EDK_SOURCE"]))
-        EdkLogger.quiet("%-16s = %s" % ("EFI_SOURCE", os.environ["EFI_SOURCE"]))
         EdkLogger.quiet("%-16s = %s" % ("EDK_TOOLS_PATH", os.environ["EDK_TOOLS_PATH"]))
         if "EDK_TOOLS_BIN" in os.environ:
             # Print the same path style with WORKSPACE env.
             EdkLogger.quiet("%-16s = %s" % ("EDK_TOOLS_BIN", os.path.normcase(os.path.normpath(os.environ["EDK_TOOLS_BIN"]))))
         EdkLogger.quiet("%-16s = %s" % ("CONF_PATH", GlobalData.gConfDirectory))
+        if "PYTHON3_ENABLE" in os.environ:
+            PYTHON3_ENABLE = os.environ["PYTHON3_ENABLE"]
+            if PYTHON3_ENABLE != "TRUE":
+                PYTHON3_ENABLE = "FALSE"
+            EdkLogger.quiet("%-16s = %s" % ("PYTHON3_ENABLE", PYTHON3_ENABLE))
+        if "PYTHON_COMMAND" in os.environ:
+            EdkLogger.quiet("%-16s = %s" % ("PYTHON_COMMAND", os.environ["PYTHON_COMMAND"]))
         self.InitPreBuild()
         self.InitPostBuild()
         if self.Prebuild:
@@ -883,7 +820,7 @@ class Build():
         if os.path.isfile(BuildConfigurationFile) == True:
             StatusCode = self.TargetTxt.LoadTargetTxtFile(BuildConfigurationFile)
 
-            ToolDefinitionFile = self.TargetTxt.TargetTxtDictionary[DataType.TAB_TAT_DEFINES_TOOL_CHAIN_CONF]
+            ToolDefinitionFile = self.TargetTxt.TargetTxtDictionary[TAB_TAT_DEFINES_TOOL_CHAIN_CONF]
             if ToolDefinitionFile == '':
                 ToolDefinitionFile = gToolsDefinition
                 ToolDefinitionFile = os.path.normpath(mws.join(self.WorkspaceDir, 'Conf', ToolDefinitionFile))
@@ -896,16 +833,16 @@ class Build():
 
         # if no ARCH given in command line, get it from target.txt
         if not self.ArchList:
-            self.ArchList = self.TargetTxt.TargetTxtDictionary[DataType.TAB_TAT_DEFINES_TARGET_ARCH]
+            self.ArchList = self.TargetTxt.TargetTxtDictionary[TAB_TAT_DEFINES_TARGET_ARCH]
         self.ArchList = tuple(self.ArchList)
 
         # if no build target given in command line, get it from target.txt
         if not self.BuildTargetList:
-            self.BuildTargetList = self.TargetTxt.TargetTxtDictionary[DataType.TAB_TAT_DEFINES_TARGET]
+            self.BuildTargetList = self.TargetTxt.TargetTxtDictionary[TAB_TAT_DEFINES_TARGET]
 
         # if no tool chain given in command line, get it from target.txt
         if not self.ToolChainList:
-            self.ToolChainList = self.TargetTxt.TargetTxtDictionary[DataType.TAB_TAT_DEFINES_TOOL_CHAIN_TAG]
+            self.ToolChainList = self.TargetTxt.TargetTxtDictionary[TAB_TAT_DEFINES_TOOL_CHAIN_TAG]
             if self.ToolChainList is None or len(self.ToolChainList) == 0:
                 EdkLogger.error("build", RESOURCE_NOT_AVAILABLE, ExtraData="No toolchain given. Don't know how to build.\n")
 
@@ -935,7 +872,7 @@ class Build():
         self.ToolChainFamily = ToolChainFamily
 
         if self.ThreadNumber is None:
-            self.ThreadNumber = self.TargetTxt.TargetTxtDictionary[DataType.TAB_TAT_DEFINES_MAX_CONCURRENT_THREAD_NUMBER]
+            self.ThreadNumber = self.TargetTxt.TargetTxtDictionary[TAB_TAT_DEFINES_MAX_CONCURRENT_THREAD_NUMBER]
             if self.ThreadNumber == '':
                 self.ThreadNumber = 0
             else:
@@ -948,7 +885,7 @@ class Build():
                 self.ThreadNumber = 1
 
         if not self.PlatformFile:
-            PlatformFile = self.TargetTxt.TargetTxtDictionary[DataType.TAB_TAT_DEFINES_ACTIVE_PLATFORM]
+            PlatformFile = self.TargetTxt.TargetTxtDictionary[TAB_TAT_DEFINES_ACTIVE_PLATFORM]
             if not PlatformFile:
                 # Try to find one in current directory
                 WorkingDirectory = os.getcwd()
@@ -1165,9 +1102,8 @@ class Build():
                 f = open(PrebuildEnvFile)
                 envs = f.readlines()
                 f.close()
-                envs = itertools.imap(lambda l: l.split('=', 1), envs)
-                envs = itertools.ifilter(lambda l: len(l) == 2, envs)
-                envs = itertools.imap(lambda l: [i.strip() for i in l], envs)
+                envs = [l.split("=", 1) for l in envs ]
+                envs = [[I.strip() for I in item] for item in envs if len(item) == 2]
                 os.environ.update(dict(envs))
             EdkLogger.info("\n- Prebuild Done -\n")
 
@@ -1384,7 +1320,8 @@ class Build():
 
         # genfds
         if Target == 'fds':
-            GenFdsApi(AutoGenObject.GenFdsCommandDict, self.Db)
+            if GenFdsApi(AutoGenObject.GenFdsCommandDict, self.Db):
+                EdkLogger.error("build", COMMAND_FAILURE)
             return True
 
         # run
@@ -1438,7 +1375,7 @@ class Build():
                 LaunchCommand(["GenFw", "--address", str(BaseAddress), "-r", ModuleOutputImage], ModuleInfo.OutputDir)
                 LaunchCommand(["GenFw", "--address", str(BaseAddress), "-r", ModuleDebugImage], ModuleInfo.DebugDir)
             #
-            # Collect funtion address from Map file
+            # Collect function address from Map file
             #
             ImageMapTable = ModuleOutputImage.replace('.efi', '.map')
             FunctionList = []
@@ -1461,21 +1398,17 @@ class Build():
                             Name = StrList[1]
                             RelativeAddress = int (StrList[2], 16) - OrigImageBaseAddress
                             FunctionList.append ((Name, RelativeAddress))
-                            if ModuleInfo.Arch == 'IPF' and Name.endswith('_ModuleEntryPoint'):
-                                #
-                                # Get the real entry point address for IPF image.
-                                #
-                                ModuleInfo.Image.EntryPoint = RelativeAddress
+
                 ImageMap.close()
             #
             # Add general information.
             #
             if ModeIsSmm:
-                MapBuffer.write('\n\n%s (Fixed SMRAM Offset,   BaseAddress=0x%010X,  EntryPoint=0x%010X)\n' % (ModuleName, BaseAddress, BaseAddress + ModuleInfo.Image.EntryPoint))
+                MapBuffer.append('\n\n%s (Fixed SMRAM Offset,   BaseAddress=0x%010X,  EntryPoint=0x%010X)\n' % (ModuleName, BaseAddress, BaseAddress + ModuleInfo.Image.EntryPoint))
             elif AddrIsOffset:
-                MapBuffer.write('\n\n%s (Fixed Memory Offset,  BaseAddress=-0x%010X, EntryPoint=-0x%010X)\n' % (ModuleName, 0 - BaseAddress, 0 - (BaseAddress + ModuleInfo.Image.EntryPoint)))
+                MapBuffer.append('\n\n%s (Fixed Memory Offset,  BaseAddress=-0x%010X, EntryPoint=-0x%010X)\n' % (ModuleName, 0 - BaseAddress, 0 - (BaseAddress + ModuleInfo.Image.EntryPoint)))
             else:
-                MapBuffer.write('\n\n%s (Fixed Memory Address, BaseAddress=0x%010X,  EntryPoint=0x%010X)\n' % (ModuleName, BaseAddress, BaseAddress + ModuleInfo.Image.EntryPoint))
+                MapBuffer.append('\n\n%s (Fixed Memory Address, BaseAddress=0x%010X,  EntryPoint=0x%010X)\n' % (ModuleName, BaseAddress, BaseAddress + ModuleInfo.Image.EntryPoint))
             #
             # Add guid and general seciton section.
             #
@@ -1487,21 +1420,21 @@ class Build():
                 elif SectionHeader[0] in ['.data', '.sdata']:
                     DataSectionAddress = SectionHeader[1]
             if AddrIsOffset:
-                MapBuffer.write('(GUID=%s, .textbaseaddress=-0x%010X, .databaseaddress=-0x%010X)\n' % (ModuleInfo.Guid, 0 - (BaseAddress + TextSectionAddress), 0 - (BaseAddress + DataSectionAddress)))
+                MapBuffer.append('(GUID=%s, .textbaseaddress=-0x%010X, .databaseaddress=-0x%010X)\n' % (ModuleInfo.Guid, 0 - (BaseAddress + TextSectionAddress), 0 - (BaseAddress + DataSectionAddress)))
             else:
-                MapBuffer.write('(GUID=%s, .textbaseaddress=0x%010X, .databaseaddress=0x%010X)\n' % (ModuleInfo.Guid, BaseAddress + TextSectionAddress, BaseAddress + DataSectionAddress))
+                MapBuffer.append('(GUID=%s, .textbaseaddress=0x%010X, .databaseaddress=0x%010X)\n' % (ModuleInfo.Guid, BaseAddress + TextSectionAddress, BaseAddress + DataSectionAddress))
             #
             # Add debug image full path.
             #
-            MapBuffer.write('(IMAGE=%s)\n\n' % (ModuleDebugImage))
+            MapBuffer.append('(IMAGE=%s)\n\n' % (ModuleDebugImage))
             #
-            # Add funtion address
+            # Add function address
             #
             for Function in FunctionList:
                 if AddrIsOffset:
-                    MapBuffer.write('  -0x%010X    %s\n' % (0 - (BaseAddress + Function[1]), Function[0]))
+                    MapBuffer.append('  -0x%010X    %s\n' % (0 - (BaseAddress + Function[1]), Function[0]))
                 else:
-                    MapBuffer.write('  0x%010X    %s\n' % (BaseAddress + Function[1], Function[0]))
+                    MapBuffer.append('  0x%010X    %s\n' % (BaseAddress + Function[1], Function[0]))
             ImageMap.close()
 
             #
@@ -1536,7 +1469,7 @@ class Build():
                         GuidString = MatchGuid.group()
                         if GuidString.upper() in ModuleList:
                             Line = Line.replace(GuidString, ModuleList[GuidString.upper()].Name)
-                    MapBuffer.write(Line)
+                    MapBuffer.append(Line)
                     #
                     # Add the debug image full path.
                     #
@@ -1544,7 +1477,7 @@ class Build():
                     if MatchGuid is not None:
                         GuidString = MatchGuid.group().split("=")[1]
                         if GuidString.upper() in ModuleList:
-                            MapBuffer.write('(IMAGE=%s)\n' % (os.path.join(ModuleList[GuidString.upper()].DebugDir, ModuleList[GuidString.upper()].Name + '.efi')))
+                            MapBuffer.append('(IMAGE=%s)\n' % (os.path.join(ModuleList[GuidString.upper()].DebugDir, ModuleList[GuidString.upper()].Name + '.efi')))
 
                 FvMap.close()
 
@@ -1563,9 +1496,6 @@ class Build():
         RtSize  = 0
         # reserve 4K size in SMRAM to make SMM module address not from 0.
         SmmSize = 0x1000
-        IsIpfPlatform = False
-        if 'IPF' in self.ArchList:
-            IsIpfPlatform = True
         for ModuleGuid in ModuleList:
             Module = ModuleList[ModuleGuid]
             GlobalData.gProcessingFile = "%s [%s, %s, %s]" % (Module.MetaFile, Module.Arch, Module.ToolChain, Module.BuildTarget)
@@ -1589,9 +1519,6 @@ class Build():
                         BtSize += ImageInfo.Image.Size
                     elif Module.ModuleType in [SUP_MODULE_DXE_RUNTIME_DRIVER, EDK_COMPONENT_TYPE_RT_DRIVER, SUP_MODULE_DXE_SAL_DRIVER, EDK_COMPONENT_TYPE_SAL_RT_DRIVER]:
                         RtModuleList[Module.MetaFile] = ImageInfo
-                        #IPF runtime driver needs to be at 2 page alignment.
-                        if IsIpfPlatform and ImageInfo.Image.Size % 0x2000 != 0:
-                            ImageInfo.Image.Size = (ImageInfo.Image.Size / 0x2000 + 1) * 0x2000
                         RtSize += ImageInfo.Image.Size
                     elif Module.ModuleType in [SUP_MODULE_SMM_CORE, SUP_MODULE_DXE_SMM_DRIVER, SUP_MODULE_MM_STANDALONE, SUP_MODULE_MM_CORE_STANDALONE]:
                         SmmModuleList[Module.MetaFile] = ImageInfo
@@ -1638,10 +1565,6 @@ class Build():
             TopMemoryAddress = self.LoadFixAddress
             if TopMemoryAddress < RtSize + BtSize + PeiSize:
                 EdkLogger.error("build", PARAMETER_INVALID, "FIX_LOAD_TOP_MEMORY_ADDRESS is too low to load driver")
-            # Make IPF runtime driver at 2 page alignment.
-            if IsIpfPlatform:
-                ReservedRuntimeMemorySize = TopMemoryAddress % 0x2000
-                RtSize = RtSize + ReservedRuntimeMemorySize
 
         #
         # Patch FixAddress related PCDs into EFI image
@@ -1660,21 +1583,21 @@ class Build():
             for PcdInfo in PcdTable:
                 ReturnValue = 0
                 if PcdInfo[0] == TAB_PCDS_PATCHABLE_LOAD_FIX_ADDRESS_PEI_PAGE_SIZE:
-                    ReturnValue, ErrorInfo = PatchBinaryFile (EfiImage, PcdInfo[1], TAB_PCDS_PATCHABLE_LOAD_FIX_ADDRESS_PEI_PAGE_SIZE_DATA_TYPE, str (PeiSize / 0x1000))
+                    ReturnValue, ErrorInfo = PatchBinaryFile (EfiImage, PcdInfo[1], TAB_PCDS_PATCHABLE_LOAD_FIX_ADDRESS_PEI_PAGE_SIZE_DATA_TYPE, str (PeiSize // 0x1000))
                 elif PcdInfo[0] == TAB_PCDS_PATCHABLE_LOAD_FIX_ADDRESS_DXE_PAGE_SIZE:
-                    ReturnValue, ErrorInfo = PatchBinaryFile (EfiImage, PcdInfo[1], TAB_PCDS_PATCHABLE_LOAD_FIX_ADDRESS_DXE_PAGE_SIZE_DATA_TYPE, str (BtSize / 0x1000))
+                    ReturnValue, ErrorInfo = PatchBinaryFile (EfiImage, PcdInfo[1], TAB_PCDS_PATCHABLE_LOAD_FIX_ADDRESS_DXE_PAGE_SIZE_DATA_TYPE, str (BtSize // 0x1000))
                 elif PcdInfo[0] == TAB_PCDS_PATCHABLE_LOAD_FIX_ADDRESS_RUNTIME_PAGE_SIZE:
-                    ReturnValue, ErrorInfo = PatchBinaryFile (EfiImage, PcdInfo[1], TAB_PCDS_PATCHABLE_LOAD_FIX_ADDRESS_RUNTIME_PAGE_SIZE_DATA_TYPE, str (RtSize / 0x1000))
+                    ReturnValue, ErrorInfo = PatchBinaryFile (EfiImage, PcdInfo[1], TAB_PCDS_PATCHABLE_LOAD_FIX_ADDRESS_RUNTIME_PAGE_SIZE_DATA_TYPE, str (RtSize // 0x1000))
                 elif PcdInfo[0] == TAB_PCDS_PATCHABLE_LOAD_FIX_ADDRESS_SMM_PAGE_SIZE and len (SmmModuleList) > 0:
-                    ReturnValue, ErrorInfo = PatchBinaryFile (EfiImage, PcdInfo[1], TAB_PCDS_PATCHABLE_LOAD_FIX_ADDRESS_SMM_PAGE_SIZE_DATA_TYPE, str (SmmSize / 0x1000))
+                    ReturnValue, ErrorInfo = PatchBinaryFile (EfiImage, PcdInfo[1], TAB_PCDS_PATCHABLE_LOAD_FIX_ADDRESS_SMM_PAGE_SIZE_DATA_TYPE, str (SmmSize // 0x1000))
                 if ReturnValue != 0:
                     EdkLogger.error("build", PARAMETER_INVALID, "Patch PCD value failed", ExtraData=ErrorInfo)
 
-        MapBuffer.write('PEI_CODE_PAGE_NUMBER      = 0x%x\n' % (PeiSize / 0x1000))
-        MapBuffer.write('BOOT_CODE_PAGE_NUMBER     = 0x%x\n' % (BtSize / 0x1000))
-        MapBuffer.write('RUNTIME_CODE_PAGE_NUMBER  = 0x%x\n' % (RtSize / 0x1000))
+        MapBuffer.append('PEI_CODE_PAGE_NUMBER      = 0x%x\n' % (PeiSize // 0x1000))
+        MapBuffer.append('BOOT_CODE_PAGE_NUMBER     = 0x%x\n' % (BtSize // 0x1000))
+        MapBuffer.append('RUNTIME_CODE_PAGE_NUMBER  = 0x%x\n' % (RtSize // 0x1000))
         if len (SmmModuleList) > 0:
-            MapBuffer.write('SMM_CODE_PAGE_NUMBER      = 0x%x\n' % (SmmSize / 0x1000))
+            MapBuffer.append('SMM_CODE_PAGE_NUMBER      = 0x%x\n' % (SmmSize // 0x1000))
 
         PeiBaseAddr = TopMemoryAddress - RtSize - BtSize
         BtBaseAddr  = TopMemoryAddress - RtSize
@@ -1684,7 +1607,7 @@ class Build():
         self._RebaseModule (MapBuffer, BtBaseAddr, BtModuleList, TopMemoryAddress == 0)
         self._RebaseModule (MapBuffer, RtBaseAddr, RtModuleList, TopMemoryAddress == 0)
         self._RebaseModule (MapBuffer, 0x1000, SmmModuleList, AddrIsOffset=False, ModeIsSmm=True)
-        MapBuffer.write('\n\n')
+        MapBuffer.append('\n\n')
         sys.stdout.write ("\n")
         sys.stdout.flush()
 
@@ -1698,8 +1621,7 @@ class Build():
         #
         # Save address map into MAP file.
         #
-        SaveFileOnChange(MapFilePath, MapBuffer.getvalue(), False)
-        MapBuffer.close()
+        SaveFileOnChange(MapFilePath, ''.join(MapBuffer), False)
         if self.LoadFixAddress != 0:
             sys.stdout.write ("\nLoad Module At Fix Address Map file can be found at %s\n" % (MapFilePath))
         sys.stdout.flush()
@@ -1774,7 +1696,7 @@ class Build():
                             if not Ma.IsLibrary:
                                 ModuleList[Ma.Guid.upper()] = Ma
 
-                    MapBuffer = BytesIO('')
+                    MapBuffer = []
                     if self.LoadFixAddress != 0:
                         #
                         # Rebase module to the preferred memory address before GenFds
@@ -1932,7 +1854,7 @@ class Build():
                             if not Ma.IsLibrary:
                                 ModuleList[Ma.Guid.upper()] = Ma
 
-                    MapBuffer = BytesIO('')
+                    MapBuffer = []
                     if self.LoadFixAddress != 0:
                         #
                         # Rebase module to the preferred memory address before GenFds
@@ -2113,7 +2035,7 @@ class Build():
                     #
                     # Rebase module to the preferred memory address before GenFds
                     #
-                    MapBuffer = BytesIO('')
+                    MapBuffer = []
                     if self.LoadFixAddress != 0:
                         self._CollectModuleMapBuffer(MapBuffer, ModuleList)
 
@@ -2122,7 +2044,8 @@ class Build():
                         # Generate FD image if there's a FDF file found
                         #
                         GenFdsStart = time.time()
-                        GenFdsApi(Wa.GenFdsCommandDict, self.Db)
+                        if GenFdsApi(Wa.GenFdsCommandDict, self.Db):
+                            EdkLogger.error("build", COMMAND_FAILURE)
 
                         #
                         # Create MAP file for all platform FVs after GenFds.
@@ -2165,7 +2088,7 @@ class Build():
 
                     # Look through the tool definitions for GUIDed tools
                     guidAttribs = []
-                    for (attrib, value) in self.ToolDef.ToolsDefTxtDictionary.iteritems():
+                    for (attrib, value) in self.ToolDef.ToolsDefTxtDictionary.items():
                         if attrib.upper().endswith('_GUID'):
                             split = attrib.split('_')
                             thisPrefix = '_'.join(split[0:3]) + '_'
@@ -2230,30 +2153,10 @@ class Build():
     def Relinquish(self):
         OldLogLevel = EdkLogger.GetLevel()
         EdkLogger.SetLevel(EdkLogger.ERROR)
-        #self.DumpBuildData()
         Utils.Progressor.Abort()
         if self.SpawnMode == True:
             BuildTask.Abort()
         EdkLogger.SetLevel(OldLogLevel)
-
-    def DumpBuildData(self):
-        CacheDirectory = os.path.dirname(GlobalData.gDatabasePath)
-        Utils.CreateDirectory(CacheDirectory)
-        Utils.DataDump(Utils.gFileTimeStampCache, os.path.join(CacheDirectory, "gFileTimeStampCache"))
-        Utils.DataDump(Utils.gDependencyDatabase, os.path.join(CacheDirectory, "gDependencyDatabase"))
-
-    def RestoreBuildData(self):
-        FilePath = os.path.join(os.path.dirname(GlobalData.gDatabasePath), "gFileTimeStampCache")
-        if Utils.gFileTimeStampCache == {} and os.path.isfile(FilePath):
-            Utils.gFileTimeStampCache = Utils.DataRestore(FilePath)
-            if Utils.gFileTimeStampCache is None:
-                Utils.gFileTimeStampCache = {}
-
-        FilePath = os.path.join(os.path.dirname(GlobalData.gDatabasePath), "gDependencyDatabase")
-        if Utils.gDependencyDatabase == {} and os.path.isfile(FilePath):
-            Utils.gDependencyDatabase = Utils.DataRestore(FilePath)
-            if Utils.gDependencyDatabase is None:
-                Utils.gDependencyDatabase = {}
 
 def ParseDefines(DefineList=[]):
     DefineDict = {}
@@ -2300,8 +2203,8 @@ def LogBuildTime(Time):
 #
 def MyOptionParser():
     Parser = OptionParser(description=__copyright__, version=__version__, prog="build.exe", usage="%prog [options] [all|fds|genc|genmake|clean|cleanall|cleanlib|modules|libraries|run]")
-    Parser.add_option("-a", "--arch", action="append", type="choice", choices=['IA32', 'X64', 'IPF', 'EBC', 'ARM', 'AARCH64'], dest="TargetArch",
-        help="ARCHS is one of list: IA32, X64, IPF, ARM, AARCH64 or EBC, which overrides target.txt's TARGET_ARCH definition. To specify more archs, please repeat this option.")
+    Parser.add_option("-a", "--arch", action="append", type="choice", choices=['IA32', 'X64', 'EBC', 'ARM', 'AARCH64'], dest="TargetArch",
+        help="ARCHS is one of list: IA32, X64, ARM, AARCH64 or EBC, which overrides target.txt's TARGET_ARCH definition. To specify more archs, please repeat this option.")
     Parser.add_option("-p", "--platform", action="callback", type="string", dest="PlatformFile", callback=SingleCheckCallback,
         help="Build the platform specified by the DSC file name argument, overriding target.txt's ACTIVE_PLATFORM definition.")
     Parser.add_option("-m", "--module", action="callback", type="string", dest="ModuleFile", callback=SingleCheckCallback,
@@ -2360,6 +2263,7 @@ def MyOptionParser():
     Parser.add_option("--binary-destination", action="store", type="string", dest="BinCacheDest", help="Generate a cache of binary files in the specified directory.")
     Parser.add_option("--binary-source", action="store", type="string", dest="BinCacheSource", help="Consume a cache of binary files from the specified directory.")
     Parser.add_option("--genfds-multi-thread", action="store_true", dest="GenfdsMultiThread", default=False, help="Enable GenFds multi thread to generate ffs file.")
+    Parser.add_option("--disable-include-path-check", action="store_true", dest="DisableIncludePathCheck", default=False, help="Disable the include path check for outside of package.")
     (Opt, Args) = Parser.parse_args()
     return (Opt, Args)
 
@@ -2478,7 +2382,6 @@ def Main():
         if not (MyBuild.LaunchPrebuildFlag and os.path.exists(MyBuild.PlatformBuildPath)):
             MyBuild.Launch()
 
-        #MyBuild.DumpBuildData()
         #
         # All job done, no error found and no exception raised
         #

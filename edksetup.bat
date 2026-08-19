@@ -3,13 +3,7 @@
 @REM
 @REM Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
 @REM (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
-@REM This program and the accompanying materials
-@REM are licensed and made available under the terms and conditions of the BSD License
-@REM which accompanies this distribution.  The full text of the license may be found at
-@REM http://opensource.org/licenses/bsd-license.php
-@REM
-@REM THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-@REM WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+@REM SPDX-License-Identifier: BSD-2-Clause-Patent
 @REM
 
 @REM set CYGWIN_HOME=C:\cygwin
@@ -42,11 +36,8 @@ if %WORKSPACE% == %CD% (
 
 :SetWorkSpace
 @REM set new workspace
-@REM clear EFI_SOURCE and EDK_SOURCE for the new workspace
 if not defined WORKSPACE (
   set WORKSPACE=%CD%
-  set EFI_SOURCE=
-  set EDK_SOURCE=
 )
 
 :ParseArgs
@@ -92,7 +83,7 @@ if exist %EDK_BASETOOLS% (
 :checkNt32Flag
 if exist %EDK_TOOLS_PATH%\Source set BASE_TOOLS_PATH=%EDK_TOOLS_PATH%
 
-@REM The Nt32 Emluation Platform requires Microsoft Libraries
+@REM The Nt32 Emulation Platform requires Microsoft Libraries
 @REM and headers to interface with Windows.
 if /I "%1"=="--nt32" (
   if /I "%2"=="X64" (

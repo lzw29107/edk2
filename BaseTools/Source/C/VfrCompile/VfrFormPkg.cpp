@@ -3,13 +3,7 @@
   The definition of CFormPkg's member function
 
 Copyright (c) 2004 - 2018, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -945,7 +939,7 @@ CFormPkg::DeclarePendingQuestion (
         }
         CNObj.SetFlags (0, Info.mVarType);
         //
-        // Use maximum value not to limit the vaild value for the undefined question.
+        // Use maximum value not to limit the valid value for the undefined question.
         //
         switch (Info.mVarType) {
         case EFI_IFR_TYPE_NUM_SIZE_64:
@@ -1515,7 +1509,7 @@ CIfrRecordInfoDB::IfrRecordAdjust (
       }
       //
       // extract inconsistent opcode list
-      // pNode is Incosistent opcode, tNode is End Opcode
+      // pNode is Inconsistent opcode, tNode is End Opcode
       //
 
       //

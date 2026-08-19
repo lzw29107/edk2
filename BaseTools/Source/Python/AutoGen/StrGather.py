@@ -3,13 +3,7 @@
 # file.
 #
 # Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 
 ##
 # Import Modules
@@ -123,7 +117,10 @@ def DecToHexList(Dec, Digit = 8):
 # @retval:       A list for formatted hex string
 #
 def AscToHexList(Ascii):
-    return ['0x{0:02X}'.format(ord(Item)) for Item in Ascii]
+    try:
+        return ['0x{0:02X}'.format(Item) for Item in Ascii]
+    except:
+        return ['0x{0:02X}'.format(ord(Item)) for Item in Ascii]
 
 ## Create content of .h file
 #
@@ -551,9 +548,9 @@ def GetStringFiles(UniFilList, SourceFileList, IncludeList, IncludePathList, Ski
             #
             # support ISO 639-2 codes in .UNI files of EDK Shell
             #
-            Uni = UniFileClassObject(sorted (UniFilList), True, IncludePathList)
+            Uni = UniFileClassObject(sorted(UniFilList, key=lambda x: x.File), True, IncludePathList)
         else:
-            Uni = UniFileClassObject(sorted (UniFilList), IsCompatibleMode, IncludePathList)
+            Uni = UniFileClassObject(sorted(UniFilList, key=lambda x: x.File), IsCompatibleMode, IncludePathList)
     else:
         EdkLogger.error("UnicodeStringGather", AUTOGEN_ERROR, 'No unicode files given')
 

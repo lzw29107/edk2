@@ -34,6 +34,7 @@ _ConfigFileToInternalTranslation = {
     "CFunctionLayoutCheckFunctionBody":"CFunctionLayoutCheckFunctionBody",
     "CFunctionLayoutCheckFunctionName":"CFunctionLayoutCheckFunctionName",
     "CFunctionLayoutCheckFunctionPrototype":"CFunctionLayoutCheckFunctionPrototype",
+    "CFunctionLayoutCheckNoDeprecated":"CFunctionLayoutCheckNoDeprecated",
     "CFunctionLayoutCheckNoInitOfVariable":"CFunctionLayoutCheckNoInitOfVariable",
     "CFunctionLayoutCheckNoStatic":"CFunctionLayoutCheckNoStatic",
     "CFunctionLayoutCheckOptionalFunctionalModifier":"CFunctionLayoutCheckOptionalFunctionalModifier",
@@ -60,12 +61,14 @@ _ConfigFileToInternalTranslation = {
     "GeneralCheckIndentation":"GeneralCheckIndentation",
     "GeneralCheckIndentationWidth":"GeneralCheckIndentationWidth",
     "GeneralCheckLine":"GeneralCheckLine",
+    "GeneralCheckLineEnding":"GeneralCheckLineEnding",
     "GeneralCheckLineWidth":"GeneralCheckLineWidth",
     "GeneralCheckNoProgma":"GeneralCheckNoProgma",
     "GeneralCheckNoTab":"GeneralCheckNoTab",
     "GeneralCheckNo_Asm":"GeneralCheckNo_Asm",
     "GeneralCheckNonAcsii":"GeneralCheckNonAcsii",
     "GeneralCheckTabWidth":"GeneralCheckTabWidth",
+    "GeneralCheckTrailingWhiteSpaceLine":"GeneralCheckTrailingWhiteSpaceLine",
     "GeneralCheckUni":"GeneralCheckUni",
     "HeaderCheckAll":"HeaderCheckAll",
     "HeaderCheckCFileCommentLicenseFormat":"HeaderCheckCFileCommentLicenseFormat",
@@ -186,6 +189,10 @@ class Configuration(object):
         self.GeneralCheckNonAcsii = 1
         # Check whether UNI file is valid
         self.GeneralCheckUni = 1
+        # Check Only use CRLF (Carriage Return Line Feed) line endings.
+        self.GeneralCheckLineEnding = 1
+        # Check if there is no trailing white space in one line.
+        self.GeneralCheckTrailingWhiteSpaceLine = 1
 
         ## Space Checking
         self.SpaceCheckAll = 1
@@ -236,6 +243,8 @@ class Configuration(object):
         self.CFunctionLayoutCheckNoInitOfVariable = 1
         # Check whether no use of STATIC for functions
         self.CFunctionLayoutCheckNoStatic = 1
+        # Check whether no use of Deprecated functions
+        self.CFunctionLayoutCheckNoDeprecated = 1
 
         ## Include Files Checking
         self.IncludeFileCheckAll = 0

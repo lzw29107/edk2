@@ -12,18 +12,19 @@
 #
 
 from __future__ import print_function
+from __future__ import absolute_import
 import sys
 import Common.LongFilePathOs as os
 import re
 import string
-import CodeFragmentCollector
-import FileProfile
+from Ecc import CodeFragmentCollector
+from Ecc import FileProfile
 from CommonDataClass import DataClass
-import Database
+from Ecc import Database
 from Common import EdkLogger
-from EccToolError import *
-import EccGlobalData
-import MetaDataParser
+from Ecc.EccToolError import *
+from Ecc import EccGlobalData
+from Ecc import MetaDataParser
 
 IncludeFileListDict = {}
 AllIncludeFileListDict = {}
@@ -2143,7 +2144,7 @@ def CheckBooleanValueComparison(FullFileName):
                     PrintErrorMsg(ERROR_PREDICATE_EXPRESSION_CHECK_BOOLEAN_VALUE, 'Predicate Expression: %s' % Exp, FileTable, Str[2])
 
 
-def CheckHeaderFileData(FullFileName):
+def CheckHeaderFileData(FullFileName, AllTypedefFun=[]):
     ErrorMsgList = []
 
     FileID = GetTableID(FullFileName, ErrorMsgList)
@@ -2159,7 +2160,11 @@ def CheckHeaderFileData(FullFileName):
     ResultSet = Db.TblFile.Exec(SqlStatement)
     for Result in ResultSet:
         if not Result[1].startswith('extern'):
-            PrintErrorMsg(ERROR_INCLUDE_FILE_CHECK_DATA, 'Variable definition appears in header file', FileTable, Result[0])
+            for Item in AllTypedefFun:
+                if '(%s)' % Result[1] in Item:
+                    break
+            else:
+                PrintErrorMsg(ERROR_INCLUDE_FILE_CHECK_DATA, 'Variable definition appears in header file', FileTable, Result[0])
 
     SqlStatement = """ select ID
                        from Function

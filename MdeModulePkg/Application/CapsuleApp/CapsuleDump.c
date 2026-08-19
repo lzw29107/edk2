@@ -62,6 +62,24 @@ WriteFileFromBuffer (
   );
 
 /**
+  Validate if it is valid capsule header
+
+  This function assumes the caller provided correct CapsuleHeader pointer
+  and CapsuleSize.
+
+  This function validates the fields in EFI_CAPSULE_HEADER.
+
+  @param[in] CapsuleHeader  Points to a capsule header.
+  @param[in] CapsuleSize    Size of the whole capsule image.
+
+**/
+BOOLEAN
+IsValidCapsuleHeader (
+  IN EFI_CAPSULE_HEADER     *CapsuleHeader,
+  IN UINT64                 CapsuleSize
+  );
+
+/**
   Dump UX capsule information.
 
   @param[in] CapsuleHeader      The UX capsule header
@@ -88,37 +106,6 @@ DumpUxCapsule (
   Print(L"  OffsetY          - 0x%x\n", DisplayCapsule->ImagePayload.OffsetY);
 }
 
-/**
-  Dump FMP image authentication information.
-
-  @param[in] Image      The FMP capsule image
-  @param[in] ImageSize  The size of the FMP capsule image in bytes.
-
-  @return the size of FMP authentication.
-**/
-UINTN
-DumpImageAuthentication (
-  IN VOID   *Image,
-  IN UINTN  ImageSize
-  )
-{
-  EFI_FIRMWARE_IMAGE_AUTHENTICATION             *ImageAuthentication;
-
-  ImageAuthentication = Image;
-  if (CompareGuid(&ImageAuthentication->AuthInfo.CertType, &gEfiCertPkcs7Guid) ||
-      CompareGuid(&ImageAuthentication->AuthInfo.CertType, &gEfiCertTypeRsa2048Sha256Guid)) {
-    Print(L"[ImageAuthentication]\n");
-    Print(L"  MonotonicCount   - 0x%lx\n", ImageAuthentication->MonotonicCount);
-    Print(L"WIN_CERTIFICATE:\n");
-    Print(L"  dwLength         - 0x%x\n", ImageAuthentication->AuthInfo.Hdr.dwLength);
-    Print(L"  wRevision        - 0x%x\n", ImageAuthentication->AuthInfo.Hdr.wRevision);
-    Print(L"  wCertificateType - 0x%x\n", ImageAuthentication->AuthInfo.Hdr.wCertificateType);
-    Print(L"  CertType         - %g\n", &ImageAuthentication->AuthInfo.CertType);
-    return sizeof(ImageAuthentication->MonotonicCount) + ImageAuthentication->AuthInfo.Hdr.dwLength;
-  } else {
-    return 0;
-  }
-}
 
 /**
   Dump a non-nested FMP capsule.
@@ -214,7 +201,7 @@ IsNestedFmpCapsule (
   // FMP GUID after ESRT one
   //
   NestedCapsuleHeader = (EFI_CAPSULE_HEADER *)((UINT8 *)CapsuleHeader + CapsuleHeader->HeaderSize);
-  NestedCapsuleSize = (UINTN)CapsuleHeader + CapsuleHeader->HeaderSize - (UINTN)NestedCapsuleHeader;
+  NestedCapsuleSize = (UINTN)CapsuleHeader + CapsuleHeader->CapsuleImageSize- (UINTN)NestedCapsuleHeader;
   if (NestedCapsuleSize < sizeof(EFI_CAPSULE_HEADER)) {
     return FALSE;
   }
@@ -246,6 +233,11 @@ DumpCapsule (
   Status = ReadFileToBuffer(CapsuleName, &FileSize, &Buffer);
   if (EFI_ERROR(Status)) {
     Print(L"CapsuleApp: Capsule (%s) is not found.\n", CapsuleName);
+    goto Done;
+  }
+  if (!IsValidCapsuleHeader (Buffer, FileSize)) {
+    Print(L"CapsuleApp: Capsule image (%s) is not a valid capsule.\n", CapsuleName);
+    Status = EFI_INVALID_PARAMETER;
     goto Done;
   }
 
@@ -283,7 +275,7 @@ Done:
   @retval EFI_UNSUPPORTED        Input parameter is not valid.
 **/
 EFI_STATUS
-DmpCapsuleStatusVariable (
+DumpCapsuleStatusVariable (
   VOID
   )
 {
@@ -454,9 +446,6 @@ DumpEsrtEntry (
   Print(L"  FwVersion                - 0x%x\n", EsrtEntry->FwVersion);
   Print(L"  LowestSupportedFwVersion - 0x%x\n", EsrtEntry->LowestSupportedFwVersion);
   Print(L"  CapsuleFlags             - 0x%x\n", EsrtEntry->CapsuleFlags);
-  Print(L"    PERSIST_ACROSS_RESET   - 0x%x\n", EsrtEntry->CapsuleFlags & CAPSULE_FLAGS_PERSIST_ACROSS_RESET);
-  Print(L"    POPULATE_SYSTEM_TABLE  - 0x%x\n", EsrtEntry->CapsuleFlags & CAPSULE_FLAGS_POPULATE_SYSTEM_TABLE);
-  Print(L"    INITIATE_RESET         - 0x%x\n", EsrtEntry->CapsuleFlags & CAPSULE_FLAGS_INITIATE_RESET);
   Print(L"  LastAttemptVersion       - 0x%x\n", EsrtEntry->LastAttemptVersion);
   Print(L"  LastAttemptStatus        - 0x%x (%a)\n", EsrtEntry->LastAttemptStatus, LastAttemptStatusToString(EsrtEntry->LastAttemptStatus));
 }
@@ -952,6 +941,8 @@ DumpFmpImage (
 
   Status = WriteFileFromBuffer(ImageName, ImageSize, Image);
   Print(L"CapsuleApp: Dump %g ImageIndex (0x%x) to %s %r\n", ImageTypeId, ImageIndex, ImageName, Status);
+
+  FreePool (Image);
 
   return ;
 }

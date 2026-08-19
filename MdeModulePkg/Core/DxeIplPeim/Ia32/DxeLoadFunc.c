@@ -187,37 +187,6 @@ IsIa32PaeSupport (
 }
 
 /**
-  The function will check if Execute Disable Bit is available.
-
-  @retval TRUE      Execute Disable Bit is available.
-  @retval FALSE     Execute Disable Bit is not available.
-
-**/
-BOOLEAN
-IsExecuteDisableBitAvailable (
-  VOID
-  )
-{
-  UINT32            RegEax;
-  UINT32            RegEdx;
-  BOOLEAN           Available;
-
-  Available = FALSE;
-  AsmCpuid (0x80000000, &RegEax, NULL, NULL, NULL);
-  if (RegEax >= 0x80000001) {
-    AsmCpuid (0x80000001, NULL, NULL, NULL, &RegEdx);
-    if ((RegEdx & BIT20) != 0) {
-      //
-      // Bit 20: Execute Disable Bit available.
-      //
-      Available = TRUE;
-    }
-  }
-
-  return Available;
-}
-
-/**
   The function will check if page table should be setup or not.
 
   @retval TRUE      Page table should be created.
@@ -245,7 +214,7 @@ ToBuildPageTable (
     return TRUE;
   }
 
-  if (PcdGetBool (PcdSetNxForStack) && IsExecuteDisableBitAvailable ()) {
+  if (IsEnableNonExecNeeded ()) {
     return TRUE;
   }
 
@@ -320,9 +289,16 @@ HandOffToDxeCore (
     //
     // End of PEI phase signal
     //
+    PERF_EVENT_SIGNAL_BEGIN (gEndOfPeiSignalPpi.Guid);
     Status = PeiServicesInstallPpi (&gEndOfPeiSignalPpi);
+    PERF_EVENT_SIGNAL_END (gEndOfPeiSignalPpi.Guid);
     ASSERT_EFI_ERROR (Status);
 
+    //
+    // Paging might be already enabled. To avoid conflict configuration,
+    // disable paging first anyway.
+    //
+    AsmWriteCr0 (AsmReadCr0 () & (~BIT31));
     AsmWriteCr3 (PageTables);
 
     //
@@ -429,7 +405,7 @@ HandOffToDxeCore (
     BuildPageTablesIa32Pae = ToBuildPageTable ();
     if (BuildPageTablesIa32Pae) {
       PageTables = Create4GPageTablesIa32Pae (BaseOfStack, STACK_SIZE);
-      if (IsExecuteDisableBitAvailable ()) {
+      if (IsEnableNonExecNeeded ()) {
         EnableExecuteDisableBit();
       }
     }
@@ -437,10 +413,17 @@ HandOffToDxeCore (
     //
     // End of PEI phase signal
     //
+    PERF_EVENT_SIGNAL_BEGIN (gEndOfPeiSignalPpi.Guid);
     Status = PeiServicesInstallPpi (&gEndOfPeiSignalPpi);
+    PERF_EVENT_SIGNAL_END (gEndOfPeiSignalPpi.Guid);
     ASSERT_EFI_ERROR (Status);
 
     if (BuildPageTablesIa32Pae) {
+      //
+      // Paging might be already enabled. To avoid conflict configuration,
+      // disable paging first anyway.
+      //
+      AsmWriteCr0 (AsmReadCr0 () & (~BIT31));
       AsmWriteCr3 (PageTables);
       //
       // Set Physical Address Extension (bit 5 of CR4).

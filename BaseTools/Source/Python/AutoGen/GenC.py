@@ -13,6 +13,7 @@
 
 ## Import Modules
 #
+from __future__ import absolute_import
 import string
 import collections
 import struct
@@ -22,9 +23,9 @@ from Common.BuildToolError import *
 from Common.DataType import *
 from Common.Misc import *
 from Common.StringUtils import StringToArray
-from StrGather import *
-from GenPcdDb import CreatePcdDatabaseCode
-from IdfClassObject import *
+from .StrGather import *
+from .GenPcdDb import CreatePcdDatabaseCode
+from .IdfClassObject import *
 
 ## PCD type string
 gItemTypeStringDatabase  = {
@@ -265,7 +266,7 @@ EFI_STATUS
 EFIAPI
 ${Function} (
   IN EFI_HANDLE            ImageHandle,
-  IN EFI_SMM_SYSTEM_TABLE2 *MmSystemTable
+  IN EFI_MM_SYSTEM_TABLE   *MmSystemTable
   );
 ${END}
 """)
@@ -278,7 +279,7 @@ EFI_STATUS
 EFIAPI
 ProcessModuleEntryPointList (
   IN EFI_HANDLE            ImageHandle,
-  IN EFI_SMM_SYSTEM_TABLE2 *MmSystemTable
+  IN EFI_MM_SYSTEM_TABLE   *MmSystemTable
   )
 
 {
@@ -292,7 +293,7 @@ EFI_STATUS
 EFIAPI
 ProcessModuleEntryPointList (
   IN EFI_HANDLE            ImageHandle,
-  IN EFI_SMM_SYSTEM_TABLE2 *MmSystemTable
+  IN EFI_MM_SYSTEM_TABLE   *MmSystemTable
   )
 
 {
@@ -307,7 +308,7 @@ EFI_STATUS
 EFIAPI
 ProcessModuleEntryPointList (
   IN EFI_HANDLE            ImageHandle,
-  IN EFI_SMM_SYSTEM_TABLE2 *MmSystemTable
+  IN EFI_MM_SYSTEM_TABLE   *MmSystemTable
   )
 
 {
@@ -675,7 +676,7 @@ EFI_STATUS
 EFIAPI
 ${Function} (
   IN EFI_HANDLE            ImageHandle,
-  IN EFI_SMM_SYSTEM_TABLE2  *MmSystemTable
+  IN EFI_MM_SYSTEM_TABLE   *MmSystemTable
   );${END}
 """),
 }
@@ -755,7 +756,7 @@ VOID
 EFIAPI
 ProcessLibrary${Type}List (
   IN EFI_HANDLE            ImageHandle,
-  IN EFI_SMM_SYSTEM_TABLE2  *MmSystemTable
+  IN EFI_MM_SYSTEM_TABLE   *MmSystemTable
   )
 {
 ${BEGIN}  EFI_STATUS  Status;
@@ -779,8 +780,8 @@ gModuleTypeHeaderFile = {
     SUP_MODULE_UEFI_DRIVER       :   ["Uefi.h",  "Library/BaseLib.h", "Library/DebugLib.h", "Library/UefiBootServicesTableLib.h", "Library/UefiDriverEntryPoint.h"],
     SUP_MODULE_UEFI_APPLICATION  :   ["Uefi.h",  "Library/BaseLib.h", "Library/DebugLib.h", "Library/UefiBootServicesTableLib.h", "Library/UefiApplicationEntryPoint.h"],
     SUP_MODULE_SMM_CORE          :   ["PiDxe.h", "Library/BaseLib.h", "Library/DebugLib.h", "Library/UefiDriverEntryPoint.h"],
-    SUP_MODULE_MM_STANDALONE     :   ["PiSmm.h", "Library/BaseLib.h", "Library/DebugLib.h", "Library/SmmDriverStandaloneEntryPoint.h"],
-    SUP_MODULE_MM_CORE_STANDALONE :  ["PiSmm.h", "Library/BaseLib.h", "Library/DebugLib.h", "Library/SmmCoreStandaloneEntryPoint.h"],
+    SUP_MODULE_MM_STANDALONE     :   ["PiMm.h", "Library/BaseLib.h", "Library/DebugLib.h", "Library/StandaloneMmDriverEntryPoint.h"],
+    SUP_MODULE_MM_CORE_STANDALONE :  ["PiMm.h", "Library/BaseLib.h", "Library/DebugLib.h", "Library/StandaloneMmCoreEntryPoint.h"],
     SUP_MODULE_USER_DEFINED      :   [gBasicHeaderFile]
 }
 
@@ -890,6 +891,8 @@ def CreateModulePcdCode(Info, AutoGenC, AutoGenH, Pcd):
 
     if Pcd.PcdValueFromComm:
         Pcd.DefaultValue = Pcd.PcdValueFromComm
+    elif Pcd.PcdValueFromFdf:
+        Pcd.DefaultValue = Pcd.PcdValueFromFdf
 
     if Pcd.Type in PCD_DYNAMIC_EX_TYPE_SET:
         TokenNumber = int(Pcd.TokenValue, 0)
@@ -934,7 +937,7 @@ def CreateModulePcdCode(Info, AutoGenC, AutoGenH, Pcd):
         if Info.IsLibrary:
             PcdList = Info.LibraryPcdList
         else:
-            PcdList = Info.ModulePcdList
+            PcdList = Info.ModulePcdList + Info.LibraryPcdList
         PcdExCNameTest = 0
         for PcdModule in PcdList:
             if PcdModule.Type in PCD_DYNAMIC_EX_TYPE_SET and Pcd.TokenCName == PcdModule.TokenCName:
@@ -1012,50 +1015,19 @@ def CreateModulePcdCode(Info, AutoGenC, AutoGenH, Pcd):
                 EdkLogger.error("build", AUTOGEN_ERROR,
                                 "PCD value is not valid dec or hex number for datum type [%s] of PCD %s.%s" % (Pcd.DatumType, Pcd.TokenSpaceGuidCName, TokenCName),
                                 ExtraData="[%s]" % str(Info))
-            if Pcd.DatumType == TAB_UINT64:
-                if ValueNumber < 0:
-                    EdkLogger.error("build", AUTOGEN_ERROR,
-                                    "PCD can't be set to negative value for datum type [%s] of PCD %s.%s" % (Pcd.DatumType, Pcd.TokenSpaceGuidCName, TokenCName),
-                                    ExtraData="[%s]" % str(Info))
-                elif ValueNumber >= 0x10000000000000000:
-                    EdkLogger.error("build", AUTOGEN_ERROR,
-                                    "Too large PCD value for datum type [%s] of PCD %s.%s" % (Pcd.DatumType, Pcd.TokenSpaceGuidCName, TokenCName),
-                                    ExtraData="[%s]" % str(Info))
-                if not Value.endswith('ULL'):
-                    Value += 'ULL'
-            elif Pcd.DatumType == TAB_UINT32:
-                if ValueNumber < 0:
-                    EdkLogger.error("build", AUTOGEN_ERROR,
-                                    "PCD can't be set to negative value for datum type [%s] of PCD %s.%s" % (Pcd.DatumType, Pcd.TokenSpaceGuidCName, TokenCName),
-                                    ExtraData="[%s]" % str(Info))
-                elif ValueNumber >= 0x100000000:
-                    EdkLogger.error("build", AUTOGEN_ERROR,
-                                    "Too large PCD value for datum type [%s] of PCD %s.%s" % (Pcd.DatumType, Pcd.TokenSpaceGuidCName, TokenCName),
-                                    ExtraData="[%s]" % str(Info))
-                if not Value.endswith('U'):
-                    Value += 'U'
-            elif Pcd.DatumType == TAB_UINT16:
-                if ValueNumber < 0:
-                    EdkLogger.error("build", AUTOGEN_ERROR,
-                                    "PCD can't be set to negative value for datum type [%s] of PCD %s.%s" % (Pcd.DatumType, Pcd.TokenSpaceGuidCName, TokenCName),
-                                    ExtraData="[%s]" % str(Info))
-                elif ValueNumber >= 0x10000:
-                    EdkLogger.error("build", AUTOGEN_ERROR,
-                                    "Too large PCD value for datum type [%s] of PCD %s.%s" % (Pcd.DatumType, Pcd.TokenSpaceGuidCName, TokenCName),
-                                    ExtraData="[%s]" % str(Info))
-                if not Value.endswith('U'):
-                    Value += 'U'
-            elif Pcd.DatumType == TAB_UINT8:
-                if ValueNumber < 0:
-                    EdkLogger.error("build", AUTOGEN_ERROR,
-                                    "PCD can't be set to negative value for datum type [%s] of PCD %s.%s" % (Pcd.DatumType, Pcd.TokenSpaceGuidCName, TokenCName),
-                                    ExtraData="[%s]" % str(Info))
-                elif ValueNumber >= 0x100:
-                    EdkLogger.error("build", AUTOGEN_ERROR,
-                                    "Too large PCD value for datum type [%s] of PCD %s.%s" % (Pcd.DatumType, Pcd.TokenSpaceGuidCName, TokenCName),
-                                    ExtraData="[%s]" % str(Info))
-                if not Value.endswith('U'):
-                    Value += 'U'
+            if ValueNumber < 0:
+                EdkLogger.error("build", AUTOGEN_ERROR,
+                                "PCD can't be set to negative value for datum type [%s] of PCD %s.%s" % (Pcd.DatumType, Pcd.TokenSpaceGuidCName, TokenCName),
+                                ExtraData="[%s]" % str(Info))
+            elif ValueNumber > MAX_VAL_TYPE[Pcd.DatumType]:
+                EdkLogger.error("build", AUTOGEN_ERROR,
+                                "Too large PCD value for datum type [%s] of PCD %s.%s" % (Pcd.DatumType, Pcd.TokenSpaceGuidCName, TokenCName),
+                                ExtraData="[%s]" % str(Info))
+            if Pcd.DatumType == TAB_UINT64 and not Value.endswith('ULL'):
+                Value += 'ULL'
+            elif Pcd.DatumType != TAB_UINT64 and not Value.endswith('U'):
+                Value += 'U'
+
         if Pcd.DatumType not in TAB_PCD_NUMERIC_TYPES:
             if not Pcd.MaxDatumSize:
                 EdkLogger.error("build", AUTOGEN_ERROR,
@@ -1183,6 +1155,8 @@ def CreateLibraryPcdCode(Info, AutoGenC, AutoGenH, Pcd):
 
     if Pcd.PcdValueFromComm:
         Pcd.DefaultValue = Pcd.PcdValueFromComm
+    elif Pcd.PcdValueFromFdf:
+        Pcd.DefaultValue = Pcd.PcdValueFromFdf
     #
     # Write PCDs
     #
@@ -1288,7 +1262,6 @@ def CreateLibraryPcdCode(Info, AutoGenC, AutoGenH, Pcd):
                 AutoGenH.Append('#define %s(Value)  LibPcdSet%s(%s, (Value))\n' % (SetModeName, DatumSizeLib, PcdTokenName))
                 AutoGenH.Append('#define %s(Value)  LibPcdSet%sS(%s, (Value))\n' % (SetModeStatusName, DatumSizeLib, PcdTokenName))
     if PcdItemType == TAB_PCDS_PATCHABLE_IN_MODULE:
-        GetModeMaxSizeName = '_PCD_GET_MODE_MAXSIZE' + '_' + TokenCName
         PcdVariableName = '_gPcd_' + gItemTypeStringDatabase[TAB_PCDS_PATCHABLE_IN_MODULE] + '_' + TokenCName
         if DatumType not in TAB_PCD_NUMERIC_TYPES:
             if DatumType == TAB_VOID and Array == '[]':
@@ -1303,7 +1276,7 @@ def CreateLibraryPcdCode(Info, AutoGenC, AutoGenH, Pcd):
         if Pcd.DatumType not in TAB_PCD_NUMERIC_TYPES:
             AutoGenH.Append('#define %s(SizeOfBuffer, Buffer)  LibPatchPcdSetPtrAndSize((VOID *)_gPcd_BinaryPatch_%s, &%s, %s, (SizeOfBuffer), (Buffer))\n' % (SetModeName, TokenCName, PatchPcdSizeVariableName, PatchPcdMaxSizeVariable))
             AutoGenH.Append('#define %s(SizeOfBuffer, Buffer)  LibPatchPcdSetPtrAndSizeS((VOID *)_gPcd_BinaryPatch_%s, &%s, %s, (SizeOfBuffer), (Buffer))\n' % (SetModeStatusName, TokenCName, PatchPcdSizeVariableName, PatchPcdMaxSizeVariable))
-            AutoGenH.Append('#define %s %s\n' % (GetModeMaxSizeName, PatchPcdMaxSizeVariable))
+            AutoGenH.Append('#define %s %s\n' % (PatchPcdSizeTokenName, PatchPcdMaxSizeVariable))
             AutoGenH.Append('extern const UINTN %s; \n' % PatchPcdMaxSizeVariable)
         else:
             AutoGenH.Append('#define %s(Value)  (%s = (Value))\n' % (SetModeName, PcdVariableName))
@@ -1325,7 +1298,7 @@ def CreateLibraryPcdCode(Info, AutoGenC, AutoGenH, Pcd):
         AutoGenH.Append('//#define %s  ASSERT(FALSE)  // It is not allowed to set value for a FIXED_AT_BUILD PCD\n' % SetModeName)
 
         ConstFixedPcd = False
-        if PcdItemType == TAB_PCDS_FIXED_AT_BUILD and (key in Info.ConstPcd or (Info.IsLibrary and not Info._ReferenceModules)):
+        if PcdItemType == TAB_PCDS_FIXED_AT_BUILD and (key in Info.ConstPcd or (Info.IsLibrary and not Info.ReferenceModules)):
             ConstFixedPcd = True
             if key in Info.ConstPcd:
                 Pcd.DefaultValue = Info.ConstPcd[key]

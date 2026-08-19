@@ -149,11 +149,9 @@
   #
   # CryptoPkg libraries needed by multiple firmware features
   #
-!if ($(SECURE_BOOT_ENABLE) == TRUE) || ($(NETWORK_IP6_ENABLE) == TRUE)
   IntrinsicLib|CryptoPkg/Library/IntrinsicLib/IntrinsicLib.inf
   OpensslLib|CryptoPkg/Library/OpensslLib/OpensslLibCrypto.inf
   BaseCryptLib|CryptoPkg/Library/BaseCryptLib/BaseCryptLib.inf
-!endif
 
   #
   # Secure Boot dependencies
@@ -211,7 +209,6 @@
   PerformanceLib|MdeModulePkg/Library/PeiPerformanceLib/PeiPerformanceLib.inf
   OemHookStatusCodeLib|MdeModulePkg/Library/OemHookStatusCodeLibNull/OemHookStatusCodeLibNull.inf
   PeCoffGetEntryPointLib|MdePkg/Library/BasePeCoffGetEntryPointLib/BasePeCoffGetEntryPointLib.inf
-  PeiResourcePublicationLib|MdePkg/Library/PeiResourcePublicationLib/PeiResourcePublicationLib.inf
   UefiDecompressLib|MdePkg/Library/BaseUefiDecompressLib/BaseUefiDecompressLib.inf
   ExtractGuidedSectionLib|MdePkg/Library/PeiExtractGuidedSectionLib/PeiExtractGuidedSectionLib.inf
 
@@ -388,9 +385,6 @@
   # Enable the non-executable DXE stack. (This gets set up by DxeIpl)
   #
   gEfiMdeModulePkgTokenSpaceGuid.PcdSetNxForStack|TRUE
-
-[PcdsFixedAtBuild.ARM]
-  gEmbeddedTokenSpaceGuid.PcdPrePiCpuMemorySize|40
 
 [Components.common]
   #

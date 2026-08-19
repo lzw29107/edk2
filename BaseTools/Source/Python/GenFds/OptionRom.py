@@ -15,18 +15,16 @@
 ##
 # Import Modules
 #
+from __future__ import absolute_import
 import Common.LongFilePathOs as os
 import subprocess
 
-import OptRomInfStatement
-from GenFdsGlobalVariable import GenFdsGlobalVariable
-from GenFds import GenFds
+from . import OptRomInfStatement
+from .GenFdsGlobalVariable import GenFdsGlobalVariable
 from CommonDataClass.FdfClass import OptionRomClassObject
 from Common.Misc import SaveFileOnChange
 from Common import EdkLogger
 from Common.BuildToolError import *
-
-T_CHAR_LF = '\n'
 
 ##
 #
@@ -36,9 +34,9 @@ class OPTIONROM (OptionRomClassObject):
     #
     #   @param  self        The object pointer
     #
-    def __init__(self):
+    def __init__(self, Name = ""):
         OptionRomClassObject.__init__(self)
-
+        self.DriverName = Name
 
     ## AddToBuffer()
     #

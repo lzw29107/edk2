@@ -690,7 +690,7 @@ WriteSections32 (
         //
         //  Ignore for unkown section type.
         //
-        VerboseMsg ("%s unknown section type %x. We directly copy this section into Coff file", mInImageName, (unsigned)Shdr->sh_type);
+        VerboseMsg ("%s unknown section type %x. We ignore this unknown section type.", mInImageName, (unsigned)Shdr->sh_type);
         break;
       }
     }
@@ -837,7 +837,6 @@ WriteSections32 (
           case R_ARM_LDC_PC_G0:
           case R_ARM_LDC_PC_G1:
           case R_ARM_LDC_PC_G2:
-          case R_ARM_GOT_PREL:
           case R_ARM_THM_JUMP11:
           case R_ARM_THM_JUMP8:
           case R_ARM_TLS_GD32:
@@ -964,7 +963,6 @@ WriteRelocations32 (
             case R_ARM_LDC_PC_G0:
             case R_ARM_LDC_PC_G1:
             case R_ARM_LDC_PC_G2:
-            case R_ARM_GOT_PREL:
             case R_ARM_THM_JUMP11:
             case R_ARM_THM_JUMP8:
             case R_ARM_TLS_GD32:

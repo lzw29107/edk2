@@ -30,6 +30,7 @@
 
 [Sources]
   AmdSev.c
+  ClearCache.c
   Cmos.c
   Cmos.h
   FeatureControl.c
@@ -54,11 +55,12 @@
 
 [LibraryClasses]
   BaseLib
+  CacheMaintenanceLib
   DebugLib
   HobLib
   IoLib
   PciLib
-  PeiResourcePublicationLib
+  ResourcePublicationLib
   PeiServicesLib
   PeiServicesTablePointerLib
   PeimEntryPoint

@@ -21,6 +21,7 @@
 # Import Modules
 #
 from __future__ import print_function
+from __future__ import absolute_import
 import Common.LongFilePathOs as os
 import sys
 import encodings.ascii
@@ -30,8 +31,8 @@ from Common import EdkLogger
 from Common.BuildToolError import *
 from Common.BuildVersion import gBUILD_VERSION
 
-import StringTable as st
-import GenVpd
+from . import StringTable as st
+from . import GenVpd
 
 PROJECT_NAME       = st.LBL_BPDG_LONG_UNI
 VERSION            = (st.LBL_BPDG_VERSION + " Build " + gBUILD_VERSION)
@@ -152,7 +153,10 @@ def StartBpdg(InputFileName, MapFileName, VpdFileName, Force):
     EdkLogger.info("- Vpd pcd fixed done! -")
 
 if __name__ == '__main__':
-    r = main()
+    try:
+        r = main()
+    except FatalError as e:
+        r = e
     ## 0-127 is a safe return range, and 1 is a standard default error
     if r < 0 or r > 127: r = 1
     sys.exit(r)

@@ -15,11 +15,12 @@
 ##
 # Import Modules
 #
-from Ffs import Ffs
-import Section
+from __future__ import absolute_import
+from .Ffs import SectionSuffix
+from . import Section
 import subprocess
 import Common.LongFilePathOs as os
-from GenFdsGlobalVariable import GenFdsGlobalVariable
+from .GenFdsGlobalVariable import GenFdsGlobalVariable
 from CommonDataClass.FdfClass import CompressSectionClassObject
 from Common.DataType import *
 
@@ -85,7 +86,7 @@ class CompressSection (CompressSectionClassObject) :
                      ModuleName + \
                      SUP_MODULE_SEC      + \
                      SecNum     + \
-                     Ffs.SectionSuffix['COMPRESS']
+                     SectionSuffix['COMPRESS']
         OutputFile = os.path.normpath(OutputFile)
         DummyFile = OutputFile + '.dummy'
         GenFdsGlobalVariable.GenerateSection(DummyFile, SectFiles, InputAlign=SectAlign, IsMakefile=IsMakefile)

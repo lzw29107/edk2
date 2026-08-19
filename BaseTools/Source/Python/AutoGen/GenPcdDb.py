@@ -10,13 +10,14 @@
 # THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
 # WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #
+from __future__ import absolute_import
 from io import BytesIO
 from Common.Misc import *
 from Common.StringUtils import StringToArray
 from struct import pack
-from ValidCheckingInfoObject import VAR_CHECK_PCD_VARIABLE_TAB_CONTAINER
-from ValidCheckingInfoObject import VAR_CHECK_PCD_VARIABLE_TAB
-from ValidCheckingInfoObject import GetValidationObject
+from .ValidCheckingInfoObject import VAR_CHECK_PCD_VARIABLE_TAB_CONTAINER
+from .ValidCheckingInfoObject import VAR_CHECK_PCD_VARIABLE_TAB
+from .ValidCheckingInfoObject import GetValidationObject
 from Common.VariableAttributes import VariableAttributes
 import copy
 from struct import unpack
@@ -937,7 +938,7 @@ def NewCreatePcdDatabasePhaseSpecificAutoGen(Platform, Phase):
         new_pcd = copy.deepcopy(pcd)
         new_pcd.SkuInfoList = {skuname:pcd.SkuInfoList[skuname]}
         new_pcd.isinit = 'INIT'
-        if new_pcd.DatumType in TAB_PCD_CLEAN_NUMERIC_TYPES:
+        if new_pcd.DatumType in TAB_PCD_NUMERIC_TYPES:
             for skuobj in pcd.SkuInfoList.values():
                 if skuobj.DefaultValue:
                     defaultvalue = int(skuobj.DefaultValue, 16) if skuobj.DefaultValue.upper().startswith("0X") else int(skuobj.DefaultValue, 10)
@@ -1183,6 +1184,12 @@ def CreatePcdDatabasePhaseSpecificAutoGen (Platform, DynamicPcdList, Phase):
                 # and calculate the VariableHeadStringIndex
 
                 VariableNameStructure = StringToArray(Sku.VariableName)
+
+                #  Make pointer of VaraibleName(HII PCD) 2 bytes aligned
+                VariableNameStructureBytes = VariableNameStructure.lstrip("{").rstrip("}").split(",")
+                if len(VariableNameStructureBytes) % 2:
+                    VariableNameStructure = "{%s,0x00}" % ",".join(VariableNameStructureBytes)
+
                 if VariableNameStructure not in Dict['STRING_TABLE_VALUE']:
                     Dict['STRING_TABLE_CNAME'].append(CName)
                     Dict['STRING_TABLE_GUID'].append(TokenSpaceGuid)

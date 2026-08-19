@@ -10,14 +10,15 @@
 # THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
 # WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #
+from __future__ import absolute_import
 import Common.LongFilePathOs as os
 import re
 from CommonDataClass.DataClass import *
 import Common.DataType as DT
-from EccToolError import *
-from MetaDataParser import ParseHeaderCommentSection
-import EccGlobalData
-import c
+from Ecc.EccToolError import *
+from Ecc.MetaDataParser import ParseHeaderCommentSection
+from Ecc import EccGlobalData
+from Ecc import c
 from Common.LongFilePathSupport import OpenLongFilePath as open
 from Common.MultipleWorkspace import MultipleWorkspace as mws
 
@@ -187,6 +188,60 @@ class Check(object):
     def GeneralCheck(self):
         self.GeneralCheckNonAcsii()
         self.UniCheck()
+        self.GeneralCheckNoTab()
+        self.GeneralCheckLineEnding()
+        self.GeneralCheckTrailingWhiteSpaceLine()
+
+    # Check whether NO Tab is used, replaced with spaces
+    def GeneralCheckNoTab(self):
+        if EccGlobalData.gConfig.GeneralCheckNoTab == '1' or EccGlobalData.gConfig.GeneralCheckAll == '1' or EccGlobalData.gConfig.CheckAll == '1':
+            EdkLogger.quiet("Checking No TAB used in file ...")
+            SqlCommand = """select ID, FullPath, ExtName from File where ExtName in ('.dec', '.inf', '.dsc', 'c', 'h')"""
+            RecordSet = EccGlobalData.gDb.TblFile.Exec(SqlCommand)
+            for Record in RecordSet:
+                if Record[2].upper() not in EccGlobalData.gConfig.BinaryExtList:
+                    op = open(Record[1]).readlines()
+                    IndexOfLine = 0
+                    for Line in op:
+                        IndexOfLine += 1
+                        IndexOfChar = 0
+                        for Char in Line:
+                            IndexOfChar += 1
+                            if Char == '\t':
+                                OtherMsg = "File %s has TAB char at line %s column %s" % (Record[1], IndexOfLine, IndexOfChar)
+                                EccGlobalData.gDb.TblReport.Insert(ERROR_GENERAL_CHECK_NO_TAB, OtherMsg=OtherMsg, BelongsToTable='File', BelongsToItem=Record[0])
+
+    # Check Only use CRLF (Carriage Return Line Feed) line endings.
+    def GeneralCheckLineEnding(self):
+        if EccGlobalData.gConfig.GeneralCheckLineEnding == '1' or EccGlobalData.gConfig.GeneralCheckAll == '1' or EccGlobalData.gConfig.CheckAll == '1':
+            EdkLogger.quiet("Checking line ending in file ...")
+            SqlCommand = """select ID, FullPath, ExtName from File where ExtName in ('.dec', '.inf', '.dsc', 'c', 'h')"""
+            RecordSet = EccGlobalData.gDb.TblFile.Exec(SqlCommand)
+            for Record in RecordSet:
+                if Record[2].upper() not in EccGlobalData.gConfig.BinaryExtList:
+                    op = open(Record[1], 'rb').readlines()
+                    IndexOfLine = 0
+                    for Line in op:
+                        IndexOfLine += 1
+                        if not Line.endswith('\r\n'):
+                            OtherMsg = "File %s has invalid line ending at line %s" % (Record[1], IndexOfLine)
+                            EccGlobalData.gDb.TblReport.Insert(ERROR_GENERAL_CHECK_INVALID_LINE_ENDING, OtherMsg=OtherMsg, BelongsToTable='File', BelongsToItem=Record[0])
+
+    # Check if there is no trailing white space in one line.
+    def GeneralCheckTrailingWhiteSpaceLine(self):
+        if EccGlobalData.gConfig.GeneralCheckTrailingWhiteSpaceLine == '1' or EccGlobalData.gConfig.GeneralCheckAll == '1' or EccGlobalData.gConfig.CheckAll == '1':
+            EdkLogger.quiet("Checking trailing white space line in file ...")
+            SqlCommand = """select ID, FullPath, ExtName from File where ExtName in ('.dec', '.inf', '.dsc', 'c', 'h')"""
+            RecordSet = EccGlobalData.gDb.TblFile.Exec(SqlCommand)
+            for Record in RecordSet:
+                if Record[2].upper() not in EccGlobalData.gConfig.BinaryExtList:
+                    op = open(Record[1], 'rb').readlines()
+                    IndexOfLine = 0
+                    for Line in op:
+                        IndexOfLine += 1
+                        if Line.replace('\r', '').replace('\n', '').endswith(' '):
+                            OtherMsg = "File %s has trailing white spaces at line %s" % (Record[1], IndexOfLine)
+                            EccGlobalData.gDb.TblReport.Insert(ERROR_GENERAL_CHECK_TRAILING_WHITE_SPACE_LINE, OtherMsg=OtherMsg, BelongsToTable='File', BelongsToItem=Record[0])
 
     # Check whether file has non ACSII char
     def GeneralCheckNonAcsii(self):
@@ -215,6 +270,66 @@ class Check(object):
         self.FunctionLayoutCheckPrototype()
         self.FunctionLayoutCheckBody()
         self.FunctionLayoutCheckLocalVariable()
+        self.FunctionLayoutCheckDeprecated()
+    
+    # To check if the deprecated functions are used
+    def FunctionLayoutCheckDeprecated(self):
+        if EccGlobalData.gConfig.CFunctionLayoutCheckNoDeprecated == '1' or EccGlobalData.gConfig.CFunctionLayoutCheckAll == '1' or EccGlobalData.gConfig.CheckAll == '1':
+            EdkLogger.quiet("Checking function no deprecated one being used ...")
+
+            DeprecatedFunctionSet = ('UnicodeValueToString',
+                                     'AsciiValueToString',
+                                     'StrCpy',
+                                     'StrnCpy',
+                                     'StrCat',
+                                     'StrnCat',
+                                     'UnicodeStrToAsciiStr',
+                                     'AsciiStrCpy',
+                                     'AsciiStrnCpy',
+                                     'AsciiStrCat',
+                                     'AsciiStrnCat',
+                                     'AsciiStrToUnicodeStr',
+                                     'PcdSet8',
+                                     'PcdSet16',
+                                     'PcdSet32',
+                                     'PcdSet64',
+                                     'PcdSetPtr',
+                                     'PcdSetBool',
+                                     'PcdSetEx8',
+                                     'PcdSetEx16',
+                                     'PcdSetEx32',
+                                     'PcdSetEx64',
+                                     'PcdSetExPtr',
+                                     'PcdSetExBool',
+                                     'LibPcdSet8',
+                                     'LibPcdSet16',
+                                     'LibPcdSet32',
+                                     'LibPcdSet64',
+                                     'LibPcdSetPtr',
+                                     'LibPcdSetBool',
+                                     'LibPcdSetEx8',
+                                     'LibPcdSetEx16',
+                                     'LibPcdSetEx32',
+                                     'LibPcdSetEx64',
+                                     'LibPcdSetExPtr',
+                                     'LibPcdSetExBool',
+                                     'GetVariable',
+                                     'GetEfiGlobalVariable',
+                                     )
+
+            for IdentifierTable in EccGlobalData.gIdentifierTableList:
+                SqlCommand = """select ID, Name, BelongsToFile from %s
+                                where Model = %s """ % (IdentifierTable, MODEL_IDENTIFIER_FUNCTION_CALLING)
+                RecordSet = EccGlobalData.gDb.TblFile.Exec(SqlCommand)
+                for Record in RecordSet:
+                    for Key in DeprecatedFunctionSet:
+                        if Key == Record[1]:
+                            if not EccGlobalData.gException.IsException(ERROR_C_FUNCTION_LAYOUT_CHECK_NO_DEPRECATE, Key):
+                                OtherMsg = 'The function [%s] is deprecated which should NOT be used' % Key
+                                EccGlobalData.gDb.TblReport.Insert(ERROR_C_FUNCTION_LAYOUT_CHECK_NO_DEPRECATE,
+                                                                   OtherMsg=OtherMsg,
+                                                                   BelongsToTable=IdentifierTable,
+                                                                   BelongsToItem=Record[0])
 
     def WalkTree(self):
         IgnoredPattern = c.GetIgnoredDirListPattern()
@@ -531,13 +646,23 @@ class Check(object):
         if EccGlobalData.gConfig.IncludeFileCheckData == '1' or EccGlobalData.gConfig.IncludeFileCheckAll == '1' or EccGlobalData.gConfig.CheckAll == '1':
             EdkLogger.quiet("Checking header file data ...")
 
+            # Get all typedef functions
+            gAllTypedefFun = []
+            for IdentifierTable in EccGlobalData.gIdentifierTableList:
+                SqlCommand = """select Name from %s
+                                where Model = %s """ % (IdentifierTable, MODEL_IDENTIFIER_TYPEDEF)
+                RecordSet = EccGlobalData.gDb.TblFile.Exec(SqlCommand)
+                for Record in RecordSet:
+                    if Record[0].startswith('('):
+                        gAllTypedefFun.append(Record[0])
+
 #            for Dirpath, Dirnames, Filenames in self.WalkTree():
 #                for F in Filenames:
 #                    if os.path.splitext(F)[1] in ('.h'):
 #                        FullName = os.path.join(Dirpath, F)
 #                        MsgList = c.CheckHeaderFileData(FullName)
             for FullName in EccGlobalData.gHFileList:
-                MsgList = c.CheckHeaderFileData(FullName)
+                MsgList = c.CheckHeaderFileData(FullName, gAllTypedefFun)
 
     # Doxygen document checking
     def DoxygenCheck(self):
@@ -1319,7 +1444,7 @@ class Check(object):
             RecordSet = EccGlobalData.gDb.TblFile.Exec(SqlCommand)
             for Record in RecordSet:
                 Name = Record[1].replace('#ifndef', '').strip()
-                if Name[0] != '_' or Name[-1] != '_':
+                if Name[-1] != '_':
                     if not EccGlobalData.gException.IsException(ERROR_NAMING_CONVENTION_CHECK_IFNDEF_STATEMENT, Name):
                         EccGlobalData.gDb.TblReport.Insert(ERROR_NAMING_CONVENTION_CHECK_IFNDEF_STATEMENT, OtherMsg="The #ifndef name [%s] does not follow the rules" % (Name), BelongsToTable=FileTable, BelongsToItem=Record[0])
 

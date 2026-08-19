@@ -15,8 +15,8 @@
 ##
 # Import Modules
 #
-import Ffs
-from GenFdsGlobalVariable import GenFdsGlobalVariable
+from __future__ import absolute_import
+from .GenFdsGlobalVariable import GenFdsGlobalVariable
 from io import BytesIO
 from struct import pack
 import os

@@ -16,17 +16,18 @@
 ##
 # Import Modules
 #
-import Rule
+from __future__ import absolute_import
+from . import Rule
 import Common.LongFilePathOs as os
 from io import BytesIO
 from struct import *
-from GenFdsGlobalVariable import GenFdsGlobalVariable
-import Ffs
+from .GenFdsGlobalVariable import GenFdsGlobalVariable
+from .Ffs import SectionSuffix,FdfFvFileTypeToFileType
 import subprocess
 import sys
-import Section
-import RuleSimpleFile
-import RuleComplexFile
+from . import Section
+from . import RuleSimpleFile
+from . import RuleComplexFile
 from CommonDataClass.FdfClass import FfsInfStatementClassObject
 from Common.MultipleWorkspace import MultipleWorkspace as mws
 from Common.StringUtils import *
@@ -36,15 +37,15 @@ from Common.Misc import ProcessDuplicatedInf
 from Common.Misc import GetVariableOffset
 from Common import EdkLogger
 from Common.BuildToolError import *
-from GuidSection import GuidSection
-from FvImageSection import FvImageSection
+from .GuidSection import GuidSection
+from .FvImageSection import FvImageSection
 from Common.Misc import PeImageClass
 from AutoGen.GenDepex import DependencyExpression
 from PatchPcdValue.PatchPcdValue import PatchBinaryFile
 from Common.LongFilePathSupport import CopyLongFilePath
 from Common.LongFilePathSupport import OpenLongFilePath as open
 import Common.GlobalData as GlobalData
-from DepexSection import DepexSection
+from .DepexSection import DepexSection
 from Common.Misc import SaveFileOnChange
 from Common.Expression import *
 from Common.DataType import *
@@ -340,9 +341,7 @@ class FfsInfStatement(FfsInfStatementClassObject):
         self.InfModule = Inf
         self.PcdIsDriver = Inf.PcdIsDriver
         self.IsBinaryModule = Inf.IsBinaryModule
-        Inf._GetDepex()
-        Inf._GetDepexExpression()
-        if len(Inf._Depex.data) > 0 and len(Inf._DepexExpression.data) > 0:
+        if len(Inf.Depex.data) > 0 and len(Inf.DepexExpression.data) > 0:
             self.Depex = True
 
         GenFdsGlobalVariable.VerboseLogger("BaseName : %s" % self.BaseName)
@@ -761,7 +760,7 @@ class FfsInfStatement(FfsInfStatementClassObject):
 
                 SecNum = '%d' %Index
                 GenSecOutputFile= self.__ExtendMacro__(Rule.NameGuid) + \
-                              Ffs.Ffs.SectionSuffix[SectionType] + SUP_MODULE_SEC + SecNum
+                              SectionSuffix[SectionType] + SUP_MODULE_SEC + SecNum
                 Index = Index + 1
                 OutputFile = os.path.join(self.OutputPath, GenSecOutputFile)
                 File = GenFdsGlobalVariable.MacroExtend(File, Dict, self.CurrentArch)
@@ -804,7 +803,7 @@ class FfsInfStatement(FfsInfStatementClassObject):
         else:
             SecNum = '%d' %Index
             GenSecOutputFile= self.__ExtendMacro__(Rule.NameGuid) + \
-                              Ffs.Ffs.SectionSuffix[SectionType] + SUP_MODULE_SEC + SecNum
+                              SectionSuffix[SectionType] + SUP_MODULE_SEC + SecNum
             OutputFile = os.path.join(self.OutputPath, GenSecOutputFile)
             GenSecInputFile = GenFdsGlobalVariable.MacroExtend(GenSecInputFile, Dict, self.CurrentArch)
 
@@ -883,7 +882,7 @@ class FfsInfStatement(FfsInfStatementClassObject):
             self.ModuleGuid = RegistryGuidStr
 
             GenFdsGlobalVariable.GenerateFfs(FfsOutput, InputSection,
-                                             Ffs.Ffs.FdfFvFileTypeToFileType[Rule.FvFileType],
+                                             FdfFvFileTypeToFileType[Rule.FvFileType],
                                              self.ModuleGuid, Fixed=Rule.Fixed,
                                              CheckSum=Rule.CheckSum, Align=Rule.Alignment,
                                              SectionAlign=SectionAlignments,
@@ -1056,7 +1055,7 @@ class FfsInfStatement(FfsInfStatementClassObject):
 
         FfsOutput = os.path.join( self.OutputPath, self.ModuleGuid + '.ffs')
         GenFdsGlobalVariable.GenerateFfs(FfsOutput, InputFile,
-                                             Ffs.Ffs.FdfFvFileTypeToFileType[Rule.FvFileType],
+                                             FdfFvFileTypeToFileType[Rule.FvFileType],
                                              self.ModuleGuid, Fixed=Rule.Fixed,
                                              CheckSum=Rule.CheckSum, Align=Rule.Alignment,
                                              SectionAlign=Alignments,

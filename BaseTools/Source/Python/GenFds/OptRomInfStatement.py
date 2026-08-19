@@ -15,16 +15,16 @@
 ##
 # Import Modules
 #
-import RuleSimpleFile
-import RuleComplexFile
-import Section
-import OptionRom
+from __future__ import absolute_import
+from . import RuleSimpleFile
+from . import RuleComplexFile
+from . import Section
 import Common.GlobalData as GlobalData
 
 from Common.DataType import *
 from Common.StringUtils import *
-from FfsInfStatement import FfsInfStatement
-from GenFdsGlobalVariable import GenFdsGlobalVariable
+from .FfsInfStatement import FfsInfStatement
+from .GenFdsGlobalVariable import GenFdsGlobalVariable
 
 ##
 #
@@ -45,9 +45,8 @@ class OptRomInfStatement (FfsInfStatement):
     #   @param  self        The object pointer
     #
     def __GetOptRomParams(self):
-
         if self.OverrideAttribs is None:
-            self.OverrideAttribs = OptionRom.OverrideAttribs()
+            self.OverrideAttribs = OverrideAttribs()
 
         if self.OverrideAttribs.NeedCompress is None:
             self.OverrideAttribs.NeedCompress = self.OptRomDefs.get ('PCI_COMPRESS')
@@ -151,4 +150,16 @@ class OptRomInfStatement (FfsInfStatement):
 
         return OutputFileList
 
+class OverrideAttribs:
 
+    ## The constructor
+    #
+    #   @param  self        The object pointer
+    #
+    def __init__(self):
+
+        self.PciVendorId = None
+        self.PciClassCode = None
+        self.PciDeviceId = None
+        self.PciRevision = None
+        self.NeedCompress = None

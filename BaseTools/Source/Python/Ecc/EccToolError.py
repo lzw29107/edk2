@@ -1,7 +1,7 @@
 ## @file
 # Standardized Error Hanlding infrastructures.
 #
-# Copyright (c) 2008 - 2017, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2008 - 2018, Intel Corporation. All rights reserved.<BR>
 # This program and the accompanying materials
 # are licensed and made available under the terms and conditions of the BSD License
 # which accompanies this distribution.  The full text of the license may be found at
@@ -22,6 +22,8 @@ ERROR_GENERAL_CHECK_FILE_EXISTENCE = 1007
 ERROR_GENERAL_CHECK_NON_ACSII = 1008
 ERROR_GENERAL_CHECK_UNI = 1009
 ERROR_GENERAL_CHECK_UNI_HELP_INFO = 1010
+ERROR_GENERAL_CHECK_INVALID_LINE_ENDING = 1011
+ERROR_GENERAL_CHECK_TRAILING_WHITE_SPACE_LINE = 1012
 
 ERROR_SPACE_CHECK_ALL = 2000
 
@@ -45,6 +47,7 @@ ERROR_C_FUNCTION_LAYOUT_CHECK_NO_INIT_OF_VARIABLE = 5007
 ERROR_C_FUNCTION_LAYOUT_CHECK_NO_STATIC = 5008
 ERROR_C_FUNCTION_LAYOUT_CHECK_FUNCTION_PROTO_TYPE_2 = 5009
 ERROR_C_FUNCTION_LAYOUT_CHECK_FUNCTION_PROTO_TYPE_3 = 5010
+ERROR_C_FUNCTION_LAYOUT_CHECK_NO_DEPRECATE = 5011
 
 ERROR_INCLUDE_FILE_CHECK_ALL = 6000
 ERROR_INCLUDE_FILE_CHECK_IFNDEF_STATEMENT_1 = 6001
@@ -109,7 +112,7 @@ ERROR_SMM_COMM_PARA_CHECK_BUFFER_TYPE = 12001
 
 gEccErrorMessage = {
     ERROR_GENERAL_CHECK_ALL : "",
-    ERROR_GENERAL_CHECK_NO_TAB : "'TAB' character is not allowed in source code, please replace each 'TAB' with two spaces",
+    ERROR_GENERAL_CHECK_NO_TAB : "'TAB' character is not allowed in source code, please replace each 'TAB' with two spaces.",
     ERROR_GENERAL_CHECK_INDENTATION : "Indentation does not follow coding style",
     ERROR_GENERAL_CHECK_LINE : "The width of each line does not follow coding style",
     ERROR_GENERAL_CHECK_NO_ASM : "There should be no use of _asm in the source file",
@@ -119,6 +122,8 @@ gEccErrorMessage = {
     ERROR_GENERAL_CHECK_NON_ACSII : "File has invalid Non-ACSII char",
     ERROR_GENERAL_CHECK_UNI : "File is not a valid UTF-16 UNI file",
     ERROR_GENERAL_CHECK_UNI_HELP_INFO : "UNI file that is associated by INF or DEC file need define the prompt and help information.",
+    ERROR_GENERAL_CHECK_INVALID_LINE_ENDING : "Only CRLF (Carriage Return Line Feed) is allowed to line ending.",
+    ERROR_GENERAL_CHECK_TRAILING_WHITE_SPACE_LINE : "There should be no trailing white space in one line.",
 
     ERROR_SPACE_CHECK_ALL : "",
 
@@ -142,6 +147,7 @@ gEccErrorMessage = {
     ERROR_C_FUNCTION_LAYOUT_CHECK_DATA_DECLARATION : "The data declarations should be the first code in a module",
     ERROR_C_FUNCTION_LAYOUT_CHECK_NO_INIT_OF_VARIABLE : "There should be no initialization of a variable as part of its declaration",
     ERROR_C_FUNCTION_LAYOUT_CHECK_NO_STATIC : "There should be no use of STATIC for functions",
+    ERROR_C_FUNCTION_LAYOUT_CHECK_NO_DEPRECATE : "The deprecated function should NOT be used",
 
     ERROR_INCLUDE_FILE_CHECK_ALL : "",
     ERROR_INCLUDE_FILE_CHECK_IFNDEF_STATEMENT_1 : "All include file contents should be guarded by a #ifndef statement.",
@@ -163,7 +169,7 @@ gEccErrorMessage = {
     ERROR_NAMING_CONVENTION_CHECK_ALL : "",
     ERROR_NAMING_CONVENTION_CHECK_DEFINE_STATEMENT : "Only capital letters are allowed to be used for #define declarations",
     ERROR_NAMING_CONVENTION_CHECK_TYPEDEF_STATEMENT : "Only capital letters are allowed to be used for typedef declarations",
-    ERROR_NAMING_CONVENTION_CHECK_IFNDEF_STATEMENT : "The #ifndef at the start of an include file should use both prefix and postfix underscore characters, '_'",
+    ERROR_NAMING_CONVENTION_CHECK_IFNDEF_STATEMENT : "The #ifndef at the start of an include file should use a postfix underscore characters, '_'",
     ERROR_NAMING_CONVENTION_CHECK_PATH_NAME : """Path name does not follow the rules: 1. First character should be upper case 2. Must contain lower case characters 3. No white space characters""",
     ERROR_NAMING_CONVENTION_CHECK_VARIABLE_NAME : """Variable name does not follow the rules: 1. First character should be upper case 2. Must contain lower case characters 3. No white space characters 4. Global variable name must start with a 'g'""",
     ERROR_NAMING_CONVENTION_CHECK_FUNCTION_NAME : """Function name does not follow the rules: 1. First character should be upper case 2. Must contain lower case characters 3. No white space characters""",

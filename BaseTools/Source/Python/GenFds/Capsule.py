@@ -15,23 +15,19 @@
 ##
 # Import Modules
 #
-from GenFdsGlobalVariable import GenFdsGlobalVariable
+from __future__ import absolute_import
+from .GenFdsGlobalVariable import GenFdsGlobalVariable, FindExtendTool
 from CommonDataClass.FdfClass import CapsuleClassObject
 import Common.LongFilePathOs as os
-import subprocess
 from io import BytesIO
-from Common.Misc import SaveFileOnChange
-from GenFds import GenFds
-from Common.Misc import PackRegistryFormatGuid
+from Common.Misc import SaveFileOnChange, PackRegistryFormatGuid
 import uuid
 from struct import pack
-from GenFds import FindExtendTool
 from Common import EdkLogger
-from Common.BuildToolError import *
+from Common.BuildToolError import GENFDS_ERROR
+from Common.DataType import TAB_LINE_BREAK
 
-
-T_CHAR_LF = '\n'
-WIN_CERT_REVISION      = 0x0200
+WIN_CERT_REVISION = 0x0200
 WIN_CERT_TYPE_EFI_GUID = 0x0EF1
 EFI_CERT_TYPE_PKCS7_GUID = uuid.UUID('{4aafd29d-68df-49ee-8aa9-347d375665a7}')
 EFI_CERT_TYPE_RSA2048_SHA256_GUID = uuid.UUID('{a7717414-c616-4977-9420-844712a735bf}')
@@ -39,7 +35,7 @@ EFI_CERT_TYPE_RSA2048_SHA256_GUID = uuid.UUID('{a7717414-c616-4977-9420-844712a7
 ## create inf file describes what goes into capsule and call GenFv to generate capsule
 #
 #
-class Capsule (CapsuleClassObject) :
+class Capsule (CapsuleClassObject):
     ## The constructor
     #
     #   @param  self        The object pointer
@@ -201,8 +197,8 @@ class Capsule (CapsuleClassObject) :
     #   @retval string      Generated Capsule file path
     #
     def GenCapsule(self):
-        if self.UiCapsuleName.upper() + 'cap' in GenFds.ImageBinDict:
-            return GenFds.ImageBinDict[self.UiCapsuleName.upper() + 'cap']
+        if self.UiCapsuleName.upper() + 'cap' in GenFdsGlobalVariable.ImageBinDict:
+            return GenFdsGlobalVariable.ImageBinDict[self.UiCapsuleName.upper() + 'cap']
 
         GenFdsGlobalVariable.InfLogger( "\nGenerate %s Capsule" %self.UiCapsuleName)
         if ('CAPSULE_GUID' in self.TokensDict and
@@ -210,16 +206,16 @@ class Capsule (CapsuleClassObject) :
             return self.GenFmpCapsule()
 
         CapInfFile = self.GenCapInf()
-        CapInfFile.writelines("[files]" + T_CHAR_LF)
+        CapInfFile.writelines("[files]" + TAB_LINE_BREAK)
         CapFileList = []
-        for CapsuleDataObj in self.CapsuleDataList :
+        for CapsuleDataObj in self.CapsuleDataList:
             CapsuleDataObj.CapsuleName = self.CapsuleName
             FileName = CapsuleDataObj.GenCapsuleSubItem()
             CapsuleDataObj.CapsuleName = None
             CapFileList.append(FileName)
             CapInfFile.writelines("EFI_FILE_NAME = " + \
                                    FileName      + \
-                                   T_CHAR_LF)
+                                   TAB_LINE_BREAK)
         SaveFileOnChange(self.CapInfFileName, CapInfFile.getvalue(), False)
         CapInfFile.close()
         #
@@ -236,7 +232,7 @@ class Capsule (CapsuleClassObject) :
 
         GenFdsGlobalVariable.VerboseLogger( "\nGenerate %s Capsule Successfully" %self.UiCapsuleName)
         GenFdsGlobalVariable.SharpCounter = 0
-        GenFds.ImageBinDict[self.UiCapsuleName.upper() + 'cap'] = CapOutputFile
+        GenFdsGlobalVariable.ImageBinDict[self.UiCapsuleName.upper() + 'cap'] = CapOutputFile
         return CapOutputFile
 
     ## Generate inf file for capsule
@@ -249,13 +245,13 @@ class Capsule (CapsuleClassObject) :
                                    self.UiCapsuleName +  "_Cap" + '.inf')
         CapInfFile = BytesIO() #open (self.CapInfFileName , 'w+')
 
-        CapInfFile.writelines("[options]" + T_CHAR_LF)
+        CapInfFile.writelines("[options]" + TAB_LINE_BREAK)
 
         for Item in self.TokensDict:
             CapInfFile.writelines("EFI_"                    + \
                                   Item                      + \
                                   ' = '                     + \
                                   self.TokensDict[Item]     + \
-                                  T_CHAR_LF)
+                                  TAB_LINE_BREAK)
 
         return CapInfFile

@@ -2,20 +2,14 @@
   UEFI Application to display CPUID leaf information.
 
   Copyright (c) 2016 - 2019, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
 #include <Uefi.h>
 #include <Library/BaseLib.h>
 #include <Library/UefiLib.h>
-#include <Register/Cpuid.h>
+#include <Register/Intel/Cpuid.h>
 
 ///
 /// Macro used to display the value of a bit field in a register returned by CPUID.
@@ -713,6 +707,8 @@ CpuidArchitecturalPerformanceMonitoring (
 
 /**
   Display CPUID_EXTENDED_TOPOLOGY leafs for all supported levels.
+
+  @param[in] LeafFunction  Leaf function index for CPUID_EXTENDED_TOPOLOGY.
 
 **/
 VOID

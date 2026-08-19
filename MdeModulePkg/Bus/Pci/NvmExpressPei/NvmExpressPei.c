@@ -4,14 +4,7 @@
 
   Copyright (c) 2018 - 2019, Intel Corporation. All rights reserved.<BR>
 
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions
-  of the BSD License which accompanies this distribution.  The
-  full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -32,6 +25,12 @@ EFI_PEI_PPI_DESCRIPTOR  mNvmeBlkIo2PpiListTemplate = {
 EFI_PEI_PPI_DESCRIPTOR  mNvmeStorageSecurityPpiListTemplate = {
   (EFI_PEI_PPI_DESCRIPTOR_PPI | EFI_PEI_PPI_DESCRIPTOR_TERMINATE_LIST),
   &gEdkiiPeiStorageSecurityCommandPpiGuid,
+  NULL
+};
+
+EFI_PEI_PPI_DESCRIPTOR  mNvmePassThruPpiListTemplate = {
+  (EFI_PEI_PPI_DESCRIPTOR_PPI | EFI_PEI_PPI_DESCRIPTOR_TERMINATE_LIST),
+  &gEdkiiPeiNvmExpressPassThruPpiGuid,
   NULL
 };
 
@@ -377,6 +376,29 @@ NvmExpressPeimEntry (
       continue;
     }
 
+    //
+    // Nvm Express Pass Thru PPI
+    //
+    Private->PassThruMode.Attributes            = EFI_NVM_EXPRESS_PASS_THRU_ATTRIBUTES_PHYSICAL |
+                                                  EFI_NVM_EXPRESS_PASS_THRU_ATTRIBUTES_LOGICAL |
+                                                  EFI_NVM_EXPRESS_PASS_THRU_ATTRIBUTES_CMD_SET_NVM;
+    Private->PassThruMode.IoAlign               = sizeof (UINTN);
+    Private->PassThruMode.NvmeVersion           = EDKII_PEI_NVM_EXPRESS_PASS_THRU_PPI_REVISION;
+    Private->NvmePassThruPpi.Mode               = &Private->PassThruMode;
+    Private->NvmePassThruPpi.GetDevicePath      = NvmePassThruGetDevicePath;
+    Private->NvmePassThruPpi.GetNextNameSpace   = NvmePassThruGetNextNameSpace;
+    Private->NvmePassThruPpi.PassThru           = NvmePassThru;
+    CopyMem (
+      &Private->NvmePassThruPpiList,
+      &mNvmePassThruPpiListTemplate,
+      sizeof (EFI_PEI_PPI_DESCRIPTOR)
+      );
+    Private->NvmePassThruPpiList.Ppi            = &Private->NvmePassThruPpi;
+    PeiServicesInstallPpi (&Private->NvmePassThruPpiList);
+
+    //
+    // Block Io PPI
+    //
     Private->BlkIoPpi.GetNumberOfBlockDevices  = NvmeBlockIoPeimGetDeviceNo;
     Private->BlkIoPpi.GetBlockDeviceMediaInfo  = NvmeBlockIoPeimGetMediaInfo;
     Private->BlkIoPpi.ReadBlocks               = NvmeBlockIoPeimReadBlocks;

@@ -4,13 +4,7 @@ Agent Module to load other modules to deploy SMM Entry Vector for X86 CPU.
 Copyright (c) 2009 - 2019, Intel Corporation. All rights reserved.<BR>
 Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
 
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -40,6 +34,8 @@ SMM_CPU_PRIVATE_DATA  mSmmCpuPrivateData = {
     mSmmCpuPrivateData.SmmReservedSmramRegion,  // SmmConfiguration.SmramReservedRegions
     RegisterSmmEntry                            // SmmConfiguration.RegisterSmmEntry
   },
+  NULL,                                         // pointer to Ap Wrapper Func array
+  {NULL, NULL},                                 // List_Entry for Tokens.
 };
 
 CPU_HOT_PLUG_DATA mCpuHotPlugData = {
@@ -219,7 +215,7 @@ DumpModuleInfoByIp (
 
   @retval EFI_SUCCESS   The register was read from Save State
   @retval EFI_NOT_FOUND The register is not defined for the Save State of Processor
-  @retval EFI_INVALID_PARAMTER   This or Buffer is NULL.
+  @retval EFI_INVALID_PARAMETER   This or Buffer is NULL.
 
 **/
 EFI_STATUS
@@ -291,7 +287,7 @@ SmmReadSaveState (
 
   @retval EFI_SUCCESS   The register was written from Save State
   @retval EFI_NOT_FOUND The register is not defined for the Save State of Processor
-  @retval EFI_INVALID_PARAMTER   ProcessorIndex or Width is not correct
+  @retval EFI_INVALID_PARAMETER   ProcessorIndex or Width is not correct
 
 **/
 EFI_STATUS
@@ -1003,6 +999,22 @@ PiCpuSmmEntry (
   ASSERT_EFI_ERROR (Status);
 
   //
+  // Initialize global buffer for MM MP.
+  //
+  InitializeDataForMmMp ();
+
+  //
+  // Install the SMM Mp Protocol into SMM protocol database
+  //
+  Status = gSmst->SmmInstallProtocolInterface (
+                    &mSmmCpuHandle,
+                    &gEfiMmMpProtocolGuid,
+                    EFI_NATIVE_INTERFACE,
+                    &mSmmMp
+                    );
+  ASSERT_EFI_ERROR (Status);
+
+  //
   // Expose address of CPU Hot Plug Data structure if CPU hot plug is supported.
   //
   if (FeaturePcdGet (PcdCpuHotPlugSupport)) {
@@ -1419,15 +1431,17 @@ PerformRemainingTasks (
     //
     SetMemMapAttributes ();
 
-    //
-    // For outside SMRAM, we only map SMM communication buffer or MMIO.
-    //
-    SetUefiMemMapAttributes ();
+    if (IsRestrictedMemoryAccess ()) {
+      //
+      // For outside SMRAM, we only map SMM communication buffer or MMIO.
+      //
+      SetUefiMemMapAttributes ();
 
-    //
-    // Set page table itself to be read-only
-    //
-    SetPageTableAttributes ();
+      //
+      // Set page table itself to be read-only
+      //
+      SetPageTableAttributes ();
+    }
 
     //
     // Configure SMM Code Access Check feature if available.

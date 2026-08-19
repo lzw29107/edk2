@@ -2,14 +2,7 @@
 
   Copyright (c) 2019, Intel Corporation. All rights reserved.<BR>
 
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions
-  of the BSD License which accompanies this distribution.  The
-  full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -95,7 +88,7 @@ typedef struct _HDD_PASSWORD_DXE_PRIVATE_DATA {
 #define HDD_PASSWORD_DXE_PRIVATE_FROM_THIS(a)  CR (a, HDD_PASSWORD_DXE_PRIVATE_DATA, ConfigAccess, HDD_PASSWORD_DXE_PRIVATE_SIGNATURE)
 
 //
-//Iterate through the doule linked list. NOT delete safe
+//Iterate through the double linked list. NOT delete safe
 //
 #define EFI_LIST_FOR_EACH(Entry, ListHead)    \
   for (Entry = (ListHead)->ForwardLink; Entry != (ListHead); Entry = Entry->ForwardLink)

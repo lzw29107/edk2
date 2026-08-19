@@ -3,13 +3,7 @@
   methods that reset the whole system.
 
 Copyright (c) 2005 - 2019, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under
-the terms and conditions of the BSD License that accompanies this distribution.
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -58,17 +52,6 @@ ResetShutdown (
   );
 
 /**
-  This function causes the system to enter S3 and then wake up immediately.
-
-  If this function returns, it means that the system does not support S3 feature.
-**/
-VOID
-EFIAPI
-EnterS3WithImmediateWake (
-  VOID
-  );
-
-/**
   This function causes a systemwide reset. The exact type of the reset is
   defined by the EFI_GUID that follows the Null-terminated Unicode string passed
   into ResetData. If the platform does not recognize the EFI_GUID in ResetData
@@ -96,9 +79,7 @@ ResetPlatformSpecific (
                             the data buffer starts with a Null-terminated string, optionally
                             followed by additional binary data. The string is a description
                             that the caller may use to further indicate the reason for the
-                            system reset. ResetData is only valid if ResetStatus is something
-                            other than EFI_SUCCESS unless the ResetType is EfiResetPlatformSpecific
-                            where a minimum amount of ResetData is always required.
+                            system reset.
 **/
 VOID
 EFIAPI

@@ -251,7 +251,7 @@ ERR_ASBUILD_PCD_SECTION_TYPE = _("The AsBuilt INF file contains a PCD section ty
 ERR_ASBUILD_PATCHPCD_FORMAT_INVALID = _("The AsBuilt PatchPcd entry must contain 3 elements: PcdName|Value|Offset")
 ERR_ASBUILD_PCDEX_FORMAT_INVALID = _("The AsBuilt PcdEx entry must contain one element: PcdName")
 ERR_ASBUILD_PCD_VALUE_INVALID = \
-    _("The AsBuilt PCD value %s is incorrect or not align with it's datum type %s. "
+    _("The AsBuilt PCD value %s is incorrect or not align with its datum type %s. "
       "It must be corrected before continuing.")
 ERR_ASBUILD_PCD_TOKENSPACE_GUID_VALUE_MISS = _("Package file value could not be retrieved for %s.")
 ERR_ASBUILD_PCD_DECLARITION_MISS = _("PCD Declaration in DEC files could not be found for: %s.")
@@ -316,8 +316,9 @@ MSG_NEW_FILE_NAME_FOR_DIST      = _(
     "Provide new filename for distribution file to be saved:\n")
 MSG_UPDATE_PACKAGE_DATABASE    = _("Update Distribution Package Database ...")
 MSG_PYTHON_ON                  = _("(Python %s on %s) ")
+MSG_EDKII_MAIL_ADDR            = 'devel@edk2.groups.io'
 MSG_SEARCH_FOR_HELP            = _(
-    "\n(Please send email to edk2-devel@lists.01.org for\n"
+    "\n(Please send email to %s for\n"
     " help, attach the following call stack trace.)\n")
 MSG_REMOVE_TEMP_FILE_STARTED   = _("Removing temp files started ... ")
 MSG_REMOVE_TEMP_FILE_DONE   = _("Removing temp files ... Done.")

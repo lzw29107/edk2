@@ -4,13 +4,7 @@ Agent Module to load other modules to deploy SMM Entry Vector for X86 CPU.
 Copyright (c) 2009 - 2019, Intel Corporation. All rights reserved.<BR>
 Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
 
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -26,6 +20,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Protocol/SmmReadyToLock.h>
 #include <Protocol/SmmCpuService.h>
 #include <Protocol/SmmMemoryAttribute.h>
+#include <Protocol/MmMp.h>
 
 #include <Guid/AcpiS3Context.h>
 #include <Guid/MemoryAttributesTable.h>
@@ -58,8 +53,8 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <AcpiCpuData.h>
 #include <CpuHotPlugData.h>
 
-#include <Register/Cpuid.h>
-#include <Register/Msr.h>
+#include <Register/Intel/Cpuid.h>
+#include <Register/Intel/Msr.h>
 
 #include "CpuService.h"
 #include "SmmProfile.h"
@@ -204,6 +199,38 @@ typedef UINT32                              SMM_CPU_ARRIVAL_EXCEPTIONS;
 #define ARRIVAL_EXCEPTION_SMI_DISABLED      0x4
 
 //
+// Wrapper used to convert EFI_AP_PROCEDURE2 and EFI_AP_PROCEDURE.
+//
+typedef struct {
+  EFI_AP_PROCEDURE  Procedure;
+  VOID              *ProcedureArgument;
+} PROCEDURE_WRAPPER;
+
+#define PROCEDURE_TOKEN_SIGNATURE  SIGNATURE_32 ('P', 'R', 'T', 'S')
+
+typedef struct {
+  UINTN                   Signature;
+  LIST_ENTRY              Link;
+
+  SPIN_LOCK               *SpinLock;
+  volatile UINT32         RunningApCount;
+  BOOLEAN                 Used;
+} PROCEDURE_TOKEN;
+
+#define PROCEDURE_TOKEN_FROM_LINK(a)  CR (a, PROCEDURE_TOKEN, Link, PROCEDURE_TOKEN_SIGNATURE)
+
+#define TOKEN_BUFFER_SIGNATURE  SIGNATURE_32 ('T', 'K', 'B', 'S')
+
+typedef struct {
+  UINTN                   Signature;
+  LIST_ENTRY              Link;
+
+  UINT8                   *Buffer;
+} TOKEN_BUFFER;
+
+#define TOKEN_BUFFER_FROM_LINK(a)  CR (a, TOKEN_BUFFER, Link, TOKEN_BUFFER_SIGNATURE)
+
+//
 // Private structure for the SMM CPU module that is stored in DXE Runtime memory
 // Contains the SMM Configuration Protocols that is produced.
 // Contains a mix of DXE and SMM contents.  All the fields must be used properly.
@@ -225,6 +252,9 @@ typedef struct {
   EFI_SMM_ENTRY_POINT             SmmCoreEntry;
 
   EFI_SMM_CONFIGURATION_PROTOCOL  SmmConfiguration;
+
+  PROCEDURE_WRAPPER               *ApWrapperFunc;
+  LIST_ENTRY                      TokenList;
 } SMM_CPU_PRIVATE_DATA;
 
 extern SMM_CPU_PRIVATE_DATA  *gSmmCpuPrivate;
@@ -232,6 +262,7 @@ extern CPU_HOT_PLUG_DATA      mCpuHotPlugData;
 extern UINTN                  mMaxNumberOfCpus;
 extern UINTN                  mNumberOfCpus;
 extern EFI_SMM_CPU_PROTOCOL   mSmmCpu;
+extern EFI_MM_MP_PROTOCOL     mSmmMp;
 
 ///
 /// The mode of the CPU at the time an SMI occurs
@@ -253,7 +284,7 @@ extern UINT8  mSmmSaveStateRegisterLma;
 
   @retval EFI_SUCCESS   The register was read from Save State
   @retval EFI_NOT_FOUND The register is not defined for the Save State of Processor
-  @retval EFI_INVALID_PARAMTER   This or Buffer is NULL.
+  @retval EFI_INVALID_PARAMETER   This or Buffer is NULL.
 
 **/
 EFI_STATUS
@@ -277,7 +308,7 @@ SmmReadSaveState (
 
   @retval EFI_SUCCESS   The register was written from Save State
   @retval EFI_NOT_FOUND The register is not defined for the Save State of Processor
-  @retval EFI_INVALID_PARAMTER   ProcessorIndex or Width is not correct
+  @retval EFI_INVALID_PARAMETER   ProcessorIndex or Width is not correct
 
 **/
 EFI_STATUS
@@ -305,7 +336,7 @@ This function supports reading a CPU Save State register in SMBase relocation ha
 
 @retval EFI_SUCCESS           The register was read from Save State.
 @retval EFI_NOT_FOUND         The register is not defined for the Save State of Processor.
-@retval EFI_INVALID_PARAMTER  This or Buffer is NULL.
+@retval EFI_INVALID_PARAMETER  This or Buffer is NULL.
 
 **/
 EFI_STATUS
@@ -332,7 +363,7 @@ This function supports writing a CPU Save State register in SMBase relocation ha
 
 @retval EFI_SUCCESS           The register was written to Save State.
 @retval EFI_NOT_FOUND         The register is not defined for the Save State of Processor.
-@retval EFI_INVALID_PARAMTER  ProcessorIndex or Width is not correct.
+@retval EFI_INVALID_PARAMETER  ProcessorIndex or Width is not correct.
 
 **/
 EFI_STATUS
@@ -369,10 +400,12 @@ SmmRelocationSemaphoreComplete (
 ///
 typedef struct {
   SPIN_LOCK                         *Busy;
-  volatile EFI_AP_PROCEDURE         Procedure;
+  volatile EFI_AP_PROCEDURE2        Procedure;
   volatile VOID                     *Parameter;
   volatile UINT32                   *Run;
   volatile BOOLEAN                  *Present;
+  PROCEDURE_TOKEN                   *Token;
+  EFI_STATUS                        *Status;
 } SMM_CPU_DATA_BLOCK;
 
 typedef enum {
@@ -394,6 +427,8 @@ typedef struct {
   volatile SMM_CPU_SYNC_MODE    EffectiveSyncMode;
   volatile BOOLEAN              SwitchBsp;
   volatile BOOLEAN              *CandidateBsp;
+  EFI_AP_PROCEDURE              StartupProcedure;
+  VOID                          *StartupProcArgs;
 } SMM_DISPATCHER_MP_SYNC_DATA;
 
 #define SMM_PSD_OFFSET              0xfb00
@@ -416,6 +451,7 @@ typedef struct {
   SPIN_LOCK                         *Busy;
   volatile UINT32                   *Run;
   volatile BOOLEAN                  *Present;
+  SPIN_LOCK                         *Token;
 } SMM_CPU_SEMAPHORE_CPU;
 
 ///
@@ -1227,7 +1263,7 @@ EdkiiSmmGetMemoryAttributes (
 
 /**
   This function fixes up the address of the global variable or function
-  referred in SmmInit assembly files to be the absoute address.
+  referred in SmmInit assembly files to be the absolute address.
 **/
 VOID
 EFIAPI
@@ -1236,7 +1272,7 @@ PiSmmCpuSmmInitFixupAddress (
 
 /**
   This function fixes up the address of the global variable or function
-  referred in SmiEntry assembly files to be the absoute address.
+  referred in SmiEntry assembly files to be the absolute address.
 **/
 VOID
 EFIAPI
@@ -1263,6 +1299,178 @@ SaveCr2 (
 VOID
 RestoreCr2 (
   IN UINTN  Cr2
+  );
+
+/**
+  Schedule a procedure to run on the specified CPU.
+
+  @param[in]       Procedure                The address of the procedure to run
+  @param[in]       CpuIndex                 Target CPU Index
+  @param[in,out]   ProcArguments            The parameter to pass to the procedure
+  @param[in,out]   Token                    This is an optional parameter that allows the caller to execute the
+                                            procedure in a blocking or non-blocking fashion. If it is NULL the
+                                            call is blocking, and the call will not return until the AP has
+                                            completed the procedure. If the token is not NULL, the call will
+                                            return immediately. The caller can check whether the procedure has
+                                            completed with CheckOnProcedure or WaitForProcedure.
+  @param[in]       TimeoutInMicroseconds    Indicates the time limit in microseconds for the APs to finish
+                                            execution of Procedure, either for blocking or non-blocking mode.
+                                            Zero means infinity. If the timeout expires before all APs return
+                                            from Procedure, then Procedure on the failed APs is terminated. If
+                                            the timeout expires in blocking mode, the call returns EFI_TIMEOUT.
+                                            If the timeout expires in non-blocking mode, the timeout determined
+                                            can be through CheckOnProcedure or WaitForProcedure.
+                                            Note that timeout support is optional. Whether an implementation
+                                            supports this feature can be determined via the Attributes data
+                                            member.
+  @param[in,out]   CpuStatus                This optional pointer may be used to get the status code returned
+                                            by Procedure when it completes execution on the target AP, or with
+                                            EFI_TIMEOUT if the Procedure fails to complete within the optional
+                                            timeout. The implementation will update this variable with
+                                            EFI_NOT_READY prior to starting Procedure on the target AP.
+
+  @retval EFI_INVALID_PARAMETER    CpuNumber not valid
+  @retval EFI_INVALID_PARAMETER    CpuNumber specifying BSP
+  @retval EFI_INVALID_PARAMETER    The AP specified by CpuNumber did not enter SMM
+  @retval EFI_INVALID_PARAMETER    The AP specified by CpuNumber is busy
+  @retval EFI_SUCCESS              The procedure has been successfully scheduled
+
+**/
+EFI_STATUS
+InternalSmmStartupThisAp (
+  IN      EFI_AP_PROCEDURE2              Procedure,
+  IN      UINTN                          CpuIndex,
+  IN OUT  VOID                           *ProcArguments OPTIONAL,
+  IN OUT  MM_COMPLETION                  *Token,
+  IN      UINTN                          TimeoutInMicroseconds,
+  IN OUT  EFI_STATUS                     *CpuStatus
+  );
+
+/**
+  Checks whether the input token is the current used token.
+
+  @param[in]  Token      This parameter describes the token that was passed into DispatchProcedure or
+                         BroadcastProcedure.
+
+  @retval TRUE           The input token is the current used token.
+  @retval FALSE          The input token is not the current used token.
+**/
+BOOLEAN
+IsTokenInUse (
+  IN SPIN_LOCK           *Token
+  );
+
+/**
+  Checks status of specified AP.
+
+  This function checks whether the specified AP has finished the task assigned
+  by StartupThisAP(), and whether timeout expires.
+
+  @param[in]  Token             This parameter describes the token that was passed into DispatchProcedure or
+                                BroadcastProcedure.
+
+  @retval EFI_SUCCESS           Specified AP has finished task assigned by StartupThisAPs().
+  @retval EFI_NOT_READY         Specified AP has not finished task and timeout has not expired.
+**/
+EFI_STATUS
+IsApReady (
+  IN SPIN_LOCK  *Token
+  );
+
+/**
+  Check whether it is an present AP.
+
+  @param   CpuIndex      The AP index which calls this function.
+
+  @retval  TRUE           It's a present AP.
+  @retval  TRUE           This is not an AP or it is not present.
+
+**/
+BOOLEAN
+IsPresentAp (
+  IN UINTN        CpuIndex
+  );
+
+/**
+  Worker function to execute a caller provided function on all enabled APs.
+
+  @param[in]     Procedure               A pointer to the function to be run on
+                                         enabled APs of the system.
+  @param[in]     TimeoutInMicroseconds   Indicates the time limit in microseconds for
+                                         APs to return from Procedure, either for
+                                         blocking or non-blocking mode.
+  @param[in,out] ProcedureArguments      The parameter passed into Procedure for
+                                         all APs.
+  @param[in,out] Token                   This is an optional parameter that allows the caller to execute the
+                                         procedure in a blocking or non-blocking fashion. If it is NULL the
+                                         call is blocking, and the call will not return until the AP has
+                                         completed the procedure. If the token is not NULL, the call will
+                                         return immediately. The caller can check whether the procedure has
+                                         completed with CheckOnProcedure or WaitForProcedure.
+  @param[in,out] CPUStatus               This optional pointer may be used to get the status code returned
+                                         by Procedure when it completes execution on the target AP, or with
+                                         EFI_TIMEOUT if the Procedure fails to complete within the optional
+                                         timeout. The implementation will update this variable with
+                                         EFI_NOT_READY prior to starting Procedure on the target AP.
+
+  @retval EFI_SUCCESS             In blocking mode, all APs have finished before
+                                  the timeout expired.
+  @retval EFI_SUCCESS             In non-blocking mode, function has been dispatched
+                                  to all enabled APs.
+  @retval others                  Failed to Startup all APs.
+
+**/
+EFI_STATUS
+InternalSmmStartupAllAPs (
+  IN       EFI_AP_PROCEDURE2             Procedure,
+  IN       UINTN                         TimeoutInMicroseconds,
+  IN OUT   VOID                          *ProcedureArguments OPTIONAL,
+  IN OUT   MM_COMPLETION                 *Token,
+  IN OUT   EFI_STATUS                    *CPUStatus
+  );
+
+/**
+
+  Register the SMM Foundation entry point.
+
+  @param[in]      Procedure            A pointer to the code stream to be run on the designated target AP
+                                       of the system. Type EFI_AP_PROCEDURE is defined below in Volume 2
+                                       with the related definitions of
+                                       EFI_MP_SERVICES_PROTOCOL.StartupAllAPs.
+                                       If caller may pass a value of NULL to deregister any existing
+                                       startup procedure.
+  @param[in,out]  ProcedureArguments   Allows the caller to pass a list of parameters to the code that is
+                                       run by the AP. It is an optional common mailbox between APs and
+                                       the caller to share information
+
+  @retval EFI_SUCCESS                  The Procedure has been set successfully.
+  @retval EFI_INVALID_PARAMETER        The Procedure is NULL but ProcedureArguments not NULL.
+
+**/
+EFI_STATUS
+RegisterStartupProcedure (
+  IN     EFI_AP_PROCEDURE    Procedure,
+  IN OUT VOID                *ProcedureArguments OPTIONAL
+  );
+
+/**
+  Allocate buffer for SpinLock and Wrapper function buffer.
+
+**/
+VOID
+InitializeDataForMmMp (
+  VOID
+  );
+
+/**
+  Return whether access to non-SMRAM is restricted.
+
+  @retval TRUE  Access to non-SMRAM is restricted.
+  @retval FALSE Access to non-SMRAM is not restricted.
+**/
+BOOLEAN
+IsRestrictedMemoryAccess (
+  VOID
   );
 
 #endif

@@ -2,20 +2,13 @@
   UEFI Debug Library that sends messages to EFI_DEBUGPORT_PROTOCOL.Write.
 
   Copyright (c) 2015 - 2019, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
 #include <Uefi.h>
 
 #include <Library/DebugLib.h>
-#include <Library/UefiBootServicesTableLib.h>
 #include <Library/PrintLib.h>
 #include <Library/PcdLib.h>
 #include <Library/BaseLib.h>
@@ -43,6 +36,9 @@ EFI_DEBUGPORT_PROTOCOL *mDebugPort = NULL;
 //
 VA_LIST     mVaListNull;
 
+extern BOOLEAN                mPostEBS;
+extern EFI_BOOT_SERVICES     *mDebugBS;
+
 /**
   Send message to DebugPort Protocol.
 
@@ -62,31 +58,33 @@ UefiDebugLibDebugPortProtocolWrite (
   UINTN      Length;
   EFI_STATUS Status;
 
-  //
-  // If mDebugPort is NULL, initialize first.
-  //
-  if (mDebugPort == NULL) {
-      Status = gBS->LocateProtocol (&gEfiDebugPortProtocolGuid, NULL, (VOID **)&mDebugPort);
-      if (EFI_ERROR (Status)) {
-          return;
-      }
+  if (!mPostEBS) {
+    //
+    // If mDebugPort is NULL, initialize first.
+    //
+    if (mDebugPort == NULL) {
+        Status = mDebugBS->LocateProtocol (&gEfiDebugPortProtocolGuid, NULL, (VOID **)&mDebugPort);
+        if (EFI_ERROR (Status)) {
+            return;
+        }
 
-      mDebugPort->Reset (mDebugPort);
-  }
-
-  //
-  // EFI_DEBUGPORT_PROTOCOL.Write is called until all message is sent.
-  //
-  while (BufferLength > 0) {
-    Length = BufferLength;
-
-    Status = mDebugPort->Write (mDebugPort, WRITE_TIMEOUT, &Length, (VOID *) Buffer);
-    if (EFI_ERROR (Status) || BufferLength < Length) {
-      break;
+        mDebugPort->Reset (mDebugPort);
     }
 
-    Buffer += Length;
-    BufferLength -= Length;
+    //
+    // EFI_DEBUGPORT_PROTOCOL.Write is called until all message is sent.
+    //
+    while (BufferLength > 0) {
+      Length = BufferLength;
+
+      Status = mDebugPort->Write (mDebugPort, WRITE_TIMEOUT, &Length, (VOID *) Buffer);
+      if (EFI_ERROR (Status) || BufferLength < Length) {
+        break;
+      }
+
+      Buffer += Length;
+      BufferLength -= Length;
+    }
   }
 }
 
@@ -148,31 +146,33 @@ DebugPrintMarker (
 {
   CHAR8      Buffer[MAX_DEBUG_MESSAGE_LENGTH];
 
-  //
-  // If Format is NULL, then ASSERT().
-  //
-  ASSERT (Format != NULL);
+  if (!mPostEBS) {
+    //
+    // If Format is NULL, then ASSERT().
+    //
+    ASSERT (Format != NULL);
 
-  //
-  // Check driver debug mask value and global mask
-  //
-  if ((ErrorLevel & GetDebugPrintErrorLevel ()) == 0) {
-    return;
+    //
+    // Check driver debug mask value and global mask
+    //
+    if ((ErrorLevel & GetDebugPrintErrorLevel ()) == 0) {
+      return;
+    }
+
+    //
+    // Convert the DEBUG() message to an ASCII String
+    //
+    if (BaseListMarker == NULL) {
+      AsciiVSPrint (Buffer, sizeof (Buffer), Format, VaListMarker);
+    } else {
+      AsciiBSPrint (Buffer, sizeof (Buffer), Format, BaseListMarker);
+    }
+
+    //
+    // Send the print string to EFI_DEBUGPORT_PROTOCOL.Write.
+    //
+    UefiDebugLibDebugPortProtocolWrite (Buffer, AsciiStrLen (Buffer));
   }
-
-  //
-  // Convert the DEBUG() message to an ASCII String
-  //
-  if (BaseListMarker == NULL) {
-    AsciiVSPrint (Buffer, sizeof (Buffer), Format, VaListMarker);
-  } else {
-    AsciiBSPrint (Buffer, sizeof (Buffer), Format, BaseListMarker);
-  }
-
-  //
-  // Send the print string to EFI_DEBUGPORT_PROTOCOL.Write.
-  //
-  UefiDebugLibDebugPortProtocolWrite (Buffer, AsciiStrLen (Buffer));
 }
 
 
@@ -265,31 +265,33 @@ DebugAssert (
 {
   CHAR8  Buffer[MAX_DEBUG_MESSAGE_LENGTH];
 
-  //
-  // Generate the ASSERT() message in ASCII format
-  //
-  AsciiSPrint (
-    Buffer,
-    sizeof (Buffer),
-    "ASSERT [%a] %a(%d): %a\n",
-    gEfiCallerBaseName,
-    FileName,
-    LineNumber,
-    Description
-    );
+  if (!mPostEBS) {
+    //
+    // Generate the ASSERT() message in ASCII format
+    //
+    AsciiSPrint (
+      Buffer,
+      sizeof (Buffer),
+      "ASSERT [%a] %a(%d): %a\n",
+      gEfiCallerBaseName,
+      FileName,
+      LineNumber,
+      Description
+      );
 
-  //
-  // Send the print string to EFI_DEBUGPORT_PROTOCOL.Write.
-  //
-  UefiDebugLibDebugPortProtocolWrite (Buffer, AsciiStrLen (Buffer));
+    //
+    // Send the print string to EFI_DEBUGPORT_PROTOCOL.Write.
+    //
+    UefiDebugLibDebugPortProtocolWrite (Buffer, AsciiStrLen (Buffer));
 
-  //
-  // Generate a Breakpoint, DeadLoop, or NOP based on PCD settings
-  //
-  if ((PcdGet8(PcdDebugPropertyMask) & DEBUG_PROPERTY_ASSERT_BREAKPOINT_ENABLED) != 0) {
-    CpuBreakpoint ();
-  } else if ((PcdGet8(PcdDebugPropertyMask) & DEBUG_PROPERTY_ASSERT_DEADLOOP_ENABLED) != 0) {
-    CpuDeadLoop ();
+    //
+    // Generate a Breakpoint, DeadLoop, or NOP based on PCD settings
+    //
+    if ((PcdGet8(PcdDebugPropertyMask) & DEBUG_PROPERTY_ASSERT_BREAKPOINT_ENABLED) != 0) {
+      CpuBreakpoint ();
+    } else if ((PcdGet8(PcdDebugPropertyMask) & DEBUG_PROPERTY_ASSERT_DEADLOOP_ENABLED) != 0) {
+      CpuDeadLoop ();
+    }
   }
 }
 

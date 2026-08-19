@@ -7,3 +7,6 @@
 [submodule "BaseTools/Source/C/BrotliCompress/brotli"]
 	path = BaseTools/Source/C/BrotliCompress/brotli
 	url = https://github.com/google/brotli
+[submodule "SoftFloat"]
+	path = ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3
+	url = https://github.com/ucb-bar/berkeley-softfloat-3.git

@@ -3,13 +3,7 @@
 *
 *  Copyright (c) 2011-2014, ARM Limited. All rights reserved.
 *
-*  This program and the accompanying materials
-*  are licensed and made available under the terms and conditions of the BSD License
-*  which accompanies this distribution.  The full text of the license may be found at
-*  http://opensource.org/licenses/bsd-license.php
-*
-*  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-*  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+*  SPDX-License-Identifier: BSD-2-Clause-Patent
 *
 **/
 
@@ -44,7 +38,7 @@ CreatePpiList (
   PlatformPpiListSize = 0;
   ArmPlatformGetPlatformPpiList (&PlatformPpiListSize, &PlatformPpiList);
 
-  // Copy the Common and Platform PPis in Temporrary Memory
+  // Copy the Common and Platform PPis in Temporary Memory
   ListBase = PcdGet64 (PcdCPUCoresStackBase);
   CopyMem ((VOID*)ListBase, gCommonPpiTable, sizeof(gCommonPpiTable));
   CopyMem ((VOID*)(ListBase + sizeof(gCommonPpiTable)), PlatformPpiList, PlatformPpiListSize);
@@ -82,6 +76,11 @@ CEntryPoint (
   // 'Align=4K' is defined into your FDF for this module.
   ASSERT (((UINTN)PeiVectorTable & ARM_VECTOR_TABLE_ALIGNMENT) == 0);
   ArmWriteVBar ((UINTN)PeiVectorTable);
+
+  // Enable Floating Point
+  if (FixedPcdGet32 (PcdVFPEnabled)) {
+    ArmEnableVFP ();
+  }
 
   //Note: The MMU will be enabled by MemoryPeim. Only the primary core will have the MMU on.
 

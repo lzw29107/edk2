@@ -2,13 +2,7 @@
   Pei Core Main Entry Point
 
 Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -138,7 +132,7 @@ ShadowPeiCore (
   ASSERT_EFI_ERROR (Status);
 
   //
-  // Compute the PeiCore's function address after shaowed PeiCore.
+  // Compute the PeiCore's function address after shadowed PeiCore.
   // _ModuleEntryPoint is PeiCore main function entry
   //
   return (PEICORE_FUNCTION_POINTER)((UINTN) EntryPoint + (UINTN) PeiCore - (UINTN) _ModuleEntryPoint);
@@ -321,7 +315,7 @@ PeiCore (
       }
 
       //
-      // Shadow PEI Core. When permanent memory is avaiable, shadow
+      // Shadow PEI Core. When permanent memory is available, shadow
       // PEI Core and PEIMs to get high performance.
       //
       OldCoreData->ShadowedPeiCore = (PEICORE_FUNCTION_POINTER) (UINTN) PeiCore;

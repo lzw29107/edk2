@@ -70,7 +70,7 @@ gAutoGenPhase = False
 # The Conf dir outside the workspace dir
 #
 gConfDirectory = ''
-
+gCmdConfDir = ''
 gBuildDirectory = ''
 #
 # The relative default database file path
@@ -104,7 +104,20 @@ gUseHashCache = None
 gBinCacheDest = None
 gBinCacheSource = None
 gPlatformHash = None
-gPackageHash = {}
-gModuleHash = {}
-gEnableGenfdsMultiThread = False
+gPlatformHashFile = None
+gPackageHash = None
+gPackageHashFile = None
+gModuleHashFile = None
+gCMakeHashFile = None
+gHashChainStatus = None
+gModulePreMakeCacheStatus = None
+gModuleMakeCacheStatus = None
+gFileHashDict = None
+gModuleAllCacheStatus = None
+gModuleCacheHit = None
+
+gEnableGenfdsMultiThread = True
 gSikpAutoGenCache = set()
+# Common lock for the file access in multiple process AutoGens
+file_lock = None
+

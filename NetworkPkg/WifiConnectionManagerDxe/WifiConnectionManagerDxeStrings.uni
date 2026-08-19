@@ -2,13 +2,7 @@
 //   String definitions for WiFi Connection Manager Forms.
 //
 //   Copyright (c) 2019, Intel Corporation. All rights reserved.<BR>
-//   This program and the accompanying materials
-//   are licensed and made available under the terms and conditions of the BSD License
-//   which accompanies this distribution.  The full text of the license may be found at
-//   http://opensource.org/licenses/bsd-license.php
-//
-//   THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-//   WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+//   SPDX-License-Identifier: BSD-2-Clause-Patent
 //
 // **/
 
@@ -106,4 +100,4 @@
 #string STR_ADD_HIDDEN_NETWORK                #language en-US "Add Hidden Network"
 #string STR_HIDDEN_NETWORK_LIST               #language en-US "Hidden Network List"
 #string STR_REMOVE_HIDDEN_NETWORK_HELP        #language en-US ""
-#string STR_REMOVE_HIDDEN_NETWORK             #language en-US "Remove Hidden Network"
+#string STR_REMOVE_HIDDEN_NETWORK             #language en-US "Remove Hidden Network"

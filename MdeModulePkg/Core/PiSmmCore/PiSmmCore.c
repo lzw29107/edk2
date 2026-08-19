@@ -2,13 +2,7 @@
   SMM Core Main Entry Point
 
   Copyright (c) 2009 - 2019, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials are licensed and made available
-  under the terms and conditions of the BSD License which accompanies this
-  distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -379,7 +373,7 @@ SmmReadyToLockHandler (
              );
 
   //
-  // Make sure SMM CPU I/O 2 Procol has been installed into the handle database
+  // Make sure SMM CPU I/O 2 Protocol has been installed into the handle database
   //
   Status = SmmLocateProtocol (&gEfiSmmCpuIo2ProtocolGuid, NULL, &Interface);
 
@@ -592,7 +586,7 @@ SmmEndOfS3ResumeHandler (
   ASSERT_EFI_ERROR (Status);
 
   //
-  // Uninstall the protocol here because the comsumer just hook the
+  // Uninstall the protocol here because the consumer just hook the
   // installation event.
   //
   Status = SmmUninstallProtocolInterface (
@@ -679,7 +673,7 @@ SmmEntryPoint (
   SmmEntryPointMemoryManagementHook ();
 
   //
-  // If a legacy boot has occured, then make sure gSmmCorePrivate is not accessed
+  // If a legacy boot has occurred, then make sure gSmmCorePrivate is not accessed
   //
   InLegacyBoot = mInLegacyBoot;
   if (!InLegacyBoot) {
@@ -743,7 +737,7 @@ SmmEntryPoint (
   PlatformHookAfterSmmDispatch ();
 
   //
-  // If a legacy boot has occured, then make sure gSmmCorePrivate is not accessed
+  // If a legacy boot has occurred, then make sure gSmmCorePrivate is not accessed
   //
   if (!InLegacyBoot) {
     //
@@ -873,7 +867,7 @@ SmmMain (
   //
   // No need to initialize memory service.
   // It is done in constructor of PiSmmCoreMemoryAllocationLib(),
-  // so that the library linked with PiSmmCore can use AllocatePool() in constuctor.
+  // so that the library linked with PiSmmCore can use AllocatePool() in constructor.
   //
 
   SmramProfileInit ();

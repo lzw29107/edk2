@@ -2,13 +2,7 @@
 DnsDxe support functions implementation.
 
 Copyright (c) 2016 - 2018, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -20,7 +14,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
   @param[in] TokenMap          All DNSv4 Token entrys.
   @param[in] TokenEntry        TokenEntry need to be removed.
 
-  @retval EFI_SUCCESS          Remove TokenEntry from TokenMap sucessfully.
+  @retval EFI_SUCCESS          Remove TokenEntry from TokenMap successfully.
   @retval EFI_NOT_FOUND        TokenEntry is not found in TokenMap.
 
 **/
@@ -55,7 +49,7 @@ Dns4RemoveTokenEntry (
   @param[in] TokenMap           All DNSv6 Token entrys.
   @param[in] TokenEntry         TokenEntry need to be removed.
 
-  @retval EFI_SUCCESS           Remove TokenEntry from TokenMap sucessfully.
+  @retval EFI_SUCCESS           Remove TokenEntry from TokenMap successfully.
   @retval EFI_NOT_FOUND         TokenEntry is not found in TokenMap.
 
 **/
@@ -85,7 +79,7 @@ Dns6RemoveTokenEntry (
 }
 
 /**
-  This function cancle the token specified by Arg in the Map.
+  This function cancel the token specified by Arg in the Map.
 
   @param[in]  Map             Pointer to the NET_MAP.
   @param[in]  Item            Pointer to the NET_MAP_ITEM.
@@ -145,7 +139,7 @@ Dns4CancelTokens (
 }
 
 /**
-  This function cancle the token specified by Arg in the Map.
+  This function cancel the token specified by Arg in the Map.
 
   @param[in]  Map             Pointer to the NET_MAP.
   @param[in]  Item            Pointer to the NET_MAP_ITEM.
@@ -211,7 +205,7 @@ Dns6CancelTokens (
   @param[in]  Token               Pointer to the token to be get.
   @param[out] TokenEntry          Pointer to TokenEntry corresponding Token.
 
-  @retval EFI_SUCCESS             Get the TokenEntry from the TokensMap sucessfully.
+  @retval EFI_SUCCESS             Get the TokenEntry from the TokensMap successfully.
   @retval EFI_NOT_FOUND           TokenEntry is not found in TokenMap.
 
 **/
@@ -247,7 +241,7 @@ GetDns4TokenEntry (
   @param[in]  Token               Pointer to the token to be get.
   @param[out] TokenEntry          Pointer to TokenEntry corresponding Token.
 
-  @retval EFI_SUCCESS             Get the TokenEntry from the TokensMap sucessfully.
+  @retval EFI_SUCCESS             Get the TokenEntry from the TokensMap successfully.
   @retval EFI_NOT_FOUND           TokenEntry is not found in TokenMap.
 
 **/
@@ -536,7 +530,7 @@ DnsDummyExtFree (
   @param  UdpCfgData             The UDP configure data to reconfigure the UDP_IO
 
   @retval TRUE                   The default address is retrieved and UDP is reconfigured.
-  @retval FALSE                  Some error occured.
+  @retval FALSE                  Some error occurred.
 
 **/
 BOOLEAN
@@ -588,7 +582,7 @@ Dns4GetMapping (
   @param  UdpCfgData             The UDP configure data to reconfigure the UDP_IO
 
   @retval TRUE                   Configure the Udp6 instance successfully.
-  @retval FALSE                  Some error occured.
+  @retval FALSE                  Some error occurred.
 
 **/
 BOOLEAN
@@ -1185,7 +1179,7 @@ ParseDnsResponse (
   RemainingLength  = Length;
 
   //
-  // Check whether the remaining packet length is avaiable or not.
+  // Check whether the remaining packet length is available or not.
   //
   if (RemainingLength <= sizeof (DNS_HEADER)) {
     *Completed = FALSE;
@@ -1223,7 +1217,7 @@ ParseDnsResponse (
   QueryNameLen = (UINT32) AsciiStrLen (QueryName) + 1;
 
   //
-  // Check whether the remaining packet length is avaiable or not.
+  // Check whether the remaining packet length is available or not.
   //
   if (RemainingLength <= QueryNameLen + sizeof (DNS_QUERY_SECTION)) {
     *Completed = FALSE;
@@ -1382,7 +1376,7 @@ ParseDnsResponse (
   //
   while (AnswerSectionNum < DnsHeader->AnswersNum) {
     //
-    // Check whether the remaining packet length is avaiable or not.
+    // Check whether the remaining packet length is available or not.
     //
     if (RemainingLength <= sizeof (UINT16) + sizeof (DNS_ANSWER_SECTION)) {
       *Completed = FALSE;
@@ -1410,7 +1404,7 @@ ParseDnsResponse (
     AnswerSection->DataLength = NTOHS (AnswerSection->DataLength);
 
     //
-    // Check whether the remaining packet length is avaiable or not.
+    // Check whether the remaining packet length is available or not.
     //
     if (RemainingLength < AnswerSection->DataLength) {
       *Completed = FALSE;
@@ -2107,7 +2101,7 @@ DnsOnTimerRetransmit (
         }
 
         //
-        // Retransmit the packet if haven't reach the maxmium retry count,
+        // Retransmit the packet if haven't reach the maximum retry count,
         // otherwise exit the transfer.
         //
         if (++Dns4TokenEntry->RetryCounting <= Dns4TokenEntry->Token->RetryCount) {
@@ -2151,7 +2145,7 @@ DnsOnTimerRetransmit (
         }
 
         //
-        // Retransmit the packet if haven't reach the maxmium retry count,
+        // Retransmit the packet if haven't reach the maximum retry count,
         // otherwise exit the transfer.
         //
         if (++Dns6TokenEntry->RetryCounting <= Dns6TokenEntry->Token->RetryCount) {

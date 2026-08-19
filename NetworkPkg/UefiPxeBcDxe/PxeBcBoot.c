@@ -4,13 +4,7 @@
   Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
   (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
 
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -263,7 +257,7 @@ ON_EXIT:
 
   @retval EFI_ABORTED     User cancel operation.
   @retval EFI_SUCCESS     Select the boot menu success.
-  @retval EFI_NOT_READY   Read the input key from the keybroad has not finish.
+  @retval EFI_NOT_READY   Read the input key from the keyboard has not finish.
 
 **/
 EFI_STATUS
@@ -976,7 +970,7 @@ PxeBcDiscoverBootFile (
   @param[in, out] Private           Pointer to PxeBc private data.
   @param[out]     NewMakeCallback   If TRUE, it is a new callback.
                                     Otherwise, it is not new callback.
-  @retval EFI_SUCCESS          PxeBaseCodeCallbackProtocol installed succesfully.
+  @retval EFI_SUCCESS          PxeBaseCodeCallbackProtocol installed successfully.
   @retval Others               Failed to install PxeBaseCodeCallbackProtocol.
 
 **/

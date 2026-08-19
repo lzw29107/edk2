@@ -4,13 +4,7 @@
 
 Copyright (c) 2019 Intel Corporation. All rights reserved.<BR>
 
-This program and the accompanying materials are licensed and made available
-under the terms and conditions of the BSD License which accompanies this
-distribution. The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -54,7 +48,7 @@ PartitionCheckGptHeaderCRC (
   GptHdrCrc = PartHeader->Header.CRC32;
 
   //
-  // Set CRC field to zero when doing calcuation
+  // Set CRC field to zero when doing calculation
   //
   PartHeader->Header.CRC32 = 0;
 

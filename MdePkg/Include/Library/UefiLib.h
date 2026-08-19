@@ -14,13 +14,7 @@
 
 Copyright (c) 2019, NVIDIA Corporation. All rights reserved.
 Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under
-the terms and conditions of the BSD License that accompanies this distribution.
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -465,6 +459,24 @@ EfiTestChildHandle (
   IN CONST EFI_HANDLE       ControllerHandle,
   IN CONST EFI_HANDLE       ChildHandle,
   IN CONST EFI_GUID         *ProtocolGuid
+  );
+
+/**
+  This function checks the supported languages list for a target language,
+  This only supports RFC 4646 Languages.
+
+  @param  SupportedLanguages  The supported languages
+  @param  TargetLanguage      The target language
+
+  @retval Returns EFI_SUCCESS if the language is supported,
+          EFI_UNSUPPORTED otherwise
+
+**/
+EFI_STATUS
+EFIAPI
+IsLanguageSupported (
+  IN CONST CHAR8 *SupportedLanguages,
+  IN CONST CHAR8 *TargetLanguage
   );
 
 /**

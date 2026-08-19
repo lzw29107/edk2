@@ -4,14 +4,7 @@
 
   Copyright (c) 2019, Intel Corporation. All rights reserved.<BR>
 
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions
-  of the BSD License which accompanies this distribution.  The
-  full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -26,6 +19,7 @@
 #include <Ppi/IoMmu.h>
 #include <Ppi/EndOfPeiPhase.h>
 #include <Ppi/AtaPassThru.h>
+#include <Ppi/BlockIo.h>
 #include <Ppi/BlockIo2.h>
 #include <Ppi/StorageSecurityCommand.h>
 
@@ -42,6 +36,7 @@
 typedef struct _PEI_AHCI_CONTROLLER_PRIVATE_DATA  PEI_AHCI_CONTROLLER_PRIVATE_DATA;
 
 #include "AhciPeiPassThru.h"
+#include "AhciPeiBlockIo.h"
 #include "AhciPeiStorageSecurity.h"
 
 //
@@ -166,7 +161,7 @@ typedef struct {
   UINT8     AhciD2HRegisterFis[0x14];      // D2H Register Fis: offset 0x40
   UINT8     AhciD2HRegisterFisRsvd[0x04];
   UINT64    AhciSetDeviceBitsFis;          // Set Device Bits Fix: offset 0x58
-  UINT8     AhciUnknownFis[0x40];          // Unkonwn Fis: offset 0x60
+  UINT8     AhciUnknownFis[0x40];          // Unknown Fis: offset 0x60
   UINT8     AhciUnknownFisRsvd[0x60];
 } EFI_AHCI_RECEIVED_FIS;
 
@@ -244,7 +239,7 @@ typedef struct {
 } EFI_AHCI_COMMAND_PRDT;
 
 //
-// Command table Data strucute which is pointed to by the entry in the command list
+// Command table Data structure which is pointed to by the entry in the command list
 //
 typedef struct {
   EFI_AHCI_COMMAND_FIS      CommandFis;       // A software constructed FIS.
@@ -319,6 +314,8 @@ struct _PEI_AHCI_CONTROLLER_PRIVATE_DATA {
 
   EFI_ATA_PASS_THRU_MODE                AtaPassThruMode;
   EDKII_PEI_ATA_PASS_THRU_PPI           AtaPassThruPpi;
+  EFI_PEI_RECOVERY_BLOCK_IO_PPI         BlkIoPpi;
+  EFI_PEI_RECOVERY_BLOCK_IO2_PPI        BlkIo2Ppi;
   EDKII_PEI_STORAGE_SECURITY_CMD_PPI    StorageSecurityPpi;
   EFI_PEI_PPI_DESCRIPTOR                AtaPassThruPpiList;
   EFI_PEI_PPI_DESCRIPTOR                BlkIoPpiList;
@@ -558,6 +555,32 @@ AhciNonDataTransfer (
 EFI_STATUS
 AhciModeInitialization (
   IN OUT PEI_AHCI_CONTROLLER_PRIVATE_DATA    *Private
+  );
+
+/**
+  Transfer data from ATA device.
+
+  This function performs one ATA pass through transaction to transfer data from/to
+  ATA device. It chooses the appropriate ATA command and protocol to invoke PassThru
+  interface of ATA pass through.
+
+  @param[in]     DeviceData        A pointer to PEI_AHCI_ATA_DEVICE_DATA structure.
+  @param[in,out] Buffer            The pointer to the current transaction buffer.
+  @param[in]     StartLba          The starting logical block address to be accessed.
+  @param[in]     TransferLength    The block number or sector count of the transfer.
+  @param[in]     IsWrite           Indicates whether it is a write operation.
+
+  @retval EFI_SUCCESS    The data transfer is complete successfully.
+  @return others         Some error occurs when transferring data.
+
+**/
+EFI_STATUS
+TransferAtaDevice (
+  IN     PEI_AHCI_ATA_DEVICE_DATA    *DeviceData,
+  IN OUT VOID                        *Buffer,
+  IN     EFI_LBA                     StartLba,
+  IN     UINT32                      TransferLength,
+  IN     BOOLEAN                     IsWrite
   );
 
 /**

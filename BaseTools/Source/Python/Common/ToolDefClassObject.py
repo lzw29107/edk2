@@ -105,7 +105,7 @@ class ToolDefClassObject(object):
 
     ## IncludeToolDefFile
     #
-    # Load target.txt file and parse it as if it's contents were inside the main file
+    # Load target.txt file and parse it as if its contents were inside the main file
     #
     # @param Filename:  Input value for full path of tools_def.txt
     #
@@ -262,18 +262,40 @@ class ToolDefClassObject(object):
 #
 # @retval ToolDef An instance of ToolDefClassObject() with loaded tools_def.txt
 #
-def ToolDefDict(ConfDir):
-    Target = TargetTxtDict(ConfDir)
-    ToolDef = ToolDefClassObject()
-    if TAB_TAT_DEFINES_TOOL_CHAIN_CONF in Target.TargetTxtDictionary:
-        ToolsDefFile = Target.TargetTxtDictionary[TAB_TAT_DEFINES_TOOL_CHAIN_CONF]
-        if ToolsDefFile:
-            ToolDef.LoadToolDefFile(os.path.normpath(ToolsDefFile))
+
+
+class ToolDefDict():
+
+    def __new__(cls, ConfDir, *args, **kw):
+        if not hasattr(cls, '_instance'):
+            orig = super(ToolDefDict, cls)
+            cls._instance = orig.__new__(cls, *args, **kw)
+        return cls._instance
+
+    def __init__(self, ConfDir):
+        self.ConfDir = ConfDir
+        if not hasattr(self, 'ToolDef'):
+            self._ToolDef = None
+
+    @property
+    def ToolDef(self):
+        if not self._ToolDef:
+            self._GetToolDef()
+        return self._ToolDef
+
+    def _GetToolDef(self):
+        TargetObj = TargetTxtDict()
+        Target = TargetObj.Target
+        ToolDef = ToolDefClassObject()
+        if TAB_TAT_DEFINES_TOOL_CHAIN_CONF in Target.TargetTxtDictionary:
+            ToolsDefFile = Target.TargetTxtDictionary[TAB_TAT_DEFINES_TOOL_CHAIN_CONF]
+            if ToolsDefFile:
+                ToolDef.LoadToolDefFile(os.path.normpath(ToolsDefFile))
+            else:
+                ToolDef.LoadToolDefFile(os.path.normpath(os.path.join(self.ConfDir, gDefaultToolsDefFile)))
         else:
-            ToolDef.LoadToolDefFile(os.path.normpath(os.path.join(ConfDir, gDefaultToolsDefFile)))
-    else:
-        ToolDef.LoadToolDefFile(os.path.normpath(os.path.join(ConfDir, gDefaultToolsDefFile)))
-    return ToolDef
+            ToolDef.LoadToolDefFile(os.path.normpath(os.path.join(self.ConfDir, gDefaultToolsDefFile)))
+        self._ToolDef = ToolDef
 
 ##
 #

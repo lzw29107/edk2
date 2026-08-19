@@ -2,13 +2,7 @@
 ;  Provide FSP API entry points.
 ;
 ; Copyright (c) 2016 - 2019, Intel Corporation. All rights reserved.<BR>
-; This program and the accompanying materials
-; are licensed and made available under the terms and conditions of the BSD License
-; which accompanies this distribution.  The full text of the license may be found at
-; http://opensource.org/licenses/bsd-license.php.
-;
-; THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-; WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;;
 
     SECTION .text
@@ -200,9 +194,9 @@ StackSetupDone:
 
   ;
   ; Pass BFV into the PEI Core
-  ; It uses relative address to calucate the actual boot FV base
+  ; It uses relative address to calculate the actual boot FV base
   ; For FSP implementation with single FV, PcdFspBootFirmwareVolumeBase and
-  ; PcdFspAreaBaseAddress are the same. For FSP with mulitple FVs,
+  ; PcdFspAreaBaseAddress are the same. For FSP with multiple FVs,
   ; they are different. The code below can handle both cases.
   ;
   call    ASM_PFX(AsmGetFspBaseAddress)

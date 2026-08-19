@@ -2,13 +2,7 @@
   UEFI Debug Lib that sends messages to the Standard Error Device in the EFI System Table.
 
   Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -16,7 +10,6 @@
 #include <Uefi.h>
 
 #include <Library/DebugLib.h>
-#include <Library/UefiBootServicesTableLib.h>
 #include <Library/PrintLib.h>
 #include <Library/PcdLib.h>
 #include <Library/BaseLib.h>
@@ -35,6 +28,8 @@
 //
 VA_LIST     mVaListNull;
 
+extern BOOLEAN                mPostEBS;
+extern EFI_SYSTEM_TABLE       *mDebugST;
 
 /**
   Prints a debug message to the debug output device if the specified error level is enabled.
@@ -94,32 +89,34 @@ DebugPrintMarker (
 {
   CHAR16   Buffer[MAX_DEBUG_MESSAGE_LENGTH];
 
-  //
-  // If Format is NULL, then ASSERT().
-  //
-  ASSERT (Format != NULL);
+  if (!mPostEBS) {
+    //
+    // If Format is NULL, then ASSERT().
+    //
+    ASSERT (Format != NULL);
 
-  //
-  // Check driver debug mask value and global mask
-  //
-  if ((ErrorLevel & GetDebugPrintErrorLevel ()) == 0) {
-    return;
-  }
+    //
+    // Check driver debug mask value and global mask
+    //
+    if ((ErrorLevel & GetDebugPrintErrorLevel ()) == 0) {
+      return;
+    }
 
-  //
-  // Convert the DEBUG() message to a Unicode String
-  //
-  if (BaseListMarker == NULL) {
-    UnicodeVSPrintAsciiFormat (Buffer, MAX_DEBUG_MESSAGE_LENGTH, Format, VaListMarker);
-  } else {
-    UnicodeBSPrintAsciiFormat (Buffer, MAX_DEBUG_MESSAGE_LENGTH, Format, BaseListMarker);
-  }
+    //
+    // Convert the DEBUG() message to a Unicode String
+    //
+    if (BaseListMarker == NULL) {
+      UnicodeVSPrintAsciiFormat (Buffer, sizeof (Buffer), Format, VaListMarker);
+    } else {
+      UnicodeBSPrintAsciiFormat (Buffer, sizeof (Buffer), Format, BaseListMarker);
+    }
 
-  //
-  // Send the print string to the Standard Error device
-  //
-  if ((gST != NULL) && (gST->StdErr != NULL)) {
-    gST->StdErr->OutputString (gST->StdErr, Buffer);
+    //
+    // Send the print string to the Standard Error device
+    //
+    if ((mDebugST != NULL) && (mDebugST->StdErr != NULL)) {
+      mDebugST->StdErr->OutputString (mDebugST->StdErr, Buffer);
+    }
   }
 }
 
@@ -213,33 +210,35 @@ DebugAssert (
 {
   CHAR16  Buffer[MAX_DEBUG_MESSAGE_LENGTH];
 
-  //
-  // Generate the ASSERT() message in Unicode format
-  //
-  UnicodeSPrintAsciiFormat (
-    Buffer,
-    sizeof (Buffer),
-    "ASSERT [%a] %a(%d): %a\n",
-    gEfiCallerBaseName,
-    FileName,
-    LineNumber,
-    Description
-    );
+  if (!mPostEBS) {
+    //
+    // Generate the ASSERT() message in Unicode format
+    //
+    UnicodeSPrintAsciiFormat (
+      Buffer,
+      sizeof (Buffer),
+      "ASSERT [%a] %a(%d): %a\n",
+      gEfiCallerBaseName,
+      FileName,
+      LineNumber,
+      Description
+      );
 
-  //
-  // Send the print string to the Standard Error device
-  //
-  if ((gST != NULL) && (gST->StdErr != NULL)) {
-    gST->StdErr->OutputString (gST->StdErr, Buffer);
-  }
+    //
+    // Send the print string to the Standard Error device
+    //
+    if ((mDebugST != NULL) && (mDebugST->StdErr != NULL)) {
+      mDebugST->StdErr->OutputString (mDebugST->StdErr, Buffer);
+    }
 
-  //
-  // Generate a Breakpoint, DeadLoop, or NOP based on PCD settings
-  //
-  if ((PcdGet8(PcdDebugPropertyMask) & DEBUG_PROPERTY_ASSERT_BREAKPOINT_ENABLED) != 0) {
-    CpuBreakpoint ();
-  } else if ((PcdGet8(PcdDebugPropertyMask) & DEBUG_PROPERTY_ASSERT_DEADLOOP_ENABLED) != 0) {
-    CpuDeadLoop ();
+    //
+    // Generate a Breakpoint, DeadLoop, or NOP based on PCD settings
+    //
+    if ((PcdGet8(PcdDebugPropertyMask) & DEBUG_PROPERTY_ASSERT_BREAKPOINT_ENABLED) != 0) {
+      CpuBreakpoint ();
+    } else if ((PcdGet8(PcdDebugPropertyMask) & DEBUG_PROPERTY_ASSERT_DEADLOOP_ENABLED) != 0) {
+      CpuDeadLoop ();
+    }
   }
 }
 

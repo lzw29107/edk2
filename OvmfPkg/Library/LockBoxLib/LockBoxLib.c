@@ -5,13 +5,7 @@
   Copyright (C) 2013, Red Hat, Inc.
   Copyright (c) 2010 - 2019, Intel Corporation. All rights reserved.<BR>
 
-  This program and the accompanying materials are licensed and made available
-  under the terms and conditions of the BSD License which accompanies this
-  distribution. The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS, WITHOUT
-  WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -54,7 +48,7 @@ LockBoxLibInitialize (
   StartOfEntries = ((LOCK_BOX_ENTRY *) (mLockBoxGlobal + 1));
   NumEntries = ((PcdGet32 (PcdOvmfLockBoxStorageSize) - sizeof (LOCK_BOX_GLOBAL)) /
                 sizeof (LOCK_BOX_ENTRY));
-  EndOfEntries = StartOfEntries + NumEntries;    
+  EndOfEntries = StartOfEntries + NumEntries;
   if (mLockBoxGlobal->Signature != LOCK_BOX_GLOBAL_SIGNATURE) {
     //
     // Note: This code depends on the lock box being cleared in early

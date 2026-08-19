@@ -2,13 +2,7 @@
 
   Copyright (c) 2017 - 2019, ARM Limited. All rights reserved.
 
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Glossary:
     - Cm or CM   - Configuration Manager
@@ -27,33 +21,41 @@
     in the ARM Namespace
 */
 typedef enum ArmObjectID {
-  EArmObjReserved,                    ///<  0 - Reserved
-  EArmObjBootArchInfo,                ///<  1 - Boot Architecture Info
-  EArmObjCpuInfo,                     ///<  2 - CPU Info
-  EArmObjPowerManagementProfileInfo,  ///<  3 - Power Management Profile Info
-  EArmObjGicCInfo,                    ///<  4 - GIC CPU Interface Info
-  EArmObjGicDInfo,                    ///<  5 - GIC Distributor Info
-  EArmObjGicMsiFrameInfo,             ///<  6 - GIC MSI Frame Info
-  EArmObjGicRedistributorInfo,        ///<  7 - GIC Redistributor Info
-  EArmObjGicItsInfo,                  ///<  8 - GIC ITS Info
-  EArmObjSerialConsolePortInfo,       ///<  9 - Serial Console Port Info
-  EArmObjSerialDebugPortInfo,         ///< 10 - Serial Debug Port Info
-  EArmObjGenericTimerInfo,            ///< 11 - Generic Timer Info
-  EArmObjPlatformGTBlockInfo,         ///< 12 - Platform GT Block Info
-  EArmObjGTBlockTimerFrameInfo,       ///< 13 - Generic Timer Block Frame Info
-  EArmObjPlatformGenericWatchdogInfo, ///< 14 - Platform Generic Watchdog
-  EArmObjPciConfigSpaceInfo,          ///< 15 - PCI Configuration Space Info
-  EArmObjHypervisorVendorIdentity,    ///< 16 - Hypervisor Vendor Id
-  EArmObjFixedFeatureFlags,           ///< 17 - Fixed feature flags for FADT
-  EArmObjItsGroup,                    ///< 18 - ITS Group
-  EArmObjNamedComponent,              ///< 19 - Named Component
-  EArmObjRootComplex,                 ///< 20 - Root Complex
-  EArmObjSmmuV1SmmuV2,                ///< 21 - SMMUv1 or SMMUv2
-  EArmObjSmmuV3,                      ///< 22 - SMMUv3
-  EArmObjPmcg,                        ///< 23 - PMCG
-  EArmObjGicItsIdentifierArray,       ///< 24 - GIC ITS Identifier Array
-  EArmObjIdMappingArray,              ///< 25 - ID Mapping Array
-  EArmObjSmmuInterruptArray,          ///< 26 - SMMU Interrupt Array
+  EArmObjReserved,                     ///<  0 - Reserved
+  EArmObjBootArchInfo,                 ///<  1 - Boot Architecture Info
+  EArmObjCpuInfo,                      ///<  2 - CPU Info
+  EArmObjPowerManagementProfileInfo,   ///<  3 - Power Management Profile Info
+  EArmObjGicCInfo,                     ///<  4 - GIC CPU Interface Info
+  EArmObjGicDInfo,                     ///<  5 - GIC Distributor Info
+  EArmObjGicMsiFrameInfo,              ///<  6 - GIC MSI Frame Info
+  EArmObjGicRedistributorInfo,         ///<  7 - GIC Redistributor Info
+  EArmObjGicItsInfo,                   ///<  8 - GIC ITS Info
+  EArmObjSerialConsolePortInfo,        ///<  9 - Serial Console Port Info
+  EArmObjSerialDebugPortInfo,          ///< 10 - Serial Debug Port Info
+  EArmObjGenericTimerInfo,             ///< 11 - Generic Timer Info
+  EArmObjPlatformGTBlockInfo,          ///< 12 - Platform GT Block Info
+  EArmObjGTBlockTimerFrameInfo,        ///< 13 - Generic Timer Block Frame Info
+  EArmObjPlatformGenericWatchdogInfo,  ///< 14 - Platform Generic Watchdog
+  EArmObjPciConfigSpaceInfo,           ///< 15 - PCI Configuration Space Info
+  EArmObjHypervisorVendorIdentity,     ///< 16 - Hypervisor Vendor Id
+  EArmObjFixedFeatureFlags,            ///< 17 - Fixed feature flags for FADT
+  EArmObjItsGroup,                     ///< 18 - ITS Group
+  EArmObjNamedComponent,               ///< 19 - Named Component
+  EArmObjRootComplex,                  ///< 20 - Root Complex
+  EArmObjSmmuV1SmmuV2,                 ///< 21 - SMMUv1 or SMMUv2
+  EArmObjSmmuV3,                       ///< 22 - SMMUv3
+  EArmObjPmcg,                         ///< 23 - PMCG
+  EArmObjGicItsIdentifierArray,        ///< 24 - GIC ITS Identifier Array
+  EArmObjIdMappingArray,               ///< 25 - ID Mapping Array
+  EArmObjSmmuInterruptArray,           ///< 26 - SMMU Interrupt Array
+  EArmObjProcHierarchyInfo,            ///< 27 - Processor Hierarchy Info
+  EArmObjCacheInfo,                    ///< 28 - Cache Info
+  EArmObjProcNodeIdInfo,               ///< 29 - Processor Node ID Info
+  EArmObjCmRef,                        ///< 30 - CM Object Reference
+  EArmObjMemoryAffinityInfo,           ///< 31 - Memory Affinity Info
+  EArmObjDeviceHandleAcpi,             ///< 32 - Device Handle Acpi
+  EArmObjDeviceHandlePci,              ///< 33 - Device Handle Pci
+  EArmObjGenericInitiatorAffinityInfo, ///< 34 - Generic Initiator Affinity
   EArmObjMax
 } EARM_OBJECT_ID;
 
@@ -161,6 +163,30 @@ typedef struct CmArmGicCInfo {
       ACPI Specification.
   */
   UINT8   ProcessorPowerEfficiencyClass;
+
+  /** Statistical Profiling Extension buffer overflow GSIV. Zero if
+      unsupported by this processor. This field was introduced in
+      ACPI 6.3 (MADT revision 5) and is therefore ignored when
+      generating MADT revision 4 or lower.
+  */
+  UINT16  SpeOverflowInterrupt;
+
+  /** The proximity domain to which the logical processor belongs.
+      This field is used to populate the GICC affinity structure
+      in the SRAT table.
+  */
+  UINT32  ProximityDomain;
+
+  /** The clock domain to which the logical processor belongs.
+      This field is used to populate the GICC affinity structure
+      in the SRAT table.
+  */
+  UINT32  ClockDomain;
+
+  /** The GICC Affinity flags field as described by the GICC Affinity structure
+      in the SRAT table.
+  */
+  UINT32  AffinityFlags;
 } CM_ARM_GICC_INFO;
 
 /** A structure that describes the
@@ -236,6 +262,12 @@ typedef struct CmArmGicItsInfo {
 
   /// The physical address for the Interrupt Translation Service
   UINT64  PhysicalBaseAddress;
+
+  /** The proximity domain to which the logical processor belongs.
+      This field is used to populate the GIC ITS affinity structure
+      in the SRAT table.
+  */
+  UINT32  ProximityDomain;
 } CM_ARM_GIC_ITS_INFO;
 
 /** A structure that describes the
@@ -296,6 +328,12 @@ typedef struct CmArmGenericTimerInfo {
 
   /// The non-secure PL2 timer flags
   UINT32  NonSecurePL2TimerFlags;
+
+  /// GSIV for the virtual EL2 timer
+  UINT32  VirtualPL2TimerGSIV;
+
+  /// Flags for the virtual EL2 timer
+  UINT32  VirtualPL2TimerFlags;
 } CM_ARM_GENERIC_TIMER_INFO;
 
 /** A structure that describes the
@@ -626,6 +664,165 @@ typedef struct CmArmSmmuInterrupt {
   /// Flags
   UINT32    Flags;
 } CM_ARM_SMMU_INTERRUPT;
+
+/** A structure that describes the Processor Hierarchy Node (Type 0) in PPTT
+
+    ID: EArmObjProcHierarchyInfo
+*/
+typedef struct CmArmProcHierarchyInfo {
+  /// A unique token used to identify this object
+  CM_OBJECT_TOKEN   Token;
+  /// Processor structure flags (ACPI 6.3 - January 2019, PPTT, Table 5-155)
+  UINT32            Flags;
+  /// Token for the parent CM_ARM_PROC_HIERARCHY_INFO object in the processor
+  /// topology. A value of CM_NULL_TOKEN means this node has no parent.
+  CM_OBJECT_TOKEN   ParentToken;
+  /// Token of the associated CM_ARM_GICC_INFO object which has the
+  /// corresponding ACPI Processor ID. A value of CM_NULL_TOKEN means this
+  /// node represents a group of associated processors and it does not have an
+  /// associated GIC CPU interface.
+  CM_OBJECT_TOKEN   GicCToken;
+  /// Number of resources private to this Node
+  UINT32            NoOfPrivateResources;
+  /// Token of the array which contains references to the resources private to
+  /// this CM_ARM_PROC_HIERARCHY_INFO instance. This field is ignored if
+  /// the NoOfPrivateResources is 0, in which case it is recomended to set
+  /// this field to CM_NULL_TOKEN.
+  CM_OBJECT_TOKEN   PrivateResourcesArrayToken;
+} CM_ARM_PROC_HIERARCHY_INFO;
+
+/** A structure that describes the Cache Type Structure (Type 1) in PPTT
+
+    ID: EArmObjCacheInfo
+*/
+typedef struct CmArmCacheInfo {
+  /// A unique token used to identify this object
+  CM_OBJECT_TOKEN   Token;
+  /// Reference token for the next level of cache that is private to the same
+  /// CM_ARM_PROC_HIERARCHY_INFO instance. A value of CM_NULL_TOKEN means this
+  /// entry represents the last cache level appropriate to the processor
+  /// hierarchy node structures using this entry.
+  CM_OBJECT_TOKEN   NextLevelOfCacheToken;
+  /// Size of the cache in bytes
+  UINT32            Size;
+  /// Number of sets in the cache
+  UINT32            NumberOfSets;
+  /// Integer number of ways. The maximum associativity supported by
+  /// ACPI Cache type structure is limited to MAX_UINT8. However,
+  /// the maximum number of ways supported by the architecture is
+  /// PPTT_ARM_CCIDX_CACHE_ASSOCIATIVITY_MAX. Therfore this field
+  /// is 32-bit wide.
+  UINT32            Associativity;
+  /// Cache attributes (ACPI 6.3 - January 2019, PPTT, Table 5-156)
+  UINT8             Attributes;
+  /// Line size in bytes
+  UINT16            LineSize;
+} CM_ARM_CACHE_INFO;
+
+/** A structure that describes the ID Structure (Type 2) in PPTT
+
+    ID: EArmObjProcNodeIdInfo
+*/
+typedef struct CmArmProcNodeIdInfo {
+  /// A unique token used to identify this object
+  CM_OBJECT_TOKEN   Token;
+  // Vendor ID (as described in ACPI ID registry)
+  UINT32            VendorId;
+  /// First level unique node ID
+  UINT64            Level1Id;
+  /// Second level unique node ID
+  UINT64            Level2Id;
+  /// Major revision of the node
+  UINT16            MajorRev;
+  /// Minor revision of the node
+  UINT16            MinorRev;
+  /// Spin revision of the node
+  UINT16            SpinRev;
+} CM_ARM_PROC_NODE_ID_INFO;
+
+/** A structure that describes a reference to another Configuration Manager
+    object.
+
+    This is useful for creating an array of reference tokens. The framework
+    can then query the configuration manager for these arrays using the
+    object ID EArmObjCmRef.
+
+    This can be used is to represent one-to-many relationships between objects.
+
+    ID: EArmObjCmRef
+*/
+typedef struct CmArmObjRef {
+  /// Token of the CM object being referenced
+  CM_OBJECT_TOKEN   ReferenceToken;
+} CM_ARM_OBJ_REF;
+
+/** A structure that describes the Memory Affinity Structure (Type 1) in SRAT
+
+    ID: EArmObjMemoryAffinityInfo
+*/
+typedef struct CmArmMemoryAffinityInfo {
+  /// The proximity domain to which the "range of memory" belongs.
+  UINT32            ProximityDomain;
+
+  /// Base Address
+  UINT64            BaseAddress;
+
+  /// Length
+  UINT64            Length;
+
+  /// Flags
+  UINT32            Flags;
+} CM_ARM_MEMORY_AFFINITY_INFO;
+
+/** A structure that describes the ACPI Device Handle (Type 0) in the
+    Generic Initiator Affinity structure in SRAT
+
+    ID: EArmObjDeviceHandleAcpi
+*/
+typedef struct CmArmDeviceHandleAcpi {
+  /// Hardware ID
+  UINT64  Hid;
+
+  /// Unique Id
+  UINT32  Uid;
+} CM_ARM_DEVICE_HANDLE_ACPI;
+
+/** A structure that describes the PCI Device Handle (Type 1) in the
+    Generic Initiator Affinity structure in SRAT
+
+    ID: EArmObjDeviceHandlePci
+*/
+typedef struct CmArmDeviceHandlePci {
+  /// PCI Segment Number
+  UINT16  SegmentNumber;
+
+  /// PCI Bus Number - Max 256 busses (Bits 15:8 of BDF)
+  UINT8  BusNumber;
+
+  /// PCI Device Mumber - Max 32 devices (Bits 7:3 of BDF)
+  UINT8   DeviceNumber;
+
+  /// PCI Function Number - Max 8 functions (Bits 2:0 of BDF)
+  UINT8   FunctionNumber;
+} CM_ARM_DEVICE_HANDLE_PCI;
+
+/** A structure that describes the Generic Initiator Affinity structure in SRAT
+
+    ID: EArmObjGenericInitiatorAffinityInfo
+*/
+typedef struct CmArmGenericInitiatorAffinityInfo {
+  /// The proximity domain to which the generic initiator belongs.
+  UINT32            ProximityDomain;
+
+  /// Flags
+  UINT32            Flags;
+
+  /// Device Handle Type
+  UINT8             DeviceHandleType;
+
+  /// Reference Token for the Device Handle
+  CM_OBJECT_TOKEN   DeviceHandleToken;
+} CM_ARM_GENERIC_INITIATOR_AFFINITY_INFO;
 
 #pragma pack()
 

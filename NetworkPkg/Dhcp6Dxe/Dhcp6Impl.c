@@ -3,13 +3,7 @@
 
   Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
 
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -102,7 +96,7 @@ EfiDhcp6Start (
   OldTpl           = gBS->RaiseTPL (TPL_CALLBACK);
 
   //
-  // Check Media Satus.
+  // Check Media Status.
   //
   MediaStatus = EFI_SUCCESS;
   NetLibDetectMediaWaitTimeout (Service->Controller, DHCP_CHECK_MEDIA_WAITING_TIME, &MediaStatus);
@@ -226,7 +220,7 @@ EfiDhcp6Stop (
   }
 
   //
-  // Poll udp out of the net tpl if synchoronus call.
+  // Poll udp out of the net tpl if synchronous call.
   //
   if (Instance->Config->IaInfoEvent == NULL) {
     ASSERT (Udp6 != NULL);
@@ -700,7 +694,7 @@ EfiDhcp6InfoRequest (
   }
 
   //
-  // Poll udp out of the net tpl if synchoronus call.
+  // Poll udp out of the net tpl if synchronous call.
   //
   if (TimeoutEvent == NULL) {
 
@@ -829,7 +823,7 @@ EfiDhcp6RenewRebind (
   gBS->RestoreTPL (OldTpl);
 
   //
-  // Poll udp out of the net tpl if synchoronus call.
+  // Poll udp out of the net tpl if synchronous call.
   //
   if (Instance->Config->IaInfoEvent == NULL) {
 
@@ -964,7 +958,7 @@ EfiDhcp6Decline (
   gBS->RestoreTPL (OldTpl);
 
   //
-  // Poll udp out of the net tpl if synchoronus call.
+  // Poll udp out of the net tpl if synchronous call.
   //
   if (Instance->Config->IaInfoEvent == NULL) {
 
@@ -1105,7 +1099,7 @@ EfiDhcp6Release (
   gBS->RestoreTPL (OldTpl);
 
   //
-  // Poll udp out of the net tpl if synchoronus call.
+  // Poll udp out of the net tpl if synchronous call.
   //
   if (Instance->Config->IaInfoEvent == NULL) {
     while (Instance->UdpSts == EFI_ALREADY_STARTED) {

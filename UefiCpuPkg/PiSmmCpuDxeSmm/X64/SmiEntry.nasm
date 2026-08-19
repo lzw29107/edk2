@@ -1,12 +1,6 @@
 ;------------------------------------------------------------------------------ ;
 ; Copyright (c) 2016 - 2019, Intel Corporation. All rights reserved.<BR>
-; This program and the accompanying materials
-; are licensed and made available under the terms and conditions of the BSD License
-; which accompanies this distribution.  The full text of the license may be found at
-; http://opensource.org/licenses/bsd-license.php.
-;
-; THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-; WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;
 ; Module Name:
 ;
@@ -22,7 +16,7 @@
 %include "Nasm.inc"
 
 ;
-; Variables referrenced by C code
+; Variables referenced by C code
 ;
 
 %define MSR_IA32_S_CET                     0x6A2
@@ -75,6 +69,7 @@ extern ASM_PFX(mXdSupported)
 global ASM_PFX(gPatchXdSupported)
 global ASM_PFX(gPatchSmiStack)
 global ASM_PFX(gPatchSmiCr3)
+global ASM_PFX(gPatch5LevelPagingNeeded)
 global ASM_PFX(gcSmiHandlerTemplate)
 global ASM_PFX(gcSmiHandlerSize)
 
@@ -130,6 +125,17 @@ ProtFlatMode:
 ASM_PFX(gPatchSmiCr3):
     mov     cr3, rax
     mov     eax, 0x668                   ; as cr4.PGE is not set here, refresh cr3
+
+    mov     cl, strict byte 0            ; source operand will be patched
+ASM_PFX(gPatch5LevelPagingNeeded):
+    cmp     cl, 0
+    je      SkipEnable5LevelPaging
+    ;
+    ; Enable 5-Level Paging bit
+    ;
+    bts     eax, 12                     ; Set LA57 bit (bit #12)
+SkipEnable5LevelPaging:
+
     mov     cr4, rax                    ; in PreModifyMtrrs() to flush TLB.
 ; Load TSS
     sub     esp, 8                      ; reserve room in stack

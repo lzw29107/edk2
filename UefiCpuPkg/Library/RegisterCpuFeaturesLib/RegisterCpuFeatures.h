@@ -1,14 +1,8 @@
 /** @file
   CPU Register Table Library definitions.
 
-  Copyright (c) 2017 - 2019, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2017 - 2020, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -49,8 +43,8 @@ typedef struct {
   CPU_FEATURE_GET_CONFIG_DATA  GetConfigDataFunc;
   CPU_FEATURE_SUPPORT          SupportFunc;
   CPU_FEATURE_INITIALIZE       InitializeFunc;
-  UINT8                        *BeforeFeatureBitMask;
-  UINT8                        *AfterFeatureBitMask;
+  UINT8                        *ThreadBeforeFeatureBitMask;
+  UINT8                        *ThreadAfterFeatureBitMask;
   UINT8                        *CoreBeforeFeatureBitMask;
   UINT8                        *CoreAfterFeatureBitMask;
   UINT8                        *PackageBeforeFeatureBitMask;
@@ -64,7 +58,6 @@ typedef struct {
 // Flags used when program the register.
 //
 typedef struct {
-  volatile UINTN           ConsoleLogLock;          // Spinlock used to control console.
   volatile UINTN           MemoryMappedLock;        // Spinlock used to program mmio
   volatile UINT32          *CoreSemaphoreCount;     // Semaphore containers used to program Core semaphore.
   volatile UINT32          *PackageSemaphoreCount;  // Semaphore containers used to program Package semaphore.
@@ -151,7 +144,7 @@ GetProcessorInformation (
                                       to check whether procedure has done.
 **/
 VOID
-StartupAPsWorker (
+StartupAllAPsWorker (
   IN  EFI_AP_PROCEDURE                 Procedure,
   IN  EFI_EVENT                        MpEvent
   );
@@ -186,20 +179,26 @@ SwitchNewBsp (
   Function that uses DEBUG() macros to display the contents of a a CPU feature bit mask.
 
   @param[in]  FeatureMask  A pointer to the CPU feature bit mask.
+  @param[in]  BitMaskSize  CPU feature bits mask buffer size.
+
 **/
 VOID
 DumpCpuFeatureMask (
-  IN UINT8               *FeatureMask
+  IN UINT8               *FeatureMask,
+  IN UINT32              BitMaskSize
   );
 
 /**
   Dump CPU feature name or CPU feature bit mask.
 
   @param[in]  CpuFeature   Pointer to CPU_FEATURES_ENTRY
+  @param[in]  BitMaskSize  CPU feature bits mask buffer size.
+
 **/
 VOID
 DumpCpuFeature (
-  IN CPU_FEATURES_ENTRY  *CpuFeature
+  IN CPU_FEATURES_ENTRY  *CpuFeature,
+  IN UINT32              BitMaskSize
   );
 
 /**

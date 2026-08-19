@@ -2,13 +2,7 @@
   PCI command register operations supporting functions implementation for PCI Bus module.
 
 Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -239,6 +233,19 @@ LocatePciExpressCapabilityRegBlock (
                                       &CapabilityEntry
                                       );
     if (EFI_ERROR (Status)) {
+      break;
+    }
+
+    if (CapabilityEntry == MAX_UINT32) {
+      DEBUG ((
+        DEBUG_WARN,
+        "%a: [%02x|%02x|%02x] failed to access config space at offset 0x%x\n",
+        __FUNCTION__,
+        PciIoDevice->BusNumber,
+        PciIoDevice->DeviceNumber,
+        PciIoDevice->FunctionNumber,
+        CapabilityPtr
+        ));
       break;
     }
 

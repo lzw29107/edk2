@@ -114,6 +114,7 @@ _ConfigFileToInternalTranslation = {
     "SmmCommParaCheckBufferType":"SmmCommParaCheckBufferType",
     "SpaceCheckAll":"SpaceCheckAll",
     "SpellingCheckAll":"SpellingCheckAll",
+    "TokenReleaceList":"TokenReleaceList",
     "UniCheckAll":"UniCheckAll",
     "UniCheckHelpInfo":"UniCheckHelpInfo",
     "UniCheckPCDInfo":"UniCheckPCDInfo",
@@ -255,7 +256,7 @@ class Configuration(object):
         ## Declarations and Data Types Checking
         self.DeclarationDataTypeCheckAll = 0
 
-        # Check whether no use of int, unsigned, char, void, static, long in any .c, .h or .asl files.
+        # Check whether no use of int, unsigned, char, void, long in any .c, .h or .asl files.
         self.DeclarationDataTypeCheckNoUseCType = 1
         # Check whether the modifiers IN, OUT, OPTIONAL, and UNALIGNED are used only to qualify arguments to a function and should not appear in a data type declaration
         self.DeclarationDataTypeCheckInOutModifier = 1
@@ -389,6 +390,8 @@ class Configuration(object):
         # A list for Copyright format
         self.Copyright = []
 
+        self.TokenReleaceList = []
+
         self.ParseConfig()
 
     def ParseConfig(self):
@@ -418,6 +421,8 @@ class Configuration(object):
                 if List[0] == 'BinaryExtList':
                     List[1] = GetSplitValueList(List[1], TAB_COMMA_SPLIT)
                 if List[0] == 'Copyright':
+                    List[1] = GetSplitValueList(List[1], TAB_COMMA_SPLIT)
+                if List[0] == 'TokenReleaceList':
                     List[1] = GetSplitValueList(List[1], TAB_COMMA_SPLIT)
                 self.__dict__[_ConfigFileToInternalTranslation[List[0]]] = List[1]
 

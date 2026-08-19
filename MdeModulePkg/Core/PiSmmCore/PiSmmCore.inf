@@ -1,7 +1,7 @@
 ## @file
 # This module provide an SMM CIS compliant implementation of SMM Core.
 #
-# Copyright (c) 2009 - 2017, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
 #
 # This program and the accompanying materials
 # are licensed and made available under the terms and conditions of the BSD License
@@ -41,23 +41,24 @@
   MemoryAttributesTable.c
   SmiHandlerProfile.c
   HeapGuard.c
+  HeapGuard.h
 
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
-  
+
 [LibraryClasses]
   UefiDriverEntryPoint
   BaseLib
   BaseMemoryLib
   PeCoffLib
   PeCoffGetEntryPointLib
-  CacheMaintenanceLib  
+  CacheMaintenanceLib
   DebugLib
   ReportStatusCodeLib
-  DevicePathLib               
-  UefiLib                     
-  UefiBootServicesTableLib    
+  DevicePathLib
+  UefiLib
+  UefiBootServicesTableLib
   MemoryAllocationLib
   PcdLib
   SmmCorePlatformHookLib
@@ -80,7 +81,6 @@
   gEdkiiSmmExitBootServicesProtocolGuid         ## SOMETIMES_PRODUCES
   gEdkiiSmmLegacyBootProtocolGuid               ## SOMETIMES_PRODUCES
   gEdkiiSmmReadyToBootProtocolGuid              ## PRODUCES
-  gEdkiiSmmEndOfS3ResumeProtocolGuid            ## SOMETIMES_PRODUCES
 
   gEfiSmmSwDispatch2ProtocolGuid                ## SOMETIMES_CONSUMES
   gEfiSmmSxDispatch2ProtocolGuid                ## SOMETIMES_CONSUMES
@@ -92,6 +92,7 @@
   gEfiSmmUsbDispatch2ProtocolGuid               ## SOMETIMES_CONSUMES
   gEfiSmmCpuProtocolGuid                        ## SOMETIMES_CONSUMES
   gEdkiiSmmMemoryAttributeProtocolGuid          ## CONSUMES
+  gEfiSmmSxDispatch2ProtocolGuid                ## SOMETIMES_CONSUMES
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdLoadFixAddressSmmCodePageNumber     ## SOMETIMES_CONSUMES
@@ -122,6 +123,8 @@
   ## SOMETIMES_PRODUCES   ## GUID # Install protocol
   ## SOMETIMES_PRODUCES   ## GUID # SmiHandlerRegister
   gSmiHandlerProfileGuid
+  gEdkiiEndOfS3ResumeGuid ## SOMETIMES_PRODUCES ## GUID # Install protocol
+  gEdkiiS3SmmInitDoneGuid ## SOMETIMES_PRODUCES ## GUID # Install protocol
 
 [UserExtensions.TianoCore."ExtraFiles"]
   PiSmmCoreExtra.uni

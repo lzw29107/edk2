@@ -2,7 +2,7 @@
 # ARM processor package.
 #
 # Copyright (c) 2009 - 2010, Apple Inc. All rights reserved.<BR>
-# Copyright (c) 2011 - 2015, ARM Ltd. All rights reserved.<BR>
+# Copyright (c) 2011 - 2018, ARM Ltd. All rights reserved.<BR>
 # Copyright (c) 2016, Linaro Ltd. All rights reserved.<BR>
 #
 #    This program and the accompanying materials
@@ -27,7 +27,7 @@
   DSC_SPECIFICATION              = 0x00010005
   OUTPUT_DIRECTORY               = Build/Arm
   SUPPORTED_ARCHITECTURES        = ARM|AARCH64
-  BUILD_TARGETS                  = DEBUG|RELEASE
+  BUILD_TARGETS                  = DEBUG|RELEASE|NOOPT
   SKUID_IDENTIFIER               = DEFAULT
 
 [BuildOptions]
@@ -76,7 +76,6 @@
   PerformanceLib|MdePkg/Library/BasePerformanceLibNull/BasePerformanceLibNull.inf
   SerialPortLib|MdePkg/Library/BaseSerialPortLibNull/BaseSerialPortLibNull.inf
 
-  BdsLib|ArmPkg/Library/BdsLib/BdsLib.inf
   FdtLib|EmbeddedPkg/Library/FdtLib/FdtLib.inf
 
   ShellLib|ShellPkg/Library/UefiShellLib/UefiShellLib.inf
@@ -87,6 +86,8 @@
 
   ArmLib|ArmPkg/Library/ArmLib/ArmBaseLib.inf
   ArmMmuLib|ArmPkg/Library/ArmMmuLib/ArmMmuBaseLib.inf
+
+  ArmMtlLib|ArmPkg/Library/ArmMtlNullLib/ArmMtlNullLib.inf
 
 [LibraryClasses.common.PEIM]
   HobLib|MdePkg/Library/PeiHobLib/PeiHobLib.inf
@@ -104,7 +105,6 @@
 [Components.common]
   ArmPkg/Library/ArmCacheMaintenanceLib/ArmCacheMaintenanceLib.inf
   ArmPkg/Library/ArmDisassemblerLib/ArmDisassemblerLib.inf
-  ArmPkg/Library/BdsLib/BdsLib.inf
   ArmPkg/Library/CompilerIntrinsicsLib/CompilerIntrinsicsLib.inf
   ArmPkg/Library/DebugAgentSymbolsBaseLib/DebugAgentSymbolsBaseLib.inf
   ArmPkg/Library/DebugPeCoffExtraActionLib/DebugPeCoffExtraActionLib.inf
@@ -121,7 +121,6 @@
   ArmPkg/Drivers/CpuPei/CpuPei.inf
   ArmPkg/Drivers/ArmGic/ArmGicDxe.inf
   ArmPkg/Drivers/ArmGic/ArmGicLib.inf
-  ArmPkg/Drivers/ArmGic/ArmGicSecLib.inf
   ArmPkg/Drivers/GenericWatchdogDxe/GenericWatchdogDxe.inf
   ArmPkg/Drivers/TimerDxe/TimerDxe.inf
 
@@ -146,6 +145,8 @@
   ArmPkg/Library/DefaultExceptionHandlerLib/DefaultExceptionHandlerLibBase.inf
   ArmPkg/Library/PeiServicesTablePointerLib/PeiServicesTablePointerLib.inf
   ArmPkg/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf
+
+  ArmPkg/Drivers/ArmScmiDxe/ArmScmiDxe.inf
 
 [Components.AARCH64]
   ArmPkg/Library/ArmMmuLib/ArmMmuPeiLib.inf

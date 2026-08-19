@@ -4,7 +4,7 @@
   This driver is dispatched by Dxe core and the driver will reload itself to ACPI reserved memory
   in the entry point. The functionality is to interpret and restore the S3 boot script
 
-Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
 Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
 
 This program and the accompanying materials
@@ -72,12 +72,12 @@ S3BootScriptExecutorEntryFunction (
   // for that parameter.
   //
   Status = S3BootScriptExecute ();
-  
+
   //
   // If invalid script table or opcode in S3 boot script table.
   //
   ASSERT_EFI_ERROR (Status);
-  
+
   if (EFI_ERROR (Status)) {
     CpuDeadLoop ();
     return Status;
@@ -95,7 +95,7 @@ S3BootScriptExecutorEntryFunction (
   //
   if (PeiS3ResumeState != 0) {
     //
-    // Need report status back to S3ResumePeim. 
+    // Need report status back to S3ResumePeim.
     // If boot script execution is failed, S3ResumePeim wil report the error status code.
     //
     PeiS3ResumeState->ReturnStatus = (UINT64)(UINTN)Status;
@@ -145,7 +145,7 @@ S3BootScriptExecutorEntryFunction (
     CpuDeadLoop();
     return EFI_UNSUPPORTED;
   }
-  
+
   //
   // S3ResumePeim does not provide a way to jump back to itself, so resume to OS here directly
   //
@@ -254,9 +254,9 @@ RegisterMemoryProfileImage (
 /**
   This is the Event notification function to reload BootScriptExecutor image
   to RESERVED mem and save it to LockBox.
-  
+
   @param    Event   Pointer to this event
-  @param    Context Event handler private data 
+  @param    Context Event handler private data
  **/
 VOID
 EFIAPI
@@ -273,6 +273,7 @@ ReadyToLockEventNotify (
   UINTN                                         Pages;
   EFI_PHYSICAL_ADDRESS                          FfsBuffer;
   PE_COFF_LOADER_IMAGE_CONTEXT                  ImageContext;
+  EFI_GCD_MEMORY_SPACE_DESCRIPTOR               MemDesc;
 
   Status = gBS->LocateProtocol (&gEfiDxeSmmReadyToLockProtocolGuid, NULL, &Interface);
   if (EFI_ERROR (Status)) {
@@ -322,6 +323,19 @@ ReadyToLockEventNotify (
                   &FfsBuffer
                   );
   ASSERT_EFI_ERROR (Status);
+
+  //
+  // Make sure that the buffer can be used to store code.
+  //
+  Status = gDS->GetMemorySpaceDescriptor (FfsBuffer, &MemDesc);
+  if (!EFI_ERROR (Status) && (MemDesc.Attributes & EFI_MEMORY_XP) != 0) {
+    gDS->SetMemorySpaceAttributes (
+           FfsBuffer,
+           EFI_PAGES_TO_SIZE (Pages),
+           MemDesc.Attributes & (~EFI_MEMORY_XP)
+           );
+  }
+
   ImageContext.ImageAddress = (PHYSICAL_ADDRESS)(UINTN)FfsBuffer;
   //
   // Align buffer on section boundary

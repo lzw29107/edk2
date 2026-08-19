@@ -1,5 +1,5 @@
 ;------------------------------------------------------------------------------ ;
-; Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2016 - 2018, Intel Corporation. All rights reserved.<BR>
 ; This program and the accompanying materials
 ; are licensed and made available under the terms and conditions of the BSD License
 ; which accompanies this distribution.  The full text of the license may be found at
@@ -53,10 +53,11 @@ extern ASM_PFX(gSmiHandlerIdtr)
 extern ASM_PFX(CpuSmmDebugEntry)
 extern ASM_PFX(CpuSmmDebugExit)
 
-global ASM_PFX(gSmbase)
-global ASM_PFX(mXdSupported)
-global ASM_PFX(gSmiStack)
-global ASM_PFX(gSmiCr3)
+global ASM_PFX(gPatchSmbase)
+extern ASM_PFX(mXdSupported)
+global ASM_PFX(gPatchXdSupported)
+global ASM_PFX(gPatchSmiStack)
+global ASM_PFX(gPatchSmiCr3)
 global ASM_PFX(gcSmiHandlerTemplate)
 global ASM_PFX(gcSmiHandlerSize)
 
@@ -75,8 +76,8 @@ _SmiEntryPoint:
 o32 lgdt    [cs:bx]                       ; lgdt fword ptr cs:[bx]
     mov     ax, PROTECT_MODE_CS
     mov     [cs:bx-0x2],ax
-    DB      0x66, 0xbf                   ; mov edi, SMBASE
-ASM_PFX(gSmbase): DD 0
+    mov     edi, strict dword 0           ; source operand will be patched
+ASM_PFX(gPatchSmbase):
     lea     eax, [edi + (@ProtectedMode - _SmiEntryPoint) + 0x8000]
     mov     [cs:bx-0x6],eax
     mov     ebx, cr0
@@ -96,14 +97,14 @@ o16 mov     es, ax
 o16 mov     fs, ax
 o16 mov     gs, ax
 o16 mov     ss, ax
-    DB      0xbc                   ; mov esp, imm32
-ASM_PFX(gSmiStack): DD 0
+    mov esp, strict dword 0               ; source operand will be patched
+ASM_PFX(gPatchSmiStack):
     jmp     ProtFlatMode
 
 BITS 64
 ProtFlatMode:
-    DB      0xb8                        ; mov eax, offset gSmiCr3
-ASM_PFX(gSmiCr3): DD 0
+    mov eax, strict dword 0               ; source operand will be patched
+ASM_PFX(gPatchSmiCr3):
     mov     cr3, rax
     mov     eax, 0x668                   ; as cr4.PGE is not set here, refresh cr3
     mov     cr4, rax                    ; in PreModifyMtrrs() to flush TLB.
@@ -118,8 +119,8 @@ ASM_PFX(gSmiCr3): DD 0
     ltr     ax
 
 ; enable NXE if supported
-    DB      0xb0                        ; mov al, imm8
-ASM_PFX(mXdSupported):     DB      1
+    mov     al, strict byte 1           ; source operand may be patched
+ASM_PFX(gPatchXdSupported):
     cmp     al, 0
     jz      @SkipXd
 ;
@@ -158,7 +159,8 @@ Base:
     mov     cr0, rbx
     retf
 @LongMode:                              ; long mode (64-bit code) starts here
-    mov     rax, ASM_PFX(gSmiHandlerIdtr)
+    mov     rax, strict qword 0         ;  mov     rax, ASM_PFX(gSmiHandlerIdtr)
+SmiHandlerIdtrAbsAddr:
     lidt    [rax]
     lea     ebx, [rdi + DSC_OFFSET]
     mov     ax, [rbx + DSC_DS]
@@ -169,7 +171,9 @@ Base:
     mov     gs, eax
     mov     ax, [rbx + DSC_SS]
     mov     ss, eax
-;   jmp     _SmiHandler                 ; instruction is not needed
+    mov     rax, strict qword 0         ;   mov     rax, _SmiHandler
+_SmiHandlerAbsAddr:
+    jmp     rax
 
 _SmiHandler:
     mov     rbx, [rsp + 0x8]             ; rcx <- CpuIndex
@@ -178,34 +182,29 @@ _SmiHandler:
     ; Save FP registers
     ;
     sub     rsp, 0x200
-    DB      0x48                         ; FXSAVE64
-    fxsave  [rsp]
+    fxsave64 [rsp]
 
     add     rsp, -0x20
 
     mov     rcx, rbx
-    mov     rax, CpuSmmDebugEntry
-    call    rax
+    call    ASM_PFX(CpuSmmDebugEntry)
 
     mov     rcx, rbx
-    mov     rax, SmiRendezvous          ; rax <- absolute addr of SmiRedezvous
-    call    rax
+    call    ASM_PFX(SmiRendezvous)
 
     mov     rcx, rbx
-    mov     rax, CpuSmmDebugExit
-    call    rax
+    call    ASM_PFX(CpuSmmDebugExit)
 
     add     rsp, 0x20
 
     ;
     ; Restore FP registers
     ;
-    DB      0x48                         ; FXRSTOR64
-    fxrstor [rsp]
+    fxrstor64 [rsp]
 
     add     rsp, 0x200
 
-    mov     rax, ASM_PFX(mXdSupported)
+    lea     rax, [ASM_PFX(mXdSupported)]
     mov     al, [rax]
     cmp     al, 0
     jz      .1
@@ -220,5 +219,15 @@ _SmiHandler:
 .1:
     rsm
 
-gcSmiHandlerSize    DW      $ - _SmiEntryPoint
+ASM_PFX(gcSmiHandlerSize)    DW      $ - _SmiEntryPoint
 
+global ASM_PFX(PiSmmCpuSmiEntryFixupAddress)
+ASM_PFX(PiSmmCpuSmiEntryFixupAddress):
+    lea    rax, [ASM_PFX(gSmiHandlerIdtr)]
+    lea    rcx, [SmiHandlerIdtrAbsAddr]
+    mov    qword [rcx - 8], rax
+
+    lea    rax, [_SmiHandler]
+    lea    rcx, [_SmiHandlerAbsAddr]
+    mov    qword [rcx - 8], rax
+    ret

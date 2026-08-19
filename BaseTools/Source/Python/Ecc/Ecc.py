@@ -1,7 +1,7 @@
 ## @file
 # This file is used to be the main entrance of ECC tool
 #
-# Copyright (c) 2009 - 2016, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
 # This program and the accompanying materials
 # are licensed and made available under the terms and conditions of the BSD License
 # which accompanies this distribution.  The full text of the license may be found at
@@ -24,7 +24,7 @@ from Configuration import Configuration
 from Check import Check
 import Common.GlobalData as GlobalData
 
-from Common.String import NormPath
+from Common.StringUtils import NormPath
 from Common.BuildVersion import gBUILD_VERSION
 from Common import BuildToolError
 from Common.Misc import PathClass
@@ -51,7 +51,7 @@ class Ecc(object):
         # Version and Copyright
         self.VersionNumber = ("1.0" + " Build " + gBUILD_VERSION)
         self.Version = "%prog Version " + self.VersionNumber
-        self.Copyright = "Copyright (c) 2009 - 2016, Intel Corporation  All rights reserved."
+        self.Copyright = "Copyright (c) 2009 - 2018, Intel Corporation  All rights reserved."
 
         self.InitDefaultConfigIni()
         self.OutputFile = 'output.txt'
@@ -66,17 +66,17 @@ class Ecc(object):
         # Parse the options and args
         self.ParseOption()
         EdkLogger.info(time.strftime("%H:%M:%S, %b.%d %Y ", time.localtime()) + "[00:00]" + "\n")
-        
+
         #
         # Check EFI_SOURCE (Edk build convention). EDK_SOURCE will always point to ECP
         #
         WorkspaceDir = os.path.normcase(os.path.normpath(os.environ["WORKSPACE"]))
         os.environ["WORKSPACE"] = WorkspaceDir
-        
+
         # set multiple workspace
         PackagesPath = os.getenv("PACKAGES_PATH")
         mws.setWs(WorkspaceDir, PackagesPath)
-        
+
         if "ECP_SOURCE" not in os.environ:
             os.environ["ECP_SOURCE"] = mws.join(WorkspaceDir, GlobalData.gEdkCompatibilityPkg)
         if "EFI_SOURCE" not in os.environ:
@@ -90,11 +90,11 @@ class Ecc(object):
         EfiSourceDir = os.path.normcase(os.path.normpath(os.environ["EFI_SOURCE"]))
         EdkSourceDir = os.path.normcase(os.path.normpath(os.environ["EDK_SOURCE"]))
         EcpSourceDir = os.path.normcase(os.path.normpath(os.environ["ECP_SOURCE"]))
-        
+
         os.environ["EFI_SOURCE"] = EfiSourceDir
         os.environ["EDK_SOURCE"] = EdkSourceDir
         os.environ["ECP_SOURCE"] = EcpSourceDir
-        
+
         GlobalData.gWorkspace = WorkspaceDir
         GlobalData.gEfiSource = EfiSourceDir
         GlobalData.gEdkSource = EdkSourceDir
@@ -104,7 +104,7 @@ class Ecc(object):
         GlobalData.gGlobalDefines["EFI_SOURCE"] = EfiSourceDir
         GlobalData.gGlobalDefines["EDK_SOURCE"] = EdkSourceDir
         GlobalData.gGlobalDefines["ECP_SOURCE"] = EcpSourceDir
-        
+
         EdkLogger.info("Loading ECC configuration ... done")
         # Generate checkpoints list
         EccGlobalData.gConfig = Configuration(self.ConfigFile)
@@ -120,11 +120,11 @@ class Ecc(object):
         # Get files real name in workspace dir
         #
         GlobalData.gAllFiles = DirCache(GlobalData.gWorkspace)
-         
+
         # Build ECC database
 #         self.BuildDatabase()
         self.DetectOnlyScanDirs()
-        
+
         # Start to check
         self.Check()
 
@@ -160,8 +160,8 @@ class Ecc(object):
                 EdkLogger.error("ECC", BuildToolError.OPTION_VALUE_INVALID, ExtraData="Use -f option need to fill specific folders in config.ini file")
         else:
             self.BuildDatabase()
-            
-    
+
+
     ## BuildDatabase
     #
     # Build the database for target
@@ -172,13 +172,13 @@ class Ecc(object):
         EccGlobalData.gDb.TblReport.Create()
 
         # Build database
-        if self.IsInit:            
+        if self.IsInit:
             if self.ScanMetaData:
                 EdkLogger.quiet("Building database for Meta Data File ...")
                 self.BuildMetaDataFileDatabase(SpeciDirs)
             if self.ScanSourceCode:
                 EdkLogger.quiet("Building database for Meta Data File Done!")
-                if SpeciDirs == None:
+                if SpeciDirs is None:
                     c.CollectSourceCodeDataIntoDB(EccGlobalData.gTarget)
                 else:
                     for specificDir in SpeciDirs:
@@ -195,10 +195,10 @@ class Ecc(object):
     #
     def BuildMetaDataFileDatabase(self, SpecificDirs = None):
         ScanFolders = []
-        if SpecificDirs == None:
+        if SpecificDirs is None:
             ScanFolders.append(EccGlobalData.gTarget)
         else:
-            for specificDir in SpecificDirs:    
+            for specificDir in SpecificDirs:
                 ScanFolders.append(os.path.join(EccGlobalData.gTarget, specificDir))
         EdkLogger.quiet("Building database for meta data files ...")
         Op = open(EccGlobalData.gConfig.MetaDataFileCheckPathOfGenerateFileList, 'w+')
@@ -219,7 +219,7 @@ class Ecc(object):
                             # symlinks to directories are treated as directories
                             Dirs.remove(Dir)
                             Dirs.append(Dirname)
-    
+
                 for File in Files:
                     if len(File) > 4 and File[-4:].upper() == ".DEC":
                         Filename = os.path.normpath(os.path.join(Root, File))
@@ -346,15 +346,15 @@ class Ecc(object):
         self.SetLogLevel(Options)
 
         # Set other options
-        if Options.ConfigFile != None:
+        if Options.ConfigFile is not None:
             self.ConfigFile = Options.ConfigFile
-        if Options.OutputFile != None:
+        if Options.OutputFile is not None:
             self.OutputFile = Options.OutputFile
-        if Options.ReportFile != None:
+        if Options.ReportFile is not None:
             self.ReportFile = Options.ReportFile
-        if Options.ExceptionFile != None:
+        if Options.ExceptionFile is not None:
             self.ExceptionFile = Options.ExceptionFile
-        if Options.Target != None:
+        if Options.Target is not None:
             if not os.path.isdir(Options.Target):
                 EdkLogger.error("ECC", BuildToolError.OPTION_VALUE_INVALID, ExtraData="Target [%s] does NOT exist" % Options.Target)
             else:
@@ -362,15 +362,15 @@ class Ecc(object):
         else:
             EdkLogger.warn("Ecc", EdkLogger.ECC_ERROR, "The target source tree was not specified, using current WORKSPACE instead!")
             EccGlobalData.gTarget = os.path.normpath(os.getenv("WORKSPACE"))
-        if Options.keepdatabase != None:
+        if Options.keepdatabase is not None:
             self.IsInit = False
-        if Options.metadata != None and Options.sourcecode != None:
+        if Options.metadata is not None and Options.sourcecode is not None:
             EdkLogger.error("ECC", BuildToolError.OPTION_CONFLICT, ExtraData="-m and -s can't be specified at one time")
-        if Options.metadata != None:
+        if Options.metadata is not None:
             self.ScanSourceCode = False
-        if Options.sourcecode != None:
+        if Options.sourcecode is not None:
             self.ScanMetaData = False
-        if Options.folders != None:
+        if Options.folders is not None:
             self.OnlyScan = True
 
     ## SetLogLevel
@@ -380,11 +380,11 @@ class Ecc(object):
     # @param Option:  The option list including log level setting
     #
     def SetLogLevel(self, Option):
-        if Option.verbose != None:
+        if Option.verbose is not None:
             EdkLogger.SetLevel(EdkLogger.VERBOSE)
-        elif Option.quiet != None:
+        elif Option.quiet is not None:
             EdkLogger.SetLevel(EdkLogger.QUIET)
-        elif Option.debug != None:
+        elif Option.debug is not None:
             EdkLogger.SetLevel(Option.debug + 1)
         else:
             EdkLogger.SetLevel(EdkLogger.INFO)

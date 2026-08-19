@@ -1,14 +1,14 @@
 /** @file
   SMM Core Main Entry Point
 
-  Copyright (c) 2009 - 2017, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials are licensed and made available 
-  under the terms and conditions of the BSD License which accompanies this 
-  distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+  This program and the accompanying materials are licensed and made available
+  under the terms and conditions of the BSD License which accompanies this
+  distribution.  The full text of the license may be found at
+  http://opensource.org/licenses/bsd-license.php
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 **/
 
@@ -65,23 +65,30 @@ EFI_SMM_SYSTEM_TABLE2  gSmmCoreSmst = {
 
 //
 // Flag to determine if the platform has performed a legacy boot.
-// If this flag is TRUE, then the runtime code and runtime data associated with the 
+// If this flag is TRUE, then the runtime code and runtime data associated with the
 // SMM IPL are converted to free memory, so the SMM Core must guarantee that is
 // does not touch of the code/data associated with the SMM IPL if this flag is TRUE.
 //
 BOOLEAN  mInLegacyBoot = FALSE;
 
 //
+// Flag to determine if it is during S3 resume.
+// It will be set in S3 entry callback and cleared at EndOfS3Resume.
+//
+BOOLEAN  mDuringS3Resume = FALSE;
+
+//
 // Table of SMI Handlers that are registered by the SMM Core when it is initialized
 //
 SMM_CORE_SMI_HANDLERS  mSmmCoreSmiHandlers[] = {
   { SmmDriverDispatchHandler,   &gEfiEventDxeDispatchGuid,           NULL, TRUE  },
-  { SmmReadyToLockHandler,      &gEfiDxeSmmReadyToLockProtocolGuid,  NULL, TRUE }, 
+  { SmmReadyToLockHandler,      &gEfiDxeSmmReadyToLockProtocolGuid,  NULL, TRUE },
   { SmmLegacyBootHandler,       &gEfiEventLegacyBootGuid,            NULL, FALSE },
   { SmmExitBootServicesHandler, &gEfiEventExitBootServicesGuid,      NULL, FALSE },
   { SmmReadyToBootHandler,      &gEfiEventReadyToBootGuid,           NULL, FALSE },
   { SmmEndOfDxeHandler,         &gEfiEndOfDxeEventGroupGuid,         NULL, TRUE },
-  { SmmEndOfS3ResumeHandler,    &gEdkiiSmmEndOfS3ResumeProtocolGuid, NULL, FALSE },
+  { SmmS3SmmInitDoneHandler,    &gEdkiiS3SmmInitDoneGuid,            NULL, FALSE },
+  { SmmEndOfS3ResumeHandler,    &gEdkiiEndOfS3ResumeGuid,            NULL, FALSE },
   { NULL,                       NULL,                                NULL, FALSE }
 };
 
@@ -125,7 +132,7 @@ SmmEfiNotAvailableYetArg5 (
 
 /**
   Software SMI handler that is called when a Legacy Boot event is signalled.  The SMM
-  Core uses this signal to know that a Legacy Boot has been performed and that 
+  Core uses this signal to know that a Legacy Boot has been performed and that
   gSmmCorePrivate that is shared between the UEFI and SMM execution environments can
   not be accessed from SMM anymore since that structure is considered free memory by
   a legacy OS. Then the SMM Core also install SMM Legacy Boot protocol to notify SMM
@@ -151,6 +158,7 @@ SmmLegacyBootHandler (
 {
   EFI_STATUS    Status;
   EFI_HANDLE    SmmHandle;
+  UINTN         Index;
 
   //
   // Install SMM Legacy Boot protocol.
@@ -166,6 +174,16 @@ SmmLegacyBootHandler (
   mInLegacyBoot = TRUE;
 
   SmiHandlerUnRegister (DispatchHandle);
+
+  //
+  // It is legacy boot, unregister ExitBootService SMI handler.
+  //
+  for (Index = 0; mSmmCoreSmiHandlers[Index].HandlerType != NULL; Index++) {
+    if (CompareGuid (mSmmCoreSmiHandlers[Index].HandlerType, &gEfiEventExitBootServicesGuid)) {
+      SmiHandlerUnRegister (mSmmCoreSmiHandlers[Index].DispatchHandle);
+      break;
+    }
+  }
 
   return Status;
 }
@@ -195,6 +213,7 @@ SmmExitBootServicesHandler (
 {
   EFI_STATUS    Status;
   EFI_HANDLE    SmmHandle;
+  UINTN         Index;
 
   //
   // Install SMM Exit Boot Services protocol.
@@ -209,7 +228,48 @@ SmmExitBootServicesHandler (
 
   SmiHandlerUnRegister (DispatchHandle);
 
+  //
+  // It is UEFI boot, unregister LegacyBoot SMI handler.
+  //
+  for (Index = 0; mSmmCoreSmiHandlers[Index].HandlerType != NULL; Index++) {
+    if (CompareGuid (mSmmCoreSmiHandlers[Index].HandlerType, &gEfiEventLegacyBootGuid)) {
+      SmiHandlerUnRegister (mSmmCoreSmiHandlers[Index].DispatchHandle);
+      break;
+    }
+  }
+
   return Status;
+}
+
+/**
+  Main entry point for an SMM handler dispatch or communicate-based callback.
+
+  @param[in]     DispatchHandle  The unique handle assigned to this handler by SmiHandlerRegister().
+  @param[in]     Context         Points to an optional handler context which was specified when the
+                                 handler was registered.
+  @param[in,out] CommBuffer      A pointer to a collection of data in memory that will
+                                 be conveyed from a non-SMM environment into an SMM environment.
+  @param[in,out] CommBufferSize  The size of the CommBuffer.
+
+  @retval EFI_SUCCESS                         The interrupt was handled and quiesced. No other handlers
+                                              should still be called.
+  @retval EFI_WARN_INTERRUPT_SOURCE_QUIESCED  The interrupt has been quiesced but other handlers should
+                                              still be called.
+  @retval EFI_WARN_INTERRUPT_SOURCE_PENDING   The interrupt is still pending and other handlers should still
+                                              be called.
+  @retval EFI_INTERRUPT_PENDING               The interrupt could not be quiesced.
+**/
+EFI_STATUS
+EFIAPI
+SmmS3EntryCallBack (
+  IN           EFI_HANDLE           DispatchHandle,
+  IN     CONST VOID                 *Context         OPTIONAL,
+  IN OUT       VOID                 *CommBuffer      OPTIONAL,
+  IN OUT       UINTN                *CommBufferSize  OPTIONAL
+  )
+{
+  mDuringS3Resume = TRUE;
+  return EFI_SUCCESS;
 }
 
 /**
@@ -235,8 +295,8 @@ SmmReadyToBootHandler (
   IN OUT UINTN       *CommBufferSize  OPTIONAL
   )
 {
-  EFI_STATUS    Status;
-  EFI_HANDLE    SmmHandle;
+  EFI_STATUS                        Status;
+  EFI_HANDLE                        SmmHandle;
 
   //
   // Install SMM Ready To Boot protocol.
@@ -256,9 +316,9 @@ SmmReadyToBootHandler (
 
 /**
   Software SMI handler that is called when the DxeSmmReadyToLock protocol is added
-  or if gEfiEventReadyToBootGuid is signalled.  This function unregisters the 
-  Software SMIs that are nor required after SMRAM is locked and installs the 
-  SMM Ready To Lock Protocol so SMM Drivers are informed that SMRAM is about 
+  or if gEfiEventReadyToBootGuid is signalled.  This function unregisters the
+  Software SMIs that are nor required after SMRAM is locked and installs the
+  SMM Ready To Lock Protocol so SMM Drivers are informed that SMRAM is about
   to be locked.  It also verifies the SMM CPU I/O 2 Protocol has been installed
   and NULLs gBS and gST because they can not longer be used after SMRAM is locked.
 
@@ -366,10 +426,14 @@ SmmEndOfDxeHandler (
   IN OUT UINTN       *CommBufferSize  OPTIONAL
   )
 {
-  EFI_STATUS  Status;
-  EFI_HANDLE  SmmHandle;
+  EFI_STATUS                        Status;
+  EFI_HANDLE                        SmmHandle;
+  EFI_SMM_SX_DISPATCH2_PROTOCOL     *SxDispatch;
+  EFI_SMM_SX_REGISTER_CONTEXT       EntryRegisterContext;
+  EFI_HANDLE                        S3EntryHandle;
 
   DEBUG ((EFI_D_INFO, "SmmEndOfDxeHandler\n"));
+
   //
   // Install SMM EndOfDxe protocol
   //
@@ -380,11 +444,95 @@ SmmEndOfDxeHandler (
              EFI_NATIVE_INTERFACE,
              NULL
              );
+
+  //
+  // Locate SmmSxDispatch2 protocol.
+  //
+  Status = SmmLocateProtocol (
+             &gEfiSmmSxDispatch2ProtocolGuid,
+             NULL,
+             (VOID **)&SxDispatch
+             );
+  if (!EFI_ERROR (Status) && (SxDispatch != NULL)) {
+    //
+    // Register a S3 entry callback function to
+    // determine if it will be during S3 resume.
+    //
+    EntryRegisterContext.Type  = SxS3;
+    EntryRegisterContext.Phase = SxEntry;
+    Status = SxDispatch->Register (
+                           SxDispatch,
+                           SmmS3EntryCallBack,
+                           &EntryRegisterContext,
+                           &S3EntryHandle
+                           );
+    ASSERT_EFI_ERROR (Status);
+  }
+
+  return EFI_SUCCESS;
+}
+
+/**
+  Software SMI handler that is called when the S3SmmInitDone signal is triggered.
+  This function installs the SMM S3SmmInitDone Protocol so SMM Drivers are informed that
+  S3 SMM initialization has been done.
+
+  @param  DispatchHandle  The unique handle assigned to this handler by SmiHandlerRegister().
+  @param  Context         Points to an optional handler context which was specified when the handler was registered.
+  @param  CommBuffer      A pointer to a collection of data in memory that will
+                          be conveyed from a non-SMM environment into an SMM environment.
+  @param  CommBufferSize  The size of the CommBuffer.
+
+  @return Status Code
+
+**/
+EFI_STATUS
+EFIAPI
+SmmS3SmmInitDoneHandler (
+  IN     EFI_HANDLE  DispatchHandle,
+  IN     CONST VOID  *Context,        OPTIONAL
+  IN OUT VOID        *CommBuffer,     OPTIONAL
+  IN OUT UINTN       *CommBufferSize  OPTIONAL
+  )
+{
+  EFI_STATUS  Status;
+  EFI_HANDLE  SmmHandle;
+
+  DEBUG ((DEBUG_INFO, "SmmS3SmmInitDoneHandler\n"));
+
+  if (!mDuringS3Resume) {
+    DEBUG ((DEBUG_ERROR, "It is not during S3 resume\n"));
+    return EFI_SUCCESS;
+  }
+
+  //
+  // Install SMM S3SmmInitDone protocol
+  //
+  SmmHandle = NULL;
+  Status = SmmInstallProtocolInterface (
+             &SmmHandle,
+             &gEdkiiS3SmmInitDoneGuid,
+             EFI_NATIVE_INTERFACE,
+             NULL
+             );
+  ASSERT_EFI_ERROR (Status);
+
+  //
+  // Uninstall the protocol here because the comsumer just hook the
+  // installation event.
+  //
+  Status = SmmUninstallProtocolInterface (
+           SmmHandle,
+           &gEdkiiS3SmmInitDoneGuid,
+           NULL
+           );
+  ASSERT_EFI_ERROR (Status);
+
   return Status;
 }
 
 /**
-  Software SMI handler that is called when the EndOfS3Resume event is trigged.
+  Software SMI handler that is called when the EndOfS3Resume signal is triggered.
   This function installs the SMM EndOfS3Resume Protocol so SMM Drivers are informed that
   S3 resume has finished.
 
@@ -409,7 +557,12 @@ SmmEndOfS3ResumeHandler (
   EFI_STATUS  Status;
   EFI_HANDLE  SmmHandle;
 
-  DEBUG ((EFI_D_INFO, "SmmEndOfS3ResumeHandler\n"));
+  DEBUG ((DEBUG_INFO, "SmmEndOfS3ResumeHandler\n"));
+
+  if (!mDuringS3Resume) {
+    DEBUG ((DEBUG_ERROR, "It is not during S3 resume\n"));
+    return EFI_SUCCESS;
+  }
 
   //
   // Install SMM EndOfS3Resume protocol
@@ -417,23 +570,24 @@ SmmEndOfS3ResumeHandler (
   SmmHandle = NULL;
   Status = SmmInstallProtocolInterface (
              &SmmHandle,
-             &gEdkiiSmmEndOfS3ResumeProtocolGuid,
+             &gEdkiiEndOfS3ResumeGuid,
              EFI_NATIVE_INTERFACE,
              NULL
              );
   ASSERT_EFI_ERROR (Status);
 
   //
-  // Uninstall the protocol here because the comsume just hook the
+  // Uninstall the protocol here because the comsumer just hook the
   // installation event.
   //
   Status = SmmUninstallProtocolInterface (
            SmmHandle,
-           &gEdkiiSmmEndOfS3ResumeProtocolGuid,
+           &gEdkiiEndOfS3ResumeGuid,
            NULL
            );
   ASSERT_EFI_ERROR (Status);
 
+  mDuringS3Resume = FALSE;
   return Status;
 }
 
@@ -490,8 +644,6 @@ SmmEntryPoint (
   VOID                        *CommunicationBuffer;
   UINTN                       BufferSize;
 
-  PERF_START (NULL, "SMM", NULL, 0) ;
-
   //
   // Update SMST with contents of the SmmEntryContext structure
   //
@@ -522,7 +674,7 @@ SmmEntryPoint (
     gSmmCorePrivate->InSmm = TRUE;
 
     //
-    // Check to see if this is a Synchronous SMI sent through the SMM Communication 
+    // Check to see if this is a Synchronous SMI sent through the SMM Communication
     // Protocol or an Asynchronous SMI
     //
     CommunicationBuffer = gSmmCorePrivate->CommunicationBuffer;
@@ -544,14 +696,14 @@ SmmEntryPoint (
         // return EFI_INVALID_PARAMETER
         //
         gSmmCorePrivate->CommunicationBuffer = NULL;
-        gSmmCorePrivate->ReturnStatus = EFI_INVALID_PARAMETER;
+        gSmmCorePrivate->ReturnStatus = EFI_ACCESS_DENIED;
       } else {
         CommunicateHeader = (EFI_SMM_COMMUNICATE_HEADER *)CommunicationBuffer;
         BufferSize -= OFFSET_OF (EFI_SMM_COMMUNICATE_HEADER, Data);
         Status = SmiManage (
-                   &CommunicateHeader->HeaderGuid, 
-                   NULL, 
-                   CommunicateHeader->Data, 
+                   &CommunicateHeader->HeaderGuid,
+                   NULL,
+                   CommunicateHeader->Data,
                    &BufferSize
                    );
         //
@@ -569,7 +721,7 @@ SmmEntryPoint (
   // Process Asynchronous SMI sources
   //
   SmiManage (NULL, NULL, NULL, NULL);
-  
+
   //
   // Call platform hook after Smm Dispatch
   //
@@ -584,8 +736,6 @@ SmmEntryPoint (
     //
     gSmmCorePrivate->InSmm = FALSE;
   }
-
-  PERF_END (NULL, "SMM", NULL, 0) ;
 }
 
 /**
@@ -672,7 +822,7 @@ SmmCoreInstallLoadedImage (
 /**
   The Entry Point for SMM Core
 
-  Install DXE Protocols and reload SMM Core into SMRAM and register SMM Core 
+  Install DXE Protocols and reload SMM Core into SMRAM and register SMM Core
   EntryPoint on the SMI vector.
 
   Note: This function is called for both DXE invocation and SMRAM invocation.

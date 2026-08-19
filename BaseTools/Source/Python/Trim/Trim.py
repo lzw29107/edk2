@@ -1,7 +1,7 @@
 ## @file
 # Trim files preprocessed by compiler
 #
-# Copyright (c) 2007 - 2016, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
 # This program and the accompanying materials
 # are licensed and made available under the terms and conditions of the BSD License
 # which accompanies this distribution.  The full text of the license may be found at
@@ -17,11 +17,13 @@
 import Common.LongFilePathOs as os
 import sys
 import re
+from io import BytesIO
 
 from optparse import OptionParser
 from optparse import make_option
 from Common.BuildToolError import *
 from Common.Misc import *
+from Common.DataType import *
 from Common.BuildVersion import gBUILD_VERSION
 import Common.EdkLogger as EdkLogger
 from Common.LongFilePathSupport import OpenLongFilePath as open
@@ -29,7 +31,7 @@ from Common.LongFilePathSupport import OpenLongFilePath as open
 # Version and Copyright
 __version_number__ = ("0.10" + " " + gBUILD_VERSION)
 __version__ = "%prog Version " + __version_number__
-__copyright__ = "Copyright (c) 2007-2016, Intel Corporation. All rights reserved."
+__copyright__ = "Copyright (c) 2007-2018, Intel Corporation. All rights reserved."
 
 ## Regular expression for matching Line Control directive like "#line xxx"
 gLineControlDirective = re.compile('^\s*#(?:line)?\s+([0-9]+)\s+"*([^"]*)"')
@@ -164,6 +166,8 @@ def TrimPreprocessedFile(Source, Target, ConvertHex, TrimLong):
             if len(MatchList) == 2:
                 LineNumber = int(MatchList[0], 0)
                 InjectedFile = MatchList[1]
+                InjectedFile = os.path.normpath(InjectedFile)
+                InjectedFile = os.path.normcase(InjectedFile)
                 # The first injetcted file must be the preprocessed file itself
                 if PreprocessedFile == "":
                     PreprocessedFile = InjectedFile
@@ -172,7 +176,7 @@ def TrimPreprocessedFile(Source, Target, ConvertHex, TrimLong):
         elif PreprocessedFile == "" or InjectedFile != PreprocessedFile:
             continue
 
-        if LineIndexOfOriginalFile == None:
+        if LineIndexOfOriginalFile is None:
             #
             # Any non-empty lines must be from original preprocessed file.
             # And this must be the first one.
@@ -192,7 +196,7 @@ def TrimPreprocessedFile(Source, Target, ConvertHex, TrimLong):
         # convert Decimal number format
         Line = gDecNumberPattern.sub(r"\1", Line)
 
-        if LineNumber != None:
+        if LineNumber is not None:
             EdkLogger.verbose("Got line directive: line=%d" % LineNumber)
             # in case preprocessor removed some lines, like blank or comment lines
             if LineNumber <= len(NewLines):
@@ -215,10 +219,10 @@ def TrimPreprocessedFile(Source, Target, ConvertHex, TrimLong):
         Brace = 0
         for Index in range(len(Lines)):
             Line = Lines[Index]
-            if MulPatternFlag == False and gTypedef_MulPattern.search(Line) == None:
-                if SinglePatternFlag == False and gTypedef_SinglePattern.search(Line) == None:
+            if MulPatternFlag == False and gTypedef_MulPattern.search(Line) is None:
+                if SinglePatternFlag == False and gTypedef_SinglePattern.search(Line) is None:
                     # remove "#pragram pack" directive
-                    if gPragmaPattern.search(Line) == None:
+                    if gPragmaPattern.search(Line) is None:
                         NewLines.append(Line)
                     continue
                 elif SinglePatternFlag == False:
@@ -257,9 +261,9 @@ def TrimPreprocessedFile(Source, Target, ConvertHex, TrimLong):
 #
 def TrimPreprocessedVfr(Source, Target):
     CreateDirectory(os.path.dirname(Target))
-    
+
     try:
-        f = open (Source,'r')
+        f = open (Source, 'r')
     except:
         EdkLogger.error("Trim", FILE_OPEN_FAILURE, ExtraData=Source)
     # read whole file
@@ -281,9 +285,9 @@ def TrimPreprocessedVfr(Source, Target):
             Lines[Index] = "\n"
             continue
 
-        if FoundTypedef == False and gTypedefPattern.search(Line) == None:
+        if FoundTypedef == False and gTypedefPattern.search(Line) is None:
             # keep "#pragram pack" directive
-            if gPragmaPattern.search(Line) == None:
+            if gPragmaPattern.search(Line) is None:
                 Lines[Index] = "\n"
             continue
         elif FoundTypedef == False:
@@ -302,13 +306,13 @@ def TrimPreprocessedVfr(Source, Target):
             FoundTypedef = False
             TypedefEnd = Index
             # keep all "typedef struct" except to GUID, EFI_PLABEL and PAL_CALL_RETURN
-            if Line.strip("} ;\r\n") in ["GUID", "EFI_PLABEL", "PAL_CALL_RETURN"]:
+            if Line.strip("} ;\r\n") in [TAB_GUID, "EFI_PLABEL", "PAL_CALL_RETURN"]:
                 for i in range(TypedefStart, TypedefEnd+1):
                     Lines[i] = "\n"
 
     # save all lines trimmed
     try:
-        f = open (Target,'w')
+        f = open (Target, 'w')
     except:
         EdkLogger.error("Trim", FILE_OPEN_FAILURE, ExtraData=Target)
     f.writelines(Lines)
@@ -334,7 +338,7 @@ def DoInclude(Source, Indent='', IncludePathList=[], LocalSearchPath=None):
             SearchPathList = [LocalSearchPath] + IncludePathList
         else:
             SearchPathList = IncludePathList
-  
+
         for IncludePath in SearchPathList:
             IncludeFile = os.path.join(IncludePath, Source)
             if os.path.isfile(IncludeFile):
@@ -345,7 +349,7 @@ def DoInclude(Source, Indent='', IncludePathList=[], LocalSearchPath=None):
     except:
         EdkLogger.error("Trim", FILE_OPEN_FAILURE, ExtraData=Source)
 
-    
+
     # avoid A "include" B and B "include" A
     IncludeFile = os.path.abspath(os.path.normpath(IncludeFile))
     if IncludeFile in gIncludedAslFile:
@@ -353,7 +357,7 @@ def DoInclude(Source, Indent='', IncludePathList=[], LocalSearchPath=None):
                        ExtraData= "%s -> %s" % (" -> ".join(gIncludedAslFile), IncludeFile))
         return []
     gIncludedAslFile.append(IncludeFile)
-    
+
     for Line in F:
         LocalSearchPath = None
         Result = gAslIncludePattern.findall(Line)
@@ -363,7 +367,7 @@ def DoInclude(Source, Indent='', IncludePathList=[], LocalSearchPath=None):
                 NewFileContent.append("%s%s" % (Indent, Line))
                 continue
             #
-            # We should first search the local directory if current file are using pattern #include "XXX" 
+            # We should first search the local directory if current file are using pattern #include "XXX"
             #
             if Result[0][2] == '"':
                 LocalSearchPath = os.path.dirname(IncludeFile)
@@ -384,20 +388,20 @@ def DoInclude(Source, Indent='', IncludePathList=[], LocalSearchPath=None):
 #
 # @param  Source          File to be trimmed
 # @param  Target          File to store the trimmed content
-# @param  IncludePathFile The file to log the external include path 
+# @param  IncludePathFile The file to log the external include path
 #
 def TrimAslFile(Source, Target, IncludePathFile):
     CreateDirectory(os.path.dirname(Target))
-    
+
     SourceDir = os.path.dirname(Source)
     if SourceDir == '':
         SourceDir = '.'
-    
+
     #
     # Add source directory as the first search directory
     #
     IncludePathList = [SourceDir]
-    
+
     #
     # If additional include path file is specified, append them all
     # to the search directory list.
@@ -405,7 +409,7 @@ def TrimAslFile(Source, Target, IncludePathFile):
     if IncludePathFile:
         try:
             LineNum = 0
-            for Line in open(IncludePathFile,'r'):
+            for Line in open(IncludePathFile, 'r'):
                 LineNum += 1
                 if Line.startswith("/I") or Line.startswith ("-I"):
                     IncludePathList.append(Line[2:].strip())
@@ -423,12 +427,74 @@ def TrimAslFile(Source, Target, IncludePathFile):
 
     # save all lines trimmed
     try:
-        f = open (Target,'w')
+        f = open (Target, 'w')
     except:
         EdkLogger.error("Trim", FILE_OPEN_FAILURE, ExtraData=Target)
 
     f.writelines(Lines)
     f.close()
+
+def GenerateVfrBinSec(ModuleName, DebugDir, OutputFile):
+    VfrNameList = []
+    if os.path.isdir(DebugDir):
+        for CurrentDir, Dirs, Files in os.walk(DebugDir):
+            for FileName in Files:
+                Name, Ext = os.path.splitext(FileName)
+                if Ext == '.c' and Name != 'AutoGen':
+                    VfrNameList.append (Name + 'Bin')
+
+    VfrNameList.append (ModuleName + 'Strings')
+
+    EfiFileName = os.path.join(DebugDir, ModuleName + '.efi')
+    MapFileName = os.path.join(DebugDir, ModuleName + '.map')
+    VfrUniOffsetList = GetVariableOffset(MapFileName, EfiFileName, VfrNameList)
+
+    if not VfrUniOffsetList:
+        return
+
+    try:
+        fInputfile = open(OutputFile, "wb+", 0)
+    except:
+        EdkLogger.error("Trim", FILE_OPEN_FAILURE, "File open failed for %s" %OutputFile, None)
+
+    # Use a instance of BytesIO to cache data
+    fStringIO = BytesIO('')
+
+    for Item in VfrUniOffsetList:
+        if (Item[0].find("Strings") != -1):
+            #
+            # UNI offset in image.
+            # GUID + Offset
+            # { 0x8913c5e0, 0x33f6, 0x4d86, { 0x9b, 0xf1, 0x43, 0xef, 0x89, 0xfc, 0x6, 0x66 } }
+            #
+            UniGuid = [0xe0, 0xc5, 0x13, 0x89, 0xf6, 0x33, 0x86, 0x4d, 0x9b, 0xf1, 0x43, 0xef, 0x89, 0xfc, 0x6, 0x66]
+            UniGuid = [chr(ItemGuid) for ItemGuid in UniGuid]
+            fStringIO.write(''.join(UniGuid))
+            UniValue = pack ('Q', int (Item[1], 16))
+            fStringIO.write (UniValue)
+        else:
+            #
+            # VFR binary offset in image.
+            # GUID + Offset
+            # { 0xd0bc7cb4, 0x6a47, 0x495f, { 0xaa, 0x11, 0x71, 0x7, 0x46, 0xda, 0x6, 0xa2 } };
+            #
+            VfrGuid = [0xb4, 0x7c, 0xbc, 0xd0, 0x47, 0x6a, 0x5f, 0x49, 0xaa, 0x11, 0x71, 0x7, 0x46, 0xda, 0x6, 0xa2]
+            VfrGuid = [chr(ItemGuid) for ItemGuid in VfrGuid]
+            fStringIO.write(''.join(VfrGuid))
+            type (Item[1])
+            VfrValue = pack ('Q', int (Item[1], 16))
+            fStringIO.write (VfrValue)
+
+    #
+    # write data into file.
+    #
+    try :
+        fInputfile.write (fStringIO.getvalue())
+    except:
+        EdkLogger.error("Trim", FILE_WRITE_FAILURE, "Write data to file %s failed, please check whether the file been locked or using by other applications." %OutputFile, None)
+
+    fStringIO.close ()
+    fInputfile.close ()
 
 ## Trim EDK source code file(s)
 #
@@ -447,7 +513,7 @@ def TrimEdkSources(Source, Target):
             for FileName in Files:
                 Dummy, Ext = os.path.splitext(FileName)
                 if Ext.upper() not in ['.C', '.H']: continue
-                if Target == None or Target == '':
+                if Target is None or Target == '':
                     TrimEdkSourceCode(
                         os.path.join(CurrentDir, FileName),
                         os.path.join(CurrentDir, FileName)
@@ -496,7 +562,7 @@ def TrimEdkSourceCode(Source, Target):
     CreateDirectory(os.path.dirname(Target))
 
     try:
-        f = open (Source,'rb')
+        f = open (Source, 'rb')
     except:
         EdkLogger.error("Trim", FILE_OPEN_FAILURE, ExtraData=Source)
     # read whole file
@@ -504,8 +570,8 @@ def TrimEdkSourceCode(Source, Target):
     f.close()
 
     NewLines = None
-    for Re,Repl in gImportCodePatterns:
-        if NewLines == None:
+    for Re, Repl in gImportCodePatterns:
+        if NewLines is None:
             NewLines = Re.sub(Repl, Lines)
         else:
             NewLines = Re.sub(Repl, NewLines)
@@ -515,7 +581,7 @@ def TrimEdkSourceCode(Source, Target):
         return
 
     try:
-        f = open (Target,'wb')
+        f = open (Target, 'wb')
     except:
         EdkLogger.error("Trim", FILE_OPEN_FAILURE, ExtraData=Target)
     f.write(NewLines)
@@ -535,6 +601,8 @@ def Options():
                           help="The input file is preprocessed source code, including C or assembly code"),
         make_option("-r", "--vfr-file", dest="FileType", const="Vfr", action="store_const",
                           help="The input file is preprocessed VFR file"),
+        make_option("--Vfr-Uni-Offset", dest="FileType", const="VfrOffsetBin", action="store_const",
+                          help="The input file is EFI image"),
         make_option("-a", "--asl-file", dest="FileType", const="Asl", action="store_const",
                           help="The input file is ASL file"),
         make_option("-8", "--Edk-source-code", dest="FileType", const="EdkSourceCode", action="store_const",
@@ -549,6 +617,9 @@ def Options():
                           help="The input file is include path list to search for ASL include file"),
         make_option("-o", "--output", dest="OutputFile",
                           help="File to store the trimmed content"),
+        make_option("--ModuleName", dest="ModuleName", help="The module's BASE_NAME"),
+        make_option("--DebugDir", dest="DebugDir",
+                          help="Debug Output directory to store the output files"),
         make_option("-v", "--verbose", dest="LogLevel", action="store_const", const=EdkLogger.VERBOSE,
                           help="Run verbosely"),
         make_option("-d", "--debug", dest="LogLevel", type="int",
@@ -559,7 +630,7 @@ def Options():
     ]
 
     # use clearer usage to override default usage message
-    UsageString = "%prog [-s|-r|-a] [-c] [-v|-d <debug_level>|-q] [-i <include_path_file>] [-o <output_file>] <input_file>"
+    UsageString = "%prog [-s|-r|-a|--Vfr-Uni-Offset] [-c] [-v|-d <debug_level>|-q] [-i <include_path_file>] [-o <output_file>] [--ModuleName <ModuleName>] [--DebugDir <DebugDir>] [<input_file>]"
 
     Parser = OptionParser(description=__copyright__, version=__version__, option_list=OptionList, usage=UsageString)
     Parser.set_defaults(FileType="Vfr")
@@ -569,6 +640,11 @@ def Options():
     Options, Args = Parser.parse_args()
 
     # error check
+    if Options.FileType == 'VfrOffsetBin':
+        if len(Args) == 0:
+            return Options, ''
+        elif len(Args) > 1:
+            EdkLogger.error("Trim", OPTION_NOT_SUPPORTED, ExtraData=Parser.get_usage())
     if len(Args) == 0:
         EdkLogger.error("Trim", OPTION_MISSING, ExtraData=Parser.get_usage())
     if len(Args) > 1:
@@ -594,28 +670,30 @@ def Main():
             EdkLogger.SetLevel(CommandOptions.LogLevel + 1)
         else:
             EdkLogger.SetLevel(CommandOptions.LogLevel)
-    except FatalError, X:
+    except FatalError as X:
         return 1
-    
+
     try:
         if CommandOptions.FileType == "Vfr":
-            if CommandOptions.OutputFile == None:
+            if CommandOptions.OutputFile is None:
                 CommandOptions.OutputFile = os.path.splitext(InputFile)[0] + '.iii'
             TrimPreprocessedVfr(InputFile, CommandOptions.OutputFile)
         elif CommandOptions.FileType == "Asl":
-            if CommandOptions.OutputFile == None:
+            if CommandOptions.OutputFile is None:
                 CommandOptions.OutputFile = os.path.splitext(InputFile)[0] + '.iii'
             TrimAslFile(InputFile, CommandOptions.OutputFile, CommandOptions.IncludePathFile)
         elif CommandOptions.FileType == "EdkSourceCode":
             TrimEdkSources(InputFile, CommandOptions.OutputFile)
+        elif CommandOptions.FileType == "VfrOffsetBin":
+            GenerateVfrBinSec(CommandOptions.ModuleName, CommandOptions.DebugDir, CommandOptions.OutputFile)
         else :
-            if CommandOptions.OutputFile == None:
+            if CommandOptions.OutputFile is None:
                 CommandOptions.OutputFile = os.path.splitext(InputFile)[0] + '.iii'
             TrimPreprocessedFile(InputFile, CommandOptions.OutputFile, CommandOptions.ConvertHex, CommandOptions.TrimLong)
-    except FatalError, X:
+    except FatalError as X:
         import platform
         import traceback
-        if CommandOptions != None and CommandOptions.LogLevel <= EdkLogger.DEBUG_9:
+        if CommandOptions is not None and CommandOptions.LogLevel <= EdkLogger.DEBUG_9:
             EdkLogger.quiet("(Python %s on %s) " % (platform.python_version(), sys.platform) + traceback.format_exc())
         return 1
     except:

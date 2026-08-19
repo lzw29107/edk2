@@ -1,7 +1,7 @@
 /** @file
   Common header file for MP Initialize Library.
 
-  Copyright (c) 2016 - 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2016 - 2018, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -102,6 +102,9 @@ typedef struct {
   UINTN                          Dr3;
   UINTN                          Dr6;
   UINTN                          Dr7;
+  IA32_DESCRIPTOR                Gdtr;
+  IA32_DESCRIPTOR                Idtr;
+  UINT16                         Tr;
 } CPU_VOLATILE_REGISTERS;
 
 //
@@ -149,6 +152,7 @@ typedef struct {
   UINTN             RendezvousFunnelSize;
   UINT8             *RelocateApLoopFuncAddress;
   UINTN             RelocateApLoopFuncSize;
+  UINTN             ModeTransitionOffset;
 } MP_ASSEMBLY_ADDRESS_MAP;
 
 typedef struct _CPU_MP_DATA  CPU_MP_DATA;
@@ -179,6 +183,10 @@ typedef struct {
   UINTN                 NumApsExecuting;
   CPU_MP_DATA           *CpuMpData;
   UINTN                 InitializeFloatingPointUnitsAddress;
+  UINT32                ModeTransitionMemory;
+  UINT16                ModeTransitionSegment;
+  UINT32                ModeHighMemory;
+  UINT16                ModeHighSegment;
 } MP_CPU_EXCHANGE_INFO;
 
 #pragma pack()
@@ -200,6 +208,7 @@ struct _CPU_MP_DATA {
   UINTN                          CpuApStackSize;
   MP_ASSEMBLY_ADDRESS_MAP        AddressMap;
   UINTN                          WakeupBuffer;
+  UINTN                          WakeupBufferHigh;
   UINTN                          BackupBuffer;
   UINTN                          BackupBufferSize;
 
@@ -327,6 +336,23 @@ GetWakeupBuffer (
   );
 
 /**
+  Get available EfiBootServicesCode memory below 4GB by specified size.
+
+  This buffer is required to safely transfer AP from real address mode to
+  protected mode or long mode, due to the fact that the buffer returned by
+  GetWakeupBuffer() may be marked as non-executable.
+
+  @param[in] BufferSize   Wakeup transition buffer size.
+
+  @retval other   Return wakeup transition buffer address below 4GB.
+  @retval 0       Cannot find free memory below 4GB.
+**/
+UINTN
+GetModeTransitionBuffer (
+  IN UINTN                BufferSize
+  );
+
+/**
   This function will be called by BSP to wakeup AP.
 
   @param[in] CpuMpData          Pointer to CPU MP Data
@@ -437,7 +463,7 @@ StartupThisAPWorker (
                                enabled AP. Otherwise, it will be disabled.
 
   @retval EFI_SUCCESS          BSP successfully switched.
-  @retval others               Failed to switch BSP. 
+  @retval others               Failed to switch BSP.
 
 **/
 EFI_STATUS

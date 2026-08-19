@@ -1,10 +1,10 @@
 /** @file
-This file contains functions required to generate a boot strap file (BSF) also 
+This file contains functions required to generate a boot strap file (BSF) also
 known as the Volume Top File (VTF)
 
-Copyright (c) 1999 - 2017, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available 
-under the terms and conditions of the BSD License which accompanies this 
+Copyright (c) 1999 - 2018, Intel Corporation. All rights reserved.<BR>
+This program and the accompanying materials are licensed and made available
+under the terms and conditions of the BSD License which accompanies this
 distribution.  The full text of the license may be found at
 http://opensource.org/licenses/bsd-license.php
 
@@ -133,7 +133,7 @@ Returns:
     } else {
       memcpy (TemStr, Str + Length - 4, 4);
     }
-  
+
     sscanf (
       TemStr,
       "%02x%02x",
@@ -362,10 +362,20 @@ Returns:
       }
     } else if (strnicmp (*TokenStr, "COMP_BIN", 8) == 0) {
       TokenStr++;
-      strcpy (VtfInfo->CompBinName, *TokenStr);
+      if (strlen (*TokenStr) >= FILE_NAME_SIZE) {
+        Error (NULL, 0, 3000, "Invalid", "The 'COMP_BIN' name is too long.");
+        return ;
+      }
+      strncpy (VtfInfo->CompBinName, *TokenStr, FILE_NAME_SIZE - 1);
+      VtfInfo->CompBinName[FILE_NAME_SIZE - 1] = 0;
     } else if (strnicmp (*TokenStr, "COMP_SYM", 8) == 0) {
       TokenStr++;
-      strcpy (VtfInfo->CompSymName, *TokenStr);
+      if (strlen (*TokenStr) >= FILE_NAME_SIZE) {
+        Error (NULL, 0, 3000, "Invalid", "The 'COMP_SYM' name is too long.");
+        return ;
+      }
+      strncpy (VtfInfo->CompSymName, *TokenStr, FILE_NAME_SIZE - 1);
+      VtfInfo->CompSymName[FILE_NAME_SIZE - 1] = 0;
     } else if (strnicmp (*TokenStr, "COMP_SIZE", 9) == 0) {
       TokenStr++;
       if (strnicmp (*TokenStr, "-", 1) == 0) {
@@ -444,14 +454,24 @@ Returns:
     if (SectionOptionFlag) {
       if (stricmp (*TokenStr, "IA32_RST_BIN") == 0) {
         TokenStr++;
-        strcpy (IA32BinFile, *TokenStr);
+        if (strlen (*TokenStr) >= FILE_NAME_SIZE) {
+          Error (NULL, 0, 3000, "Invalid", "The 'IA32_RST_BIN' name is too long.");
+          break;
+        }
+        strncpy (IA32BinFile, *TokenStr, FILE_NAME_SIZE - 1);
+        IA32BinFile[FILE_NAME_SIZE - 1] = 0;
       }
     }
 
     if (SectionCompFlag) {
       if (stricmp (*TokenStr, "COMP_NAME") == 0) {
         TokenStr++;
-        strcpy (FileListPtr->CompName, *TokenStr);
+        if (strlen (*TokenStr) >= COMPONENT_NAME_SIZE) {
+          Error (NULL, 0, 3000, "Invalid", "The 'COMP_NAME' name is too long.");
+          break;
+        }
+        strncpy (FileListPtr->CompName, *TokenStr, COMPONENT_NAME_SIZE - 1);
+        FileListPtr->CompName[COMPONENT_NAME_SIZE - 1] = 0;
         TokenStr++;
         ParseAndUpdateComponents (FileListPtr);
       }
@@ -2240,9 +2260,20 @@ Returns:
   //
   // Use the file name minus extension as the base for tokens
   //
-  strcpy (BaseToken, SourceFileName);
+  if (strlen (SourceFileName) >= MAX_LONG_FILE_PATH) {
+    fclose (SourceFile);
+    Error (NULL, 0, 2000, "Invalid parameter", "The source file name is too long.");
+    return EFI_ABORTED;
+  }
+  strncpy (BaseToken, SourceFileName, MAX_LONG_FILE_PATH - 1);
+  BaseToken[MAX_LONG_FILE_PATH - 1] = 0;
   strtok (BaseToken, ". \t\n");
-  strcat (BaseToken, "__");
+  if (strlen (BaseToken) + strlen ("__") >= MAX_LONG_FILE_PATH) {
+    fclose (SourceFile);
+    Error (NULL, 0, 2000, "Invalid parameter", "The source file name is too long.");
+    return EFI_ABORTED;
+  }
+  strncat (BaseToken, "__", MAX_LONG_FILE_PATH - strlen (BaseToken) - 1);
 
   //
   // Open the destination file
@@ -2331,7 +2362,7 @@ Returns:
       TokenAddress += BaseAddress &~IPF_CACHE_BIT;
 
       fprintf (DestFile, "%s | %016llX | ", Type, (unsigned long long) TokenAddress);
-      fprintf (DestFile, "%s | %s\n    %s\n", Section, Token, BaseToken); 
+      fprintf (DestFile, "%s | %s\n    %s\n", Section, Token, BaseToken);
     }
   }
 
@@ -2448,7 +2479,7 @@ Returns:
   //
   // Copyright declaration
   //
-  fprintf (stdout, "Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.\n\n");
+  fprintf (stdout, "Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.\n\n");
   //
   // Details Option
   //
@@ -2597,7 +2628,7 @@ Returns:
       }
       continue;
     }
-    
+
     if ((stricmp (argv[Index], "-r") == 0) || (stricmp (argv[Index], "--baseaddr") == 0)) {
       if (FirstRoundB) {
         Status      = AsciiStringToUint64 (argv[Index + 1], FALSE, &StartAddress1);
@@ -2608,7 +2639,7 @@ Returns:
       if (Status != EFI_SUCCESS) {
         Error (NULL, 0, 2000, "Invalid option value", "%s is Bad FV start address.", argv[Index + 1]);
         goto ERROR;
-      }  
+      }
       continue;
     }
 
@@ -2618,7 +2649,7 @@ Returns:
         FirstRoundS = FALSE;
       } else {
         Status = AsciiStringToUint64 (argv[Index + 1], FALSE, &FwVolSize2);
-    	  SecondVTF = TRUE;
+        SecondVTF = TRUE;
       }
 
       if (Status != EFI_SUCCESS) {
@@ -2629,8 +2660,8 @@ Returns:
     }
 
     if ((stricmp (argv[Index], "-v") == 0) || (stricmp (argv[Index], "--verbose") == 0)) {
-	    VerboseMode = TRUE;
-	    Index--;
+      VerboseMode = TRUE;
+      Index--;
       continue;
     }
 
@@ -2698,7 +2729,7 @@ Returns:
     if (SecondVTF == TRUE) {
       OutFileName1 = VTF_OUTPUT_FILE1;
       OutFileName2 = VTF_OUTPUT_FILE2;
-	  } else {
+    } else {
       OutFileName1 = VTF_OUTPUT_FILE1;
     }
     SymFileName = VTF_SYM_FILE;

@@ -2,7 +2,7 @@
   Intrinsic Memory Routines Wrapper Implementation for OpenSSL-based
   Cryptographic Library.
 
-Copyright (c) 2010 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2010 - 2018, Intel Corporation. All rights reserved.<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -24,12 +24,12 @@ typedef UINTN  size_t;
 int _fltused = 1;
 
 /* Sets buffers to a specified character */
-void * memset (void *dest, char ch, size_t count)
+void * memset (void *dest, int ch, size_t count)
 {
   //
   // NOTE: Here we use one base implementation for memset, instead of the direct
-  //       optimized SetMem() wrapper. Because the IntrinsicLib has to be built 
-  //       without whole program optimization option, and there will be some 
+  //       optimized SetMem() wrapper. Because the IntrinsicLib has to be built
+  //       without whole program optimization option, and there will be some
   //       potential register usage errors when calling other optimized codes.
   //
 
@@ -42,9 +42,9 @@ void * memset (void *dest, char ch, size_t count)
 
   Pointer = (UINT8 *)dest;
   while (count-- != 0) {
-    *(Pointer++) = ch;
+    *(Pointer++) = (UINT8)ch;
   }
-  
+
   return dest;
 }
 

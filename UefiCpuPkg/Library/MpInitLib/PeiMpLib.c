@@ -1,7 +1,7 @@
 /** @file
   MP initialize support functions for PEI phase.
 
-  Copyright (c) 2016 - 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2016 - 2018, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -27,6 +27,8 @@ EnableDebugAgent (
 
 /**
   Get pointer to CPU MP Data structure.
+  For BSP, the pointer is retrieved from HOB.
+  For AP, the structure is just after IDT.
 
   @return  The pointer to CPU MP Data structure.
 **/
@@ -35,10 +37,18 @@ GetCpuMpData (
   VOID
   )
 {
-  CPU_MP_DATA      *CpuMpData;
+  CPU_MP_DATA                  *CpuMpData;
+  MSR_IA32_APIC_BASE_REGISTER  ApicBaseMsr;
+  IA32_DESCRIPTOR              Idtr;
 
-  CpuMpData = GetCpuMpDataFromGuidedHob ();
-  ASSERT (CpuMpData != NULL);
+  ApicBaseMsr.Uint64 = AsmReadMsr64 (MSR_IA32_APIC_BASE);
+  if (ApicBaseMsr.Bits.BSP == 1) {
+    CpuMpData = GetCpuMpDataFromGuidedHob ();
+    ASSERT (CpuMpData != NULL);
+  } else {
+    AsmReadIdtr (&Idtr);
+    CpuMpData = (CPU_MP_DATA *) (Idtr.Base + Idtr.Limit + 1);
+  }
   return CpuMpData;
 }
 
@@ -75,15 +85,15 @@ SaveCpuMpData (
 **/
 BOOLEAN
 CheckOverlapWithAllocatedBuffer (
-  IN UINTN                WakeupBufferStart,
-  IN UINTN                WakeupBufferEnd
+  IN UINT64               WakeupBufferStart,
+  IN UINT64               WakeupBufferEnd
   )
 {
   EFI_PEI_HOB_POINTERS      Hob;
   EFI_HOB_MEMORY_ALLOCATION *MemoryHob;
   BOOLEAN                   Overlapped;
-  UINTN                     MemoryStart;
-  UINTN                     MemoryEnd;
+  UINT64                    MemoryStart;
+  UINT64                    MemoryEnd;
 
   Overlapped = FALSE;
   //
@@ -96,9 +106,8 @@ CheckOverlapWithAllocatedBuffer (
   while (!END_OF_HOB_LIST (Hob)) {
     if (Hob.Header->HobType == EFI_HOB_TYPE_MEMORY_ALLOCATION) {
       MemoryHob   = Hob.MemoryAllocation;
-      MemoryStart = (UINTN) MemoryHob->AllocDescriptor.MemoryBaseAddress;
-      MemoryEnd   = (UINTN) (MemoryHob->AllocDescriptor.MemoryBaseAddress +
-                             MemoryHob->AllocDescriptor.MemoryLength);
+      MemoryStart = MemoryHob->AllocDescriptor.MemoryBaseAddress;
+      MemoryEnd   = MemoryHob->AllocDescriptor.MemoryBaseAddress + MemoryHob->AllocDescriptor.MemoryLength;
       if (!((WakeupBufferStart >= MemoryEnd) || (WakeupBufferEnd <= MemoryStart))) {
         Overlapped = TRUE;
         break;
@@ -123,8 +132,8 @@ GetWakeupBuffer (
   )
 {
   EFI_PEI_HOB_POINTERS    Hob;
-  UINTN                   WakeupBufferStart;
-  UINTN                   WakeupBufferEnd;
+  UINT64                  WakeupBufferStart;
+  UINT64                  WakeupBufferEnd;
 
   WakeupBufferSize = (WakeupBufferSize + SIZE_4KB - 1) & ~(SIZE_4KB - 1);
 
@@ -149,7 +158,7 @@ GetWakeupBuffer (
         //
         // Need memory under 1MB to be collected here
         //
-        WakeupBufferEnd = (UINTN) (Hob.ResourceDescriptor->PhysicalStart + Hob.ResourceDescriptor->ResourceLength);
+        WakeupBufferEnd = Hob.ResourceDescriptor->PhysicalStart + Hob.ResourceDescriptor->ResourceLength;
         if (WakeupBufferEnd > BASE_1MB) {
           //
           // Wakeup buffer should be under 1MB
@@ -174,7 +183,7 @@ GetWakeupBuffer (
           }
           DEBUG ((DEBUG_INFO, "WakeupBufferStart = %x, WakeupBufferSize = %x\n",
                                WakeupBufferStart, WakeupBufferSize));
-          return WakeupBufferStart;
+          return (UINTN)WakeupBufferStart;
         }
       }
     }
@@ -185,6 +194,29 @@ GetWakeupBuffer (
   }
 
   return (UINTN) -1;
+}
+
+/**
+  Get available EfiBootServicesCode memory below 4GB by specified size.
+
+  This buffer is required to safely transfer AP from real address mode to
+  protected mode or long mode, due to the fact that the buffer returned by
+  GetWakeupBuffer() may be marked as non-executable.
+
+  @param[in] BufferSize   Wakeup transition buffer size.
+
+  @retval other   Return wakeup transition buffer address below 4GB.
+  @retval 0       Cannot find free memory below 4GB.
+**/
+UINTN
+GetModeTransitionBuffer (
+  IN UINTN                BufferSize
+  )
+{
+  //
+  // PEI phase doesn't need to do such transition. So simply return 0.
+  //
+  return 0;
 }
 
 /**

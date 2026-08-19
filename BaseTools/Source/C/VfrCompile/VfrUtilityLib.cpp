@@ -1,20 +1,21 @@
 /** @file
-  
+
   Vfr common library functions.
 
-Copyright (c) 2004 - 2017, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials                          
-are licensed and made available under the terms and conditions of the BSD License         
-which accompanies this distribution.  The full text of the license may be found at        
-http://opensource.org/licenses/bsd-license.php                                            
-                                                                                          
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+Copyright (c) 2004 - 2018, Intel Corporation. All rights reserved.<BR>
+This program and the accompanying materials
+are licensed and made available under the terms and conditions of the BSD License
+which accompanies this distribution.  The full text of the license may be found at
+http://opensource.org/licenses/bsd-license.php
+
+THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 **/
 
 #include "stdio.h"
 #include "stdlib.h"
+#include "assert.h"
 #include "CommonLib.h"
 #include "VfrUtilityLib.h"
 #include "VfrFormPkg.h"
@@ -71,9 +72,9 @@ CVfrBinaryOutput::WriteEnd (
 }
 
 SConfigInfo::SConfigInfo (
-  IN UINT8              Type, 
-  IN UINT16             Offset, 
-  IN UINT32             Width, 
+  IN UINT8              Type,
+  IN UINT16             Offset,
+  IN UINT32             Width,
   IN EFI_IFR_TYPE_VALUE Value
   )
 {
@@ -359,7 +360,7 @@ CVfrBufferConfig::Write (
 
   case 'i' : // set info
     if (mItemListPos->mId != NULL) {
-      delete mItemListPos->mId;
+      delete[] mItemListPos->mId;
     }
     mItemListPos->mId = NULL;
     if (Id != NULL) {
@@ -552,7 +553,7 @@ _STR2U32 (
     //
     // BUG: does not handle overflow here
     //
-	(IsHex == TRUE) ? (Value <<= 4) : (Value *= 10);
+  (IsHex == TRUE) ? (Value <<= 4) : (Value *= 10);
 
     if ((IsHex == TRUE) && (c >= 'a') && (c <= 'f')) {
       Value += (c - 'a' + 10);
@@ -763,7 +764,7 @@ CVfrVarDataTypeDB::GetFieldOffset (
   if (Field == NULL) {
     return VFR_RETURN_FATAL_ERROR;
   }
-  
+
   //
   // Framework Vfr file Array Index is from 1.
   // But Uefi Vfr file Array Index is from 0.
@@ -778,7 +779,7 @@ CVfrVarDataTypeDB::GetFieldOffset (
   if ((ArrayIdx != INVALID_ARRAY_INDEX) && ((Field->mArrayNum == 0) || (Field->mArrayNum <= ArrayIdx))) {
     return VFR_RETURN_ERROR_ARRARY_NUM;
   }
-  
+
   //
   // Be compatible with the current usage
   // If ArraryIdx is not specified, the first one is used.
@@ -842,7 +843,9 @@ CVfrVarDataTypeDB::InternalTypesListInit (
   for (Index = 0; gInternalTypesTable[Index].mTypeName != NULL; Index++) {
     New                 = new SVfrDataType;
     if (New != NULL) {
-      strcpy (New->mTypeName, gInternalTypesTable[Index].mTypeName);
+      assert (strlen (gInternalTypesTable[Index].mTypeName) < MAX_NAME_LEN);
+      strncpy (New->mTypeName, gInternalTypesTable[Index].mTypeName, MAX_NAME_LEN - 1);
+      New->mTypeName[MAX_NAME_LEN - 1] = 0;
       New->mType        = gInternalTypesTable[Index].mType;
       New->mAlign       = gInternalTypesTable[Index].mAlign;
       New->mTotalSize   = gInternalTypesTable[Index].mSize;
@@ -955,6 +958,7 @@ CVfrVarDataTypeDB::CVfrVarDataTypeDB (
   mPackAlign     = DEFAULT_PACK_ALIGN;
   mPackStack     = NULL;
   mFirstNewDataTypeName = NULL;
+  mCurrDataType  = NULL;
 
   InternalTypesListInit ();
 }
@@ -979,7 +983,7 @@ CVfrVarDataTypeDB::~CVfrVarDataTypeDB (
       pType->mMembers = pType->mMembers->mNext;
       delete pField;
     }
-	delete pType;
+  delete pType;
   }
 
   while (mPackStack != NULL) {
@@ -1084,7 +1088,8 @@ CVfrVarDataTypeDB::SetNewTypeName (
     }
   }
 
-  strcpy(mNewDataType->mTypeName, TypeName);
+  strncpy(mNewDataType->mTypeName, TypeName, MAX_NAME_LEN - 1);
+  mNewDataType->mTypeName[MAX_NAME_LEN - 1] = 0;
   return VFR_RETURN_SUCCESS;
 }
 
@@ -1145,7 +1150,8 @@ CVfrVarDataTypeDB::DataTypeAddBitField (
 
   MaxDataTypeSize = mNewDataType->mTotalSize;
   if (FieldName != NULL) {
-    strcpy (pNewField->mFieldName, FieldName);
+    strncpy (pNewField->mFieldName, FieldName, MAX_NAME_LEN - 1);
+    pNewField->mFieldName[MAX_NAME_LEN - 1] = 0;
   }
   pNewField->mFieldType    = pFieldType;
   pNewField->mIsBitField   = TRUE;
@@ -1239,7 +1245,8 @@ CVfrVarDataTypeDB::DataTypeAddField (
   if ((pNewField = new SVfrDataField) == NULL) {
     return VFR_RETURN_OUT_FOR_RESOURCES;
   }
-  strcpy (pNewField->mFieldName, FieldName);
+  strncpy (pNewField->mFieldName, FieldName, MAX_NAME_LEN - 1);
+  pNewField->mFieldName[MAX_NAME_LEN - 1] = 0;
   pNewField->mFieldType    = pFieldType;
   pNewField->mArrayNum     = ArrayNum;
   pNewField->mIsBitField   = FALSE;
@@ -1498,10 +1505,10 @@ CVfrVarDataTypeDB::Dump (
     fprintf (File, "\t\tstruct %s {\n", pTNode->mTypeName);
     for (pFNode = pTNode->mMembers; pFNode != NULL; pFNode = pFNode->mNext) {
       if (pFNode->mArrayNum > 0) {
-        fprintf (File, "\t\t\t+%08d[%08x] %s[%d] <%s>\n", pFNode->mOffset, pFNode->mOffset, 
+        fprintf (File, "\t\t\t+%08d[%08x] %s[%d] <%s>\n", pFNode->mOffset, pFNode->mOffset,
                   pFNode->mFieldName, pFNode->mArrayNum, pFNode->mFieldType->mTypeName);
       } else {
-        fprintf (File, "\t\t\t+%08d[%08x] %s <%s>\n", pFNode->mOffset, pFNode->mOffset, 
+        fprintf (File, "\t\t\t+%08d[%08x] %s <%s>\n", pFNode->mOffset, pFNode->mOffset,
                   pFNode->mFieldName, pFNode->mFieldType->mTypeName);
       }
     }
@@ -1529,7 +1536,7 @@ CVfrVarDataTypeDB::ParserDB (
       printf ("\t\t\t%s\t%s\n", pFNode->mFieldType->mTypeName, pFNode->mFieldName);
     }
     printf ("\t\t};\n");
-	printf ("---------------------------------------------------------------\n");
+  printf ("---------------------------------------------------------------\n");
   }
   printf ("***************************************************************\n");
 }
@@ -1599,6 +1606,7 @@ SVfrVarStorageNode::SVfrVarStorageNode (
   IN EFI_VARSTORE_ID       VarStoreId
   )
 {
+  memset (&mGuid, 0, sizeof (EFI_GUID));
   if (StoreName != NULL) {
     mVarStoreName = new CHAR8[strlen(StoreName) + 1];
     strcpy (mVarStoreName, StoreName);
@@ -1610,6 +1618,7 @@ SVfrVarStorageNode::SVfrVarStorageNode (
   mVarStoreType                      = EFI_VFR_VARSTORE_NAME;
   mStorageInfo.mNameSpace.mNameTable = new EFI_VARSTORE_ID[DEFAULT_NAME_TABLE_ITEMS];
   mStorageInfo.mNameSpace.mTableSize = 0;
+  mAssignedFlag                      = FALSE;
 }
 
 SVfrVarStorageNode::~SVfrVarStorageNode (
@@ -1621,7 +1630,7 @@ SVfrVarStorageNode::~SVfrVarStorageNode (
   }
 
   if (mVarStoreType == EFI_VFR_VARSTORE_NAME) {
-    delete mStorageInfo.mNameSpace.mNameTable;
+    delete[] mStorageInfo.mNameSpace.mNameTable;
   }
 }
 
@@ -1679,7 +1688,7 @@ CVfrDataStorage::GetFreeVarStoreId (
   )
 {
   UINT32  Index, Mask, Offset;
-  
+
   //
   // Assign the different ID range for the different type VarStore to support Framework Vfr
   //
@@ -1761,7 +1770,7 @@ CVfrDataStorage::DeclareNameVarStoreBegin (
   if (GetVarStoreId (StoreName, &TmpVarStoreId) == VFR_RETURN_SUCCESS) {
     return VFR_RETURN_REDEFINED;
   }
-  
+
   if (VarStoreId == EFI_VARSTORE_ID_INVALID) {
     VarStoreId = GetFreeVarStoreId (EFI_VFR_VARSTORE_NAME);
   } else {
@@ -1819,10 +1828,10 @@ CVfrDataStorage::DeclareNameVarStoreEnd (
   return VFR_RETURN_SUCCESS;
 }
 
-EFI_VFR_RETURN_CODE 
+EFI_VFR_RETURN_CODE
 CVfrDataStorage::DeclareEfiVarStore (
-  IN CHAR8          *StoreName, 
-  IN EFI_GUID       *Guid, 
+  IN CHAR8          *StoreName,
+  IN EFI_GUID       *Guid,
   IN EFI_STRING_ID  NameStrId,
   IN UINT32         VarSize,
   IN BOOLEAN        Flag
@@ -1854,10 +1863,10 @@ CVfrDataStorage::DeclareEfiVarStore (
   return VFR_RETURN_SUCCESS;
 }
 
-EFI_VFR_RETURN_CODE 
+EFI_VFR_RETURN_CODE
 CVfrDataStorage::DeclareBufferVarStore (
-  IN CHAR8             *StoreName, 
-  IN EFI_GUID          *Guid, 
+  IN CHAR8             *StoreName,
+  IN EFI_GUID          *Guid,
   IN CVfrVarDataTypeDB *DataTypeDB,
   IN CHAR8             *TypeName,
   IN EFI_VARSTORE_ID   VarStoreId,
@@ -1902,7 +1911,7 @@ CVfrDataStorage::DeclareBufferVarStore (
   return VFR_RETURN_SUCCESS;
 }
 
-EFI_VFR_RETURN_CODE 
+EFI_VFR_RETURN_CODE
 CVfrDataStorage::GetVarStoreByDataType (
   IN  CHAR8              *DataTypeName,
   OUT SVfrVarStorageNode **VarNode,
@@ -1911,7 +1920,7 @@ CVfrDataStorage::GetVarStoreByDataType (
 {
   SVfrVarStorageNode    *pNode;
   SVfrVarStorageNode    *MatchNode;
-  
+
   //
   // Framework VFR uses Data type name as varstore name, so don't need check again.
   //
@@ -1941,7 +1950,7 @@ CVfrDataStorage::GetVarStoreByDataType (
       }
     }
   }
-  
+
   if (MatchNode == NULL) {
     return VFR_RETURN_UNDEFINED;
   }
@@ -1950,7 +1959,7 @@ CVfrDataStorage::GetVarStoreByDataType (
   return VFR_RETURN_SUCCESS;
 }
 
-EFI_VARSTORE_ID 
+EFI_VARSTORE_ID
 CVfrDataStorage::CheckGuidField (
   IN  SVfrVarStorageNode   *pNode,
   IN  EFI_GUID             *StoreGuid,
@@ -1990,7 +1999,7 @@ CVfrDataStorage::CheckGuidField (
 }
 
 /**
-  Base on the input store name and guid to find the varstore id. 
+  Base on the input store name and guid to find the varstore id.
 
   If both name and guid are inputed, base on the name and guid to
   found the varstore. If only name inputed, base on the name to
@@ -1998,10 +2007,10 @@ CVfrDataStorage::CheckGuidField (
   has the same name. If only has found one varstore, return this
   varstore; if more than one varstore has same name, return varstore
   name redefined error. If no varstore found by varstore name, call
-  function GetVarStoreByDataType and use inputed varstore name as 
+  function GetVarStoreByDataType and use inputed varstore name as
   data type name to search.
 **/
-EFI_VFR_RETURN_CODE 
+EFI_VFR_RETURN_CODE
 CVfrDataStorage::GetVarStoreId (
   IN  CHAR8           *StoreName,
   OUT EFI_VARSTORE_ID *VarStoreId,
@@ -2049,14 +2058,14 @@ CVfrDataStorage::GetVarStoreId (
   *VarStoreId         = EFI_VARSTORE_ID_INVALID;
 
   //
-  // Assume that Data strucutre name is used as StoreName, and check again. 
+  // Assume that Data strucutre name is used as StoreName, and check again.
   //
   ReturnCode = GetVarStoreByDataType (StoreName, &pNode, StoreGuid);
   if (pNode != NULL) {
     mCurrVarStorageNode = pNode;
     *VarStoreId = pNode->mVarStoreId;
   }
-  
+
   return ReturnCode;
 }
 
@@ -2160,7 +2169,7 @@ CVfrDataStorage::GetVarStoreGuid (
 
 EFI_VFR_RETURN_CODE
 CVfrDataStorage::GetVarStoreName (
-  IN  EFI_VARSTORE_ID VarStoreId, 
+  IN  EFI_VARSTORE_ID VarStoreId,
   OUT CHAR8           **VarStoreName
   )
 {
@@ -2285,7 +2294,7 @@ CVfrDataStorage::GetNameVarStoreInfo (
   if (mCurrVarStorageNode == NULL) {
     return VFR_RETURN_GET_NVVARSTORE_ERROR;
   }
-  
+
   //
   // Framework Vfr file Index is from 1, but Uefi Vfr file Index is from 0.
   //
@@ -2303,8 +2312,8 @@ CVfrDataStorage::GetNameVarStoreInfo (
 
 SVfrDefaultStoreNode::SVfrDefaultStoreNode (
   IN EFI_IFR_DEFAULTSTORE *ObjBinAddr,
-  IN CHAR8                *RefName, 
-  IN EFI_STRING_ID        DefaultStoreNameId, 
+  IN CHAR8                *RefName,
+  IN EFI_STRING_ID        DefaultStoreNameId,
   IN UINT16               DefaultId
   )
 {
@@ -2382,7 +2391,7 @@ CVfrDefaultStore::RegisterDefaultStore (
 }
 
 /*
- * assign new reference name or new default store name id only if 
+ * assign new reference name or new default store name id only if
  * the original is invalid
  */
 EFI_VFR_RETURN_CODE
@@ -2498,7 +2507,7 @@ CVfrDefaultStore::BufferVarStoreAltConfigAdd (
       goto WriteError;
     }
   }
-  
+
   gCVfrBufferConfig.Close ();
 
   return VFR_RETURN_SUCCESS;
@@ -2640,7 +2649,7 @@ EFI_VARSTORE_INFO::operator == (
   )
 {
   if ((mVarStoreId == Info->mVarStoreId) &&
-  	  (mInfo.mVarName == Info->mInfo.mVarName) &&
+      (mInfo.mVarName == Info->mInfo.mVarName) &&
       (mInfo.mVarOffset == Info->mInfo.mVarOffset) &&
       (mVarType == Info->mVarType) &&
       (mVarTotalSize == Info->mVarTotalSize) &&
@@ -2823,7 +2832,7 @@ CVfrQuestionDB::ResetInit(
 
   // Question ID 0 is reserved.
   mFreeQIdBitMap[0] = 0x80000000;
-  mQuestionList     = NULL;   
+  mQuestionList     = NULL;
 }
 
 VOID
@@ -3031,7 +3040,8 @@ CVfrQuestionDB::RegisterNewDateQuestion (
 
   for (Index = 0; Index < 3; Index++) {
     if (VarIdStr[Index] != NULL) {
-      delete VarIdStr[Index];
+      delete[] VarIdStr[Index];
+      VarIdStr[Index] = NULL;
     }
   }
 
@@ -3048,7 +3058,8 @@ Err:
     }
 
     if (VarIdStr[Index] != NULL) {
-      delete VarIdStr[Index];
+      delete[] VarIdStr [Index];
+      VarIdStr [Index] = NULL;
     }
   }
 }
@@ -3207,7 +3218,8 @@ CVfrQuestionDB::RegisterNewTimeQuestion (
 
   for (Index = 0; Index < 3; Index++) {
     if (VarIdStr[Index] != NULL) {
-      delete VarIdStr[Index];
+      delete[] VarIdStr[Index];
+      VarIdStr[Index] = NULL;
     }
   }
 
@@ -3224,12 +3236,13 @@ Err:
     }
 
     if (VarIdStr[Index] != NULL) {
-      delete VarIdStr[Index];
+      delete[] VarIdStr[Index];
+      VarIdStr[Index] = NULL;
     }
   }
 }
 
-VOID 
+VOID
 CVfrQuestionDB::RegisterRefQuestion (
   IN     CHAR8           *Name,
   IN     CHAR8           *BaseVarId,
@@ -3318,15 +3331,15 @@ CVfrQuestionDB::RegisterRefQuestion (
   pNode[0]->mQuestionId = QuestionId;
   pNode[1]->mQuestionId = QuestionId;
   pNode[2]->mQuestionId = QuestionId;
-  pNode[3]->mQuestionId = QuestionId;  
+  pNode[3]->mQuestionId = QuestionId;
   pNode[0]->mQtype      = QUESTION_REF;
   pNode[1]->mQtype      = QUESTION_REF;
   pNode[2]->mQtype      = QUESTION_REF;
-  pNode[3]->mQtype      = QUESTION_REF;  
+  pNode[3]->mQtype      = QUESTION_REF;
   pNode[0]->mNext       = pNode[1];
   pNode[1]->mNext       = pNode[2];
   pNode[2]->mNext       = pNode[3];
-  pNode[3]->mNext       = mQuestionList;  
+  pNode[3]->mNext       = mQuestionList;
   mQuestionList         = pNode[0];
 
   gCFormPkg.DoPendingAssign (VarIdStr[0], (VOID *)&QuestionId, sizeof(EFI_QUESTION_ID));
@@ -3355,15 +3368,15 @@ CVfrQuestionDB::UpdateQuestionId (
   )
 {
   SVfrQuestionNode *pNode = NULL;
-  
+
   if (QId == NewQId) {
     // don't update
     return VFR_RETURN_SUCCESS;
   }
-  
+
   //
   // For Framework Vfr, don't check question ID conflict.
-  //  
+  //
   if (!VfrCompatibleMode && ChekQuestionIdFree (NewQId) == FALSE) {
     return VFR_RETURN_REDEFINED;
   }
@@ -3419,7 +3432,7 @@ CVfrQuestionDB::GetQuestionId (
       if (strcmp (pNode->mVarIdStr, VarIdStr) != 0) {
         continue;
       }
-  	}
+    }
 
     QuestionId = pNode->mQuestionId;
     BitMask    = pNode->mBitMask;
@@ -3480,19 +3493,23 @@ CVfrStringDB::CVfrStringDB ()
 CVfrStringDB::~CVfrStringDB ()
 {
   if (mStringFileName != NULL) {
-    delete mStringFileName;
+    delete[] mStringFileName;
   }
   mStringFileName = NULL;
 }
 
 
-VOID 
+VOID
 CVfrStringDB::SetStringFileName(IN CHAR8 *StringFileName)
 {
   UINT32 FileLen = 0;
 
   if (StringFileName == NULL) {
     return;
+  }
+
+  if (mStringFileName != NULL) {
+    delete[] mStringFileName;
   }
 
   FileLen = strlen (StringFileName) + 1;
@@ -3507,7 +3524,7 @@ CVfrStringDB::SetStringFileName(IN CHAR8 *StringFileName)
 
 
 /**
-  Returns TRUE or FALSE whether SupportedLanguages contains the best matching language 
+  Returns TRUE or FALSE whether SupportedLanguages contains the best matching language
   from a set of supported languages.
 
   @param[in]  SupportedLanguages  A pointer to a Null-terminated ASCII string that
@@ -3570,13 +3587,13 @@ CVfrStringDB::GetBestLanguage (
     }
 
     //
-    // Trim Language from the right to the next '-' character 
+    // Trim Language from the right to the next '-' character
     //
     for (LanguageLength--; LanguageLength > 0 && Language[LanguageLength] != '-'; LanguageLength--);
   }
 
   //
-  // No matches were found 
+  // No matches were found
   //
   return FALSE;
 }
@@ -3600,7 +3617,7 @@ CVfrStringDB::GetVarStoreNameFormStringId (
   CHAR8       LineBuf[EFI_IFR_MAX_LENGTH];
   UINT8       BlockType;
   EFI_HII_STRING_PACKAGE_HDR *PkgHeader;
-  
+
   if (mStringFileName == NULL) {
     return NULL;
   }

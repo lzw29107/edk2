@@ -1,7 +1,7 @@
 /** @file
   UEFI Heap Guard functions.
 
-Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2017-2018, Intel Corporation. All rights reserved.<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -73,7 +73,7 @@ SetBits (
   StartBit  = (UINTN)GUARDED_HEAP_MAP_ENTRY_BIT_INDEX (Address);
   EndBit    = (StartBit + BitNumber - 1) % GUARDED_HEAP_MAP_ENTRY_BITS;
 
-  if ((StartBit + BitNumber) > GUARDED_HEAP_MAP_ENTRY_BITS) {
+  if ((StartBit + BitNumber) >= GUARDED_HEAP_MAP_ENTRY_BITS) {
     Msbs    = (GUARDED_HEAP_MAP_ENTRY_BITS - StartBit) %
               GUARDED_HEAP_MAP_ENTRY_BITS;
     Lsbs    = (EndBit + 1) % GUARDED_HEAP_MAP_ENTRY_BITS;
@@ -126,7 +126,7 @@ ClearBits (
   StartBit  = (UINTN)GUARDED_HEAP_MAP_ENTRY_BIT_INDEX (Address);
   EndBit    = (StartBit + BitNumber - 1) % GUARDED_HEAP_MAP_ENTRY_BITS;
 
-  if ((StartBit + BitNumber) > GUARDED_HEAP_MAP_ENTRY_BITS) {
+  if ((StartBit + BitNumber) >= GUARDED_HEAP_MAP_ENTRY_BITS) {
     Msbs    = (GUARDED_HEAP_MAP_ENTRY_BITS - StartBit) %
               GUARDED_HEAP_MAP_ENTRY_BITS;
     Lsbs    = (EndBit + 1) % GUARDED_HEAP_MAP_ENTRY_BITS;
@@ -191,10 +191,14 @@ GetBits (
     Lsbs = 0;
   }
 
-  Result    = RShiftU64 ((*BitMap), StartBit) & (LShiftU64 (1, Msbs) - 1);
-  if (Lsbs > 0) {
-    BitMap  += 1;
-    Result  |= LShiftU64 ((*BitMap) & (LShiftU64 (1, Lsbs) - 1), Msbs);
+  if (StartBit == 0 && BitNumber == GUARDED_HEAP_MAP_ENTRY_BITS) {
+    Result = *BitMap;
+  } else {
+    Result    = RShiftU64((*BitMap), StartBit) & (LShiftU64(1, Msbs) - 1);
+    if (Lsbs > 0) {
+      BitMap  += 1;
+      Result  |= LShiftU64 ((*BitMap) & (LShiftU64 (1, Lsbs) - 1), Msbs);
+    }
   }
 
   return Result;
@@ -251,8 +255,8 @@ FindGuardedMemoryMap (
   //
   // Adjust current map table depth according to the address to access
   //
-  while (mMapLevel < GUARDED_HEAP_MAP_TABLE_DEPTH
-         &&
+  while (AllocMapUnit &&
+         mMapLevel < GUARDED_HEAP_MAP_TABLE_DEPTH &&
          RShiftU64 (
            Address,
            mLevelShift[GUARDED_HEAP_MAP_TABLE_DEPTH - mMapLevel - 1]
@@ -588,14 +592,17 @@ SetGuardPage (
   IN  EFI_PHYSICAL_ADDRESS      BaseAddress
   )
 {
+  EFI_STATUS      Status;
+
   if (mSmmMemoryAttribute != NULL) {
     mOnGuarding = TRUE;
-    mSmmMemoryAttribute->SetMemoryAttributes (
-                           mSmmMemoryAttribute,
-                           BaseAddress,
-                           EFI_PAGE_SIZE,
-                           EFI_MEMORY_RP
-                           );
+    Status = mSmmMemoryAttribute->SetMemoryAttributes (
+                                    mSmmMemoryAttribute,
+                                    BaseAddress,
+                                    EFI_PAGE_SIZE,
+                                    EFI_MEMORY_RP
+                                    );
+    ASSERT_EFI_ERROR (Status);
     mOnGuarding = FALSE;
   }
 }
@@ -615,14 +622,17 @@ UnsetGuardPage (
   IN  EFI_PHYSICAL_ADDRESS      BaseAddress
   )
 {
+  EFI_STATUS      Status;
+
   if (mSmmMemoryAttribute != NULL) {
     mOnGuarding = TRUE;
-    mSmmMemoryAttribute->ClearMemoryAttributes (
-                           mSmmMemoryAttribute,
-                           BaseAddress,
-                           EFI_PAGE_SIZE,
-                           EFI_MEMORY_RP
-                           );
+    Status = mSmmMemoryAttribute->ClearMemoryAttributes (
+                                    mSmmMemoryAttribute,
+                                    BaseAddress,
+                                    EFI_PAGE_SIZE,
+                                    EFI_MEMORY_RP
+                                    );
+    ASSERT_EFI_ERROR (Status);
     mOnGuarding = FALSE;
   }
 }
@@ -776,6 +786,7 @@ UnsetGuardForMemory (
   )
 {
   EFI_PHYSICAL_ADDRESS  GuardPage;
+  UINT64                GuardBitmap;
 
   if (NumberOfPages == 0) {
     return;
@@ -784,16 +795,29 @@ UnsetGuardForMemory (
   //
   // Head Guard must be one page before, if any.
   //
+  //          MSB-> 1     0 <-LSB
+  //          -------------------
+  //  Head Guard -> 0     1 -> Don't free Head Guard  (shared Guard)
+  //  Head Guard -> 0     0 -> Free Head Guard either (not shared Guard)
+  //                1     X -> Don't free first page  (need a new Guard)
+  //                           (it'll be turned into a Guard page later)
+  //          -------------------
+  //      Start -> -1    -2
+  //
   GuardPage = Memory - EFI_PAGES_TO_SIZE (1);
-  if (IsHeadGuard (GuardPage)) {
-    if (!IsMemoryGuarded (GuardPage - EFI_PAGES_TO_SIZE (1))) {
+  GuardBitmap = GetGuardedMemoryBits (Memory - EFI_PAGES_TO_SIZE (2), 2);
+  if ((GuardBitmap & BIT1) == 0) {
+    //
+    // Head Guard exists.
+    //
+    if ((GuardBitmap & BIT0) == 0) {
       //
       // If the head Guard is not a tail Guard of adjacent memory block,
       // unset it.
       //
       UnsetGuardPage (GuardPage);
     }
-  } else if (IsMemoryGuarded (GuardPage)) {
+  } else {
     //
     // Pages before memory to free are still in Guard. It's a partial free
     // case. Turn first page of memory block to free into a new Guard.
@@ -804,16 +828,29 @@ UnsetGuardForMemory (
   //
   // Tail Guard must be the page after this memory block to free, if any.
   //
+  //   MSB-> 1     0 <-LSB
+  //  --------------------
+  //         1     0 <- Tail Guard -> Don't free Tail Guard  (shared Guard)
+  //         0     0 <- Tail Guard -> Free Tail Guard either (not shared Guard)
+  //         X     1               -> Don't free last page   (need a new Guard)
+  //                                 (it'll be turned into a Guard page later)
+  //  --------------------
+  //        +1    +0 <- End
+  //
   GuardPage = Memory + EFI_PAGES_TO_SIZE (NumberOfPages);
-  if (IsTailGuard (GuardPage)) {
-    if (!IsMemoryGuarded (GuardPage + EFI_PAGES_TO_SIZE (1))) {
+  GuardBitmap = GetGuardedMemoryBits (GuardPage, 2);
+  if ((GuardBitmap & BIT0) == 0) {
+    //
+    // Tail Guard exists.
+    //
+    if ((GuardBitmap & BIT1) == 0) {
       //
       // If the tail Guard is not a head Guard of adjacent memory block,
       // free it; otherwise, keep it.
       //
       UnsetGuardPage (GuardPage);
     }
-  } else if (IsMemoryGuarded (GuardPage)) {
+  } else {
     //
     // Pages after memory to free are still in Guard. It's a partial free
     // case. We need to keep one page to be a head Guard.
@@ -850,12 +887,18 @@ AdjustMemoryS (
 {
   UINT64  Target;
 
-  Target = Start + Size - SizeRequested;
+  //
+  // UEFI spec requires that allocated pool must be 8-byte aligned. If it's
+  // indicated to put the pool near the Tail Guard, we need extra bytes to
+  // make sure alignment of the returned pool address.
+  //
+  if ((PcdGet8 (PcdHeapGuardPropertyMask) & BIT7) == 0) {
+    SizeRequested = ALIGN_VALUE(SizeRequested, 8);
+  }
 
-  //
-  // At least one more page needed for Guard page.
-  //
-  if (Size < (SizeRequested + EFI_PAGES_TO_SIZE (1))) {
+  Target = Start + Size - SizeRequested;
+  ASSERT (Target >= Start);
+  if (Target == 0) {
     return 0;
   }
 
@@ -903,6 +946,8 @@ AdjustMemoryF (
   EFI_PHYSICAL_ADDRESS  Start;
   EFI_PHYSICAL_ADDRESS  MemoryToTest;
   UINTN                 PagesToFree;
+  UINT64                GuardBitmap;
+  UINT64                Attributes;
 
   if (Memory == NULL || NumberOfPages == NULL || *NumberOfPages == 0) {
     return;
@@ -912,11 +957,45 @@ AdjustMemoryF (
   PagesToFree = *NumberOfPages;
 
   //
+  // In case the memory to free is marked as read-only (e.g. EfiRuntimeServicesCode).
+  //
+  if (mSmmMemoryAttribute != NULL) {
+    Attributes = 0;
+    mSmmMemoryAttribute->GetMemoryAttributes (
+                           mSmmMemoryAttribute,
+                           Start,
+                           EFI_PAGES_TO_SIZE (PagesToFree),
+                           &Attributes
+                           );
+    if ((Attributes & EFI_MEMORY_RO) != 0) {
+      mSmmMemoryAttribute->ClearMemoryAttributes (
+                             mSmmMemoryAttribute,
+                             Start,
+                             EFI_PAGES_TO_SIZE (PagesToFree),
+                             EFI_MEMORY_RO
+                             );
+    }
+  }
+
+  //
   // Head Guard must be one page before, if any.
   //
-  MemoryToTest = Start - EFI_PAGES_TO_SIZE (1);
-  if (IsHeadGuard (MemoryToTest)) {
-    if (!IsMemoryGuarded (MemoryToTest - EFI_PAGES_TO_SIZE (1))) {
+  //          MSB-> 1     0 <-LSB
+  //          -------------------
+  //  Head Guard -> 0     1 -> Don't free Head Guard  (shared Guard)
+  //  Head Guard -> 0     0 -> Free Head Guard either (not shared Guard)
+  //                1     X -> Don't free first page  (need a new Guard)
+  //                           (it'll be turned into a Guard page later)
+  //          -------------------
+  //      Start -> -1    -2
+  //
+  MemoryToTest = Start - EFI_PAGES_TO_SIZE (2);
+  GuardBitmap = GetGuardedMemoryBits (MemoryToTest, 2);
+  if ((GuardBitmap & BIT1) == 0) {
+    //
+    // Head Guard exists.
+    //
+    if ((GuardBitmap & BIT0) == 0) {
       //
       // If the head Guard is not a tail Guard of adjacent memory block,
       // free it; otherwise, keep it.
@@ -924,10 +1003,10 @@ AdjustMemoryF (
       Start       -= EFI_PAGES_TO_SIZE (1);
       PagesToFree += 1;
     }
-  } else if (IsMemoryGuarded (MemoryToTest)) {
+  } else {
     //
-    // Pages before memory to free are still in Guard. It's a partial free
-    // case. We need to keep one page to be a tail Guard.
+    // No Head Guard, and pages before memory to free are still in Guard. It's a
+    // partial free case. We need to keep one page to be a tail Guard.
     //
     Start       += EFI_PAGES_TO_SIZE (1);
     PagesToFree -= 1;
@@ -936,19 +1015,32 @@ AdjustMemoryF (
   //
   // Tail Guard must be the page after this memory block to free, if any.
   //
+  //   MSB-> 1     0 <-LSB
+  //  --------------------
+  //         1     0 <- Tail Guard -> Don't free Tail Guard  (shared Guard)
+  //         0     0 <- Tail Guard -> Free Tail Guard either (not shared Guard)
+  //         X     1               -> Don't free last page   (need a new Guard)
+  //                                 (it'll be turned into a Guard page later)
+  //  --------------------
+  //        +1    +0 <- End
+  //
   MemoryToTest = Start + EFI_PAGES_TO_SIZE (PagesToFree);
-  if (IsTailGuard (MemoryToTest)) {
-    if (!IsMemoryGuarded (MemoryToTest + EFI_PAGES_TO_SIZE (1))) {
+  GuardBitmap = GetGuardedMemoryBits (MemoryToTest, 2);
+  if ((GuardBitmap & BIT0) == 0) {
+    //
+    // Tail Guard exists.
+    //
+    if ((GuardBitmap & BIT1) == 0) {
       //
       // If the tail Guard is not a head Guard of adjacent memory block,
       // free it; otherwise, keep it.
       //
       PagesToFree += 1;
     }
-  } else if (IsMemoryGuarded (MemoryToTest)) {
+  } else if (PagesToFree > 0) {
     //
-    // Pages after memory to free are still in Guard. It's a partial free
-    // case. We need to keep one page to be a head Guard.
+    // No Tail Guard, and pages after memory to free are still in Guard. It's a
+    // partial free case. We need to keep one page to be a head Guard.
     //
     PagesToFree -= 1;
   }
@@ -1006,7 +1098,7 @@ AdjustPoolHeadA (
   IN UINTN                   Size
   )
 {
-  if ((PcdGet8 (PcdHeapGuardPropertyMask) & BIT7) != 0) {
+  if (Memory == 0 || (PcdGet8 (PcdHeapGuardPropertyMask) & BIT7) != 0) {
     //
     // Pool head is put near the head Guard
     //
@@ -1016,6 +1108,7 @@ AdjustPoolHeadA (
   //
   // Pool head is put near the tail Guard
   //
+  Size = ALIGN_VALUE (Size, 8);
   return (VOID *)(UINTN)(Memory + EFI_PAGES_TO_SIZE (NoPages) - Size);
 }
 
@@ -1031,7 +1124,7 @@ AdjustPoolHeadF (
   IN EFI_PHYSICAL_ADDRESS    Memory
   )
 {
-  if ((PcdGet8 (PcdHeapGuardPropertyMask) & BIT7) != 0) {
+  if (Memory == 0 || (PcdGet8 (PcdHeapGuardPropertyMask) & BIT7) != 0) {
     //
     // Pool head is put near the head Guard
     //
@@ -1141,11 +1234,18 @@ SmmInternalFreePagesExWithGuard (
   EFI_PHYSICAL_ADDRESS    MemoryToFree;
   UINTN                   PagesToFree;
 
+  if (((Memory & EFI_PAGE_MASK) != 0) || (Memory == 0) || (NumberOfPages == 0)) {
+    return EFI_INVALID_PARAMETER;
+  }
+
   MemoryToFree  = Memory;
   PagesToFree   = NumberOfPages;
 
   AdjustMemoryF (&MemoryToFree, &PagesToFree);
   UnsetGuardForMemory (Memory, NumberOfPages);
+  if (PagesToFree == 0) {
+    return EFI_SUCCESS;
+  }
 
   return SmmInternalFreePagesEx (MemoryToFree, PagesToFree, AddRegion);
 }
@@ -1170,7 +1270,9 @@ SetAllGuardPages (
   UINTN     Index;
   BOOLEAN   OnGuarding;
 
-  if (mGuardedMemoryMap == 0) {
+  if (mGuardedMemoryMap == 0 ||
+      mMapLevel == 0 ||
+      mMapLevel > GUARDED_HEAP_MAP_TABLE_DEPTH) {
     return;
   }
 
@@ -1329,7 +1431,9 @@ DumpGuardedMemoryBitmap (
   CHAR8     *Ruler1;
   CHAR8     *Ruler2;
 
-  if (mGuardedMemoryMap == 0) {
+  if (mGuardedMemoryMap == 0 ||
+      mMapLevel == 0 ||
+      mMapLevel > GUARDED_HEAP_MAP_TABLE_DEPTH) {
     return;
   }
 

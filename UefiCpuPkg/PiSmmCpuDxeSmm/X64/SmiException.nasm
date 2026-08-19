@@ -1,5 +1,5 @@
 ;------------------------------------------------------------------------------ ;
-; Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2016 - 2018, Intel Corporation. All rights reserved.<BR>
 ; This program and the accompanying materials
 ; are licensed and made available under the terms and conditions of the BSD License
 ; which accompanies this distribution.  The full text of the license may be found at
@@ -279,7 +279,7 @@ ASM_PFX(PageFaultIdtHandlerSmmProfile):
 
     sub rsp, 512
     mov rdi, rsp
-    db 0xf, 0xae, 00000111y ;fxsave [rdi]
+    fxsave [rdi]
 
 ; UEFI calling convention for x64 requires that Direction flag in EFLAGs is clear
     cld
@@ -289,7 +289,7 @@ ASM_PFX(PageFaultIdtHandlerSmmProfile):
 
 ;; call into exception handler
     mov     rcx, [rbp + 8]
-    mov     rax, ASM_PFX(SmiPFHandler)
+    lea     rax, [ASM_PFX(SmiPFHandler)]
 
 ;; Prepare parameter and call
     mov     rdx, rsp
@@ -309,7 +309,7 @@ ASM_PFX(PageFaultIdtHandlerSmmProfile):
 ;; FX_SAVE_STATE_X64 FxSaveState;
 
     mov rsi, rsp
-    db 0xf, 0xae, 00001110y ; fxrstor [rsi]
+    fxrstor [rsi]
     add rsp, 512
 
 ;; UINT64  Dr0, Dr1, Dr2, Dr3, Dr6, Dr7;

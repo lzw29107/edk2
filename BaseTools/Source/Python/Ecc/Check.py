@@ -1,7 +1,7 @@
 ## @file
 # This file is used to define checkpoints used by ECC tool
 #
-# Copyright (c) 2008 - 2017, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2008 - 2018, Intel Corporation. All rights reserved.<BR>
 # This program and the accompanying materials
 # are licensed and made available under the terms and conditions of the BSD License
 # which accompanies this distribution.  The full text of the license may be found at
@@ -563,17 +563,17 @@ class Check(object):
                         op = open(FullName).readlines()
                         FileLinesList = op
                         LineNo             = 0
-                        CurrentSection     = MODEL_UNKNOWN 
+                        CurrentSection     = MODEL_UNKNOWN
                         HeaderSectionLines       = []
-                        HeaderCommentStart = False 
+                        HeaderCommentStart = False
                         HeaderCommentEnd   = False
-                        
+
                         for Line in FileLinesList:
                             LineNo   = LineNo + 1
                             Line     = Line.strip()
                             if (LineNo < len(FileLinesList) - 1):
                                 NextLine = FileLinesList[LineNo].strip()
-            
+
                             #
                             # blank line
                             #
@@ -600,8 +600,8 @@ class Check(object):
                                     #
                                     HeaderSectionLines.append((Line, LineNo))
                                     HeaderCommentStart = True
-                                    continue        
-            
+                                    continue
+
                             #
                             # Collect Header content.
                             #
@@ -635,7 +635,7 @@ class Check(object):
                                 if EccGlobalData.gConfig.HeaderCheckFileCommentEnd == '1' or EccGlobalData.gConfig.HeaderCheckAll == '1' or EccGlobalData.gConfig.CheckAll == '1':
                                     EccGlobalData.gDb.TblReport.Insert(ERROR_DOXYGEN_CHECK_FILE_HEADER, Msg, "File", Result[0])
 
-                                     
+
 
     # Check whether the function headers are followed Doxygen special documentation blocks in section 2.3.5
     def DoxygenCheckFunctionHeader(self):
@@ -744,7 +744,7 @@ class Check(object):
                         if Item not in LibraryClasses[List[0]]:
                             LibraryClasses[List[0]].append(Item)
 
-                if Record[2] != 'BASE' and Record[2] not in SupModType:
+                if Record[2] != DT.SUP_MODULE_BASE and Record[2] not in SupModType:
                     EccGlobalData.gDb.TblReport.Insert(ERROR_META_DATA_FILE_CHECK_LIBRARY_INSTANCE_2, OtherMsg="The Library Class '%s' does not specify its supported module types" % (List[0]), BelongsToTable='Inf', BelongsToItem=Record[0])
 
             SqlCommand = """select A.ID, A.Value1, B.Value3 from Inf as A left join Inf as B
@@ -763,7 +763,7 @@ class Check(object):
 
             for Record in RecordSet:
                 if Record[1] in LibraryClasses:
-                    if Record[2] not in LibraryClasses[Record[1]] and 'BASE' not in RecordDict[Record[1]]:
+                    if Record[2] not in LibraryClasses[Record[1]] and DT.SUP_MODULE_BASE not in RecordDict[Record[1]]:
                         if not EccGlobalData.gException.IsException(ERROR_META_DATA_FILE_CHECK_LIBRARY_INSTANCE_1, Record[1]):
                             EccGlobalData.gDb.TblReport.Insert(ERROR_META_DATA_FILE_CHECK_LIBRARY_INSTANCE_1, OtherMsg="The type of Library Class [%s] defined in Inf file does not match the type of the module" % (Record[1]), BelongsToTable='Inf', BelongsToItem=Record[0])
                 else:
@@ -787,7 +787,7 @@ class Check(object):
                         continue
                     SqlCommand = """select Value3 from Inf where BelongsToFile =
                                     (select ID from File where lower(FullPath) = lower('%s'))
-                                    and Value2 = '%s'""" % (LibraryIns, 'LIBRARY_CLASS')
+                                    and Value2 = '%s'""" % (LibraryIns, DT.PLATFORM_COMPONENT_TYPE_LIBRARY_CLASS)
                     RecordSet = EccGlobalData.gDb.TblInf.Exec(SqlCommand)
                     IsFound = False
                     for Record in RecordSet:
@@ -816,8 +816,8 @@ class Check(object):
                     EccGlobalData.gDb.TblReport.Insert(ERROR_META_DATA_FILE_CHECK_LIBRARY_NO_USE, OtherMsg="The Library Class [%s] is not used in any platform" % (Record[1]), BelongsToTable='Inf', BelongsToItem=Record[0])
             SqlCommand = """
                          select A.ID, A.Value1, A.BelongsToFile, A.StartLine, B.StartLine from Dsc as A left join Dsc as B
-                         where A.Model = %s and B.Model = %s and A.Scope1 = B.Scope1 and A.Scope2 = B.Scope2 and A.ID <> B.ID
-                         and A.Value1 = B.Value1 and A.Value2 <> B.Value2 and A.BelongsToItem = -1 and B.BelongsToItem = -1 and A.StartLine <> B.StartLine and B.BelongsToFile = A.BelongsToFile""" \
+                         where A.Model = %s and B.Model = %s and A.Scope1 = B.Scope1 and A.Scope2 = B.Scope2 and A.ID != B.ID
+                         and A.Value1 = B.Value1 and A.Value2 != B.Value2 and A.BelongsToItem = -1 and B.BelongsToItem = -1 and A.StartLine != B.StartLine and B.BelongsToFile = A.BelongsToFile""" \
                             % (MODEL_EFI_LIBRARY_CLASS, MODEL_EFI_LIBRARY_CLASS)
             RecordSet = EccGlobalData.gDb.TblDsc.Exec(SqlCommand)
             for Record in RecordSet:
@@ -827,7 +827,7 @@ class Check(object):
                     for FilePath in FilePathList:
                         if not EccGlobalData.gException.IsException(ERROR_META_DATA_FILE_CHECK_LIBRARY_NAME_DUPLICATE, Record[1]):
                             EccGlobalData.gDb.TblReport.Insert(ERROR_META_DATA_FILE_CHECK_LIBRARY_NAME_DUPLICATE, OtherMsg="The Library Class [%s] is duplicated in '%s' line %s and line %s." % (Record[1], FilePath, Record[3], Record[4]), BelongsToTable='Dsc', BelongsToItem=Record[0])
-    
+
     # Check the header file in Include\Library directory whether be defined in the package DEC file.
     def MetaDataFileCheckLibraryDefinedInDec(self):
         if EccGlobalData.gConfig.MetaDataFileCheckLibraryDefinedInDec == '1' or EccGlobalData.gConfig.MetaDataFileCheckAll == '1' or EccGlobalData.gConfig.CheckAll == '1':
@@ -842,9 +842,9 @@ class Check(object):
                 if not LibraryDec:
                     if not EccGlobalData.gException.IsException(ERROR_META_DATA_FILE_CHECK_LIBRARY_NOT_DEFINED, LibraryInInf):
                         EccGlobalData.gDb.TblReport.Insert(ERROR_META_DATA_FILE_CHECK_LIBRARY_NOT_DEFINED, \
-                                            OtherMsg="The Library Class [%s] in %s line is not defined in the associated package file." % (LibraryInInf, Line), 
+                                            OtherMsg="The Library Class [%s] in %s line is not defined in the associated package file." % (LibraryInInf, Line),
                                             BelongsToTable='Inf', BelongsToItem=ID)
-    
+
     # Check whether an Inf file is specified in the FDF file, but not in the Dsc file, then the Inf file must be for a Binary module only
     def MetaDataFileCheckBinaryInfInFdf(self):
         if EccGlobalData.gConfig.MetaDataFileCheckBinaryInfInFdf == '1' or EccGlobalData.gConfig.MetaDataFileCheckAll == '1' or EccGlobalData.gConfig.CheckAll == '1':
@@ -903,7 +903,7 @@ class Check(object):
                          and A.Value1 = B.Value1
                          and A.Value2 = B.Value2
                          and A.Scope1 = B.Scope1
-                         and A.ID <> B.ID
+                         and A.ID != B.ID
                          and A.Model = B.Model
                          and A.Enabled > -1
                          and B.Enabled > -1
@@ -1055,7 +1055,7 @@ class Check(object):
             SqlCommand = """
                          select A.ID, A.Value3, A.BelongsToFile, B.BelongsToFile from %s as A, %s as B
                          where A.Value2 = 'FILE_GUID' and B.Value2 = 'FILE_GUID' and
-                         A.Value3 = B.Value3 and A.ID <> B.ID group by A.ID
+                         A.Value3 = B.Value3 and A.ID != B.ID group by A.ID
                          """ % (Table.Table, Table.Table)
             RecordSet = Table.Exec(SqlCommand)
             for Record in RecordSet:
@@ -1215,7 +1215,7 @@ class Check(object):
         SqlCommand = """
                      select A.ID, A.Value1 from %s as A, %s as B
                      where A.Model = %s and B.Model = %s
-                     and A.Value1 like B.Value1 and A.ID <> B.ID
+                     and A.Value1 like B.Value1 and A.ID != B.ID
                      and A.Scope1 = B.Scope1
                      and A.Enabled > -1
                      and B.Enabled > -1
@@ -1239,12 +1239,12 @@ class Check(object):
         SqlCommand = """
                      select A.ID, A.Value1, A.Value2 from %s as A, %s as B
                      where A.Model = %s and B.Model = %s
-                     and A.Value2 like B.Value2 and A.ID <> B.ID
-                     and A.Scope1 = B.Scope1 and A.Value1 <> B.Value1
+                     and A.Value2 like B.Value2 and A.ID != B.ID
+                     and A.Scope1 = B.Scope1 and A.Value1 != B.Value1
                      group by A.ID
                      """ % (Table.Table, Table.Table, Model, Model)
         RecordSet = Table.Exec(SqlCommand)
-        for Record in RecordSet:     
+        for Record in RecordSet:
             if not EccGlobalData.gException.IsException(ErrorID, Record[2]):
                 EccGlobalData.gDb.TblReport.Insert(ErrorID, OtherMsg="The %s value [%s] is used more than one time" % (Name.upper(), Record[2]), BelongsToTable=Table.Table, BelongsToItem=Record[0])
 
@@ -1299,7 +1299,7 @@ class Check(object):
             RecordSet = EccGlobalData.gDb.TblFile.Exec(SqlCommand)
             for Record in RecordSet:
                 Name = Record[1].strip()
-                if Name != '' and Name != None:
+                if Name != '' and Name is not None:
                     if Name[0] == '(':
                         Name = Name[1:Name.find(')')]
                     if Name.find('(') > -1:

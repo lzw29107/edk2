@@ -35,6 +35,7 @@
   PlatformBm.c
 
 [Packages]
+  EmbeddedPkg/EmbeddedPkg.dec
   MdeModulePkg/MdeModulePkg.dec
   MdePkg/MdePkg.dec
   ShellPkg/ShellPkg.dec
@@ -54,11 +55,13 @@
   UefiBootManagerLib
   UefiBootServicesTableLib
   UefiLib
+  UefiRuntimeServicesTableLib
 
 [FeaturePcd]
   gEfiMdePkgTokenSpaceGuid.PcdUgaConsumeSupport
 
 [FixedPcd]
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString
   gEfiMdePkgTokenSpaceGuid.PcdUartDefaultBaudRate
   gEfiMdePkgTokenSpaceGuid.PcdUartDefaultDataBits
   gEfiMdePkgTokenSpaceGuid.PcdUartDefaultParity
@@ -83,3 +86,4 @@
   gEfiPciRootBridgeIoProtocolGuid
   gEfiSimpleFileSystemProtocolGuid
   gEsrtManagementProtocolGuid
+  gPlatformBootManagerProtocolGuid

@@ -1,6 +1,6 @@
 /** @file
 
-Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
 
 This program and the accompanying materials
 are licensed and made available under the terms and conditions
@@ -43,10 +43,10 @@ UINTN                 mStructureTablePages     = 0;
 BOOLEAN               mEndOfDxe                = FALSE;
 
 /**
-  Do an AllocatePages () of type AllocateMaxAddress for EfiBootServicesCode
-  memory.
+  Allocate memory for legacy usage.
 
-  @param  AllocateType               Allocated Legacy Memory Type
+  @param  AllocateType               The type of allocation to perform.
+  @param  MemoryType                 The type of memory to allocate.
   @param  StartPageAddress           Start address of range
   @param  Pages                      Number of pages to allocate
   @param  Result                     Result of allocation
@@ -58,6 +58,7 @@ BOOLEAN               mEndOfDxe                = FALSE;
 EFI_STATUS
 AllocateLegacyMemory (
   IN  EFI_ALLOCATE_TYPE         AllocateType,
+  IN  EFI_MEMORY_TYPE           MemoryType,
   IN  EFI_PHYSICAL_ADDRESS      StartPageAddress,
   IN  UINTN                     Pages,
   OUT EFI_PHYSICAL_ADDRESS      *Result
@@ -72,7 +73,7 @@ AllocateLegacyMemory (
   MemPage = (EFI_PHYSICAL_ADDRESS) (UINTN) StartPageAddress;
   Status = gBS->AllocatePages (
                   AllocateType,
-                  EfiBootServicesCode,
+                  MemoryType,
                   Pages,
                   &MemPage
                   );
@@ -270,7 +271,7 @@ ShadowAndStartLegacy16 (
     if (EFI_ERROR (Status)) {
       //
       // Bugbug: need to figure out whether C/D/E/F segment should be marked as reserved memory.
-      // 
+      //
       DEBUG ((DEBUG_ERROR, "Failed to allocate the C/D/E/F segment Status = %r", Status));
     }
   }
@@ -414,7 +415,7 @@ ShadowAndStartLegacy16 (
   Private->Legacy8259->GetMask(Private->Legacy8259, &OldMask, NULL, NULL, NULL);
   NewMask = 0xFFFF;
   Private->Legacy8259->SetMask(Private->Legacy8259, &NewMask, NULL, NULL, NULL);
-  
+
   //
   // Call into Legacy16 code to do an INIT
   //
@@ -436,7 +437,7 @@ ShadowAndStartLegacy16 (
   // Restore original legacy interrupt mask value
   //
   Private->Legacy8259->SetMask(Private->Legacy8259, &OldMask, NULL, NULL, NULL);
-  
+
   if (Regs.X.AX != 0) {
     return EFI_DEVICE_ERROR;
   }
@@ -652,7 +653,7 @@ GetPciInterfaceVersion (
   UINT16                PciInterfaceVersion;
 
   PciInterfaceVersion = 0;
-  
+
   Reg.X.AX = 0xB101;
   Reg.E.EDI = 0;
 
@@ -692,7 +693,7 @@ InstallSmbiosEventCallback (
 {
   EFI_STATUS                  Status;
   SMBIOS_TABLE_ENTRY_POINT    *EntryPointStructure;
-  
+
   //
   // Get SMBIOS table from EFI configuration table
   //
@@ -703,7 +704,7 @@ InstallSmbiosEventCallback (
   if ((EFI_ERROR (Status)) || (mRuntimeSmbiosEntryPoint == NULL)) {
     return;
   }
-  
+
   EntryPointStructure = (SMBIOS_TABLE_ENTRY_POINT *) mRuntimeSmbiosEntryPoint;
 
   //
@@ -727,8 +728,8 @@ InstallSmbiosEventCallback (
     }
     DEBUG ((EFI_D_INFO, "Allocate memory for Smbios Entry Point Structure\n"));
   }
-  
-  if ((mStructureTableAddress != 0) && 
+
+  if ((mStructureTableAddress != 0) &&
       (mStructureTablePages < EFI_SIZE_TO_PAGES ((UINT32)EntryPointStructure->TableLength))) {
     //
     // If original buffer is not enough for the new SMBIOS table, free original buffer and re-allocate
@@ -738,7 +739,7 @@ InstallSmbiosEventCallback (
     mStructureTablePages   = 0;
     DEBUG ((EFI_D_INFO, "Original size is not enough. Re-allocate the memory.\n"));
   }
-  
+
   if (mStructureTableAddress == 0) {
     //
     // Allocate reserved memory below 4GB.
@@ -754,7 +755,7 @@ InstallSmbiosEventCallback (
                     );
     if (EFI_ERROR (Status)) {
       gBS->FreePages (
-        mReserveSmbiosEntryPoint, 
+        mReserveSmbiosEntryPoint,
         EFI_SIZE_TO_PAGES ((UINTN) (EntryPointStructure->EntryPointLength))
         );
       mReserveSmbiosEntryPoint = 0;
@@ -784,115 +785,6 @@ ToggleEndOfDxeStatus (
 {
   mEndOfDxe = TRUE;
   return;
-}
-
-//
-// Legacy BIOS needs to access memory between 0-4095, which will cause page
-// fault exception if NULL pointer detection mechanism is enabled. Following
-// functions can be used to disable/enable NULL pointer detection before/after
-// accessing those memory.
-//
-
-/**
-   Enable NULL pointer detection.
-**/
-VOID
-EnableNullDetection (
-  VOID
-  )
-{
-  EFI_STATUS                            Status;
-  EFI_GCD_MEMORY_SPACE_DESCRIPTOR       Desc;
-
-  if (((PcdGet8 (PcdNullPointerDetectionPropertyMask) & BIT0) == 0)
-      ||
-      ((mEndOfDxe)  &&
-       ((PcdGet8 (PcdNullPointerDetectionPropertyMask) & (BIT7|BIT0))
-        == (BIT7|BIT0)))
-     ) {
-    return;
-  }
-
-  //
-  // Check current capabilities and attributes
-  //
-  Status = gDS->GetMemorySpaceDescriptor (0, &Desc);
-  ASSERT_EFI_ERROR (Status);
-
-  //
-  // Try to add EFI_MEMORY_RP support if necessary
-  //
-  if ((Desc.Capabilities & EFI_MEMORY_RP) == 0) {
-    Desc.Capabilities |= EFI_MEMORY_RP;
-    Status = gDS->SetMemorySpaceCapabilities (0, EFI_PAGES_TO_SIZE(1),
-                                              Desc.Capabilities);
-    ASSERT_EFI_ERROR (Status);
-    if (EFI_ERROR (Status)) {
-      return;
-    }
-  }
-
-  //
-  // Don't bother if EFI_MEMORY_RP is already set.
-  //
-  if ((Desc.Attributes & EFI_MEMORY_RP) == 0) {
-    Desc.Attributes |= EFI_MEMORY_RP;
-    Status = gDS->SetMemorySpaceAttributes (0, EFI_PAGES_TO_SIZE(1),
-                                            Desc.Attributes);
-    ASSERT_EFI_ERROR (Status);
-  }
-}
-
-/**
-   Disable NULL pointer detection.
-**/
-VOID
-DisableNullDetection (
-  VOID
-  )
-{
-  EFI_STATUS                            Status;
-  EFI_GCD_MEMORY_SPACE_DESCRIPTOR       Desc;
-
-  if (((PcdGet8 (PcdNullPointerDetectionPropertyMask) & BIT0) == 0)
-      ||
-      ((mEndOfDxe)  &&
-       ((PcdGet8 (PcdNullPointerDetectionPropertyMask) & (BIT7|BIT0))
-        == (BIT7|BIT0)))
-     ) {
-    return;
-  }
-
-  //
-  // Check current capabilities and attributes
-  //
-  Status = gDS->GetMemorySpaceDescriptor (0, &Desc);
-  ASSERT_EFI_ERROR (Status);
-
-  //
-  // Try to add EFI_MEMORY_RP support if necessary
-  //
-  if ((Desc.Capabilities & EFI_MEMORY_RP) == 0) {
-    Desc.Capabilities |= EFI_MEMORY_RP;
-    Status = gDS->SetMemorySpaceCapabilities (0, EFI_PAGES_TO_SIZE(1),
-                                              Desc.Capabilities);
-    ASSERT_EFI_ERROR (Status);
-    if (EFI_ERROR (Status)) {
-      return;
-    }
-  }
-
-  //
-  // Don't bother if EFI_MEMORY_RP is already cleared.
-  //
-  if ((Desc.Attributes & EFI_MEMORY_RP) != 0) {
-    Desc.Attributes &= ~EFI_MEMORY_RP;
-    Status = gDS->SetMemorySpaceAttributes (0, EFI_PAGES_TO_SIZE(1),
-                                            Desc.Attributes);
-    ASSERT_EFI_ERROR (Status);
-  } else {
-    DEBUG ((DEBUG_WARN, "!!! Page 0 is supposed to be disabled !!!\r\n"));
-  }
 }
 
 /**
@@ -951,7 +843,7 @@ LegacyBiosInstall (
     FreePool (SecureBoot);
     return EFI_SECURITY_VIOLATION;
   }
-  
+
   if (SecureBoot != NULL) {
     FreePool (SecureBoot);
   }
@@ -1083,6 +975,7 @@ LegacyBiosInstall (
   //
   AllocateLegacyMemory (
     AllocateAddress,
+    EfiReservedMemoryType,
     0,
     1,
     &MemoryAddress
@@ -1095,10 +988,10 @@ LegacyBiosInstall (
   // Initialize region from 0x0000 to 4k. This initializes interrupt vector
   // range.
   //
-  DisableNullDetection ();
-  gBS->SetMem ((VOID *) ClearPtr, 0x400, INITIAL_VALUE_BELOW_1K);
-  ZeroMem ((VOID *) ((UINTN)ClearPtr + 0x400), 0xC00);
-  EnableNullDetection ();
+  ACCESS_PAGE0_CODE (
+    gBS->SetMem ((VOID *) ClearPtr, 0x400, INITIAL_VALUE_BELOW_1K);
+    ZeroMem ((VOID *) ((UINTN)ClearPtr + 0x400), 0xC00);
+  );
 
   //
   // Allocate pages for OPROM usage
@@ -1108,6 +1001,7 @@ LegacyBiosInstall (
 
   Status = AllocateLegacyMemory (
              AllocateAddress,
+             EfiReservedMemoryType,
              CONVENTIONAL_MEMORY_TOP - MemorySize,
              EFI_SIZE_TO_PAGES (MemorySize),
              &MemoryAddress
@@ -1136,6 +1030,7 @@ LegacyBiosInstall (
   for (MemStart = MemoryAddress; MemStart < MemoryAddress + MemorySize; MemStart += 0x1000) {
     Status = AllocateLegacyMemory (
                AllocateAddress,
+               EfiBootServicesCode,
                MemStart,
                1,
                &StartAddress
@@ -1152,9 +1047,10 @@ LegacyBiosInstall (
   // Allocate low PMM memory and zero it out
   //
   MemorySize = PcdGet32 (PcdLowPmmMemorySize);
-  ASSERT ((MemorySize & 0xFFF) == 0);  
+  ASSERT ((MemorySize & 0xFFF) == 0);
   Status = AllocateLegacyMemory (
              AllocateMaxAddress,
+             EfiBootServicesCode,
              CONVENTIONAL_MEMORY_TOP,
              EFI_SIZE_TO_PAGES (MemorySize),
              &MemoryAddressUnder1MB
@@ -1168,6 +1064,7 @@ LegacyBiosInstall (
   //
   Status = AllocateLegacyMemory (
              AllocateMaxAddress,
+             EfiReservedMemoryType,
              CONVENTIONAL_MEMORY_TOP,
              (sizeof (LOW_MEMORY_THUNK) / EFI_PAGE_SIZE) + 2,
              &MemoryAddress
@@ -1192,9 +1089,10 @@ LegacyBiosInstall (
   ASSERT ((MemorySize & 0xFFF) == 0);
   //
   // Allocate high PMM Memory under 16 MB
-  //   
+  //
   Status = AllocateLegacyMemory (
              AllocateMaxAddress,
+             EfiBootServicesCode,
              0x1000000,
              EFI_SIZE_TO_PAGES (MemorySize),
              &MemoryAddress
@@ -1202,18 +1100,19 @@ LegacyBiosInstall (
   if (EFI_ERROR (Status)) {
     //
     // If it fails, allocate high PMM Memory under 4GB
-    //   
+    //
     Status = AllocateLegacyMemory (
                AllocateMaxAddress,
+               EfiBootServicesCode,
                0xFFFFFFFF,
                EFI_SIZE_TO_PAGES (MemorySize),
                &MemoryAddress
-               );    
+               );
   }
   if (!EFI_ERROR (Status)) {
     EfiToLegacy16InitTable->HiPmmMemory            = (UINT32) (EFI_PHYSICAL_ADDRESS) (UINTN) MemoryAddress;
     EfiToLegacy16InitTable->HiPmmMemorySizeInBytes = MemorySize;
-  } 
+  }
 
   //
   //  ShutdownAPs();
@@ -1237,22 +1136,20 @@ LegacyBiosInstall (
   //
   // Save Unexpected interrupt vector so can restore it just prior to boot
   //
-  DisableNullDetection ();
-
-  BaseVectorMaster = (UINT32 *) (sizeof (UINT32) * PROTECTED_MODE_BASE_VECTOR_MASTER);
-  Private->BiosUnexpectedInt = BaseVectorMaster[0];
-  IntRedirCode = (UINT32) (UINTN) Private->IntThunk->InterruptRedirectionCode;
-  for (Index = 0; Index < 8; Index++) {
-    BaseVectorMaster[Index] = (EFI_SEGMENT (IntRedirCode + Index * 4) << 16) | EFI_OFFSET (IntRedirCode + Index * 4);
-  }
-
-  EnableNullDetection ();
+  ACCESS_PAGE0_CODE (
+    BaseVectorMaster = (UINT32 *) (sizeof (UINT32) * PROTECTED_MODE_BASE_VECTOR_MASTER);
+    Private->BiosUnexpectedInt = BaseVectorMaster[0];
+    IntRedirCode = (UINT32) (UINTN) Private->IntThunk->InterruptRedirectionCode;
+    for (Index = 0; Index < 8; Index++) {
+      BaseVectorMaster[Index] = (EFI_SEGMENT (IntRedirCode + Index * 4) << 16) | EFI_OFFSET (IntRedirCode + Index * 4);
+    }
+  );
 
   //
   // Save EFI value
   //
   Private->ThunkSeg = (UINT16) (EFI_SEGMENT (IntRedirCode));
-  
+
   //
   // Allocate reserved memory for SMBIOS table used in legacy boot if SMBIOS table exists
   //
@@ -1269,7 +1166,7 @@ LegacyBiosInstall (
                   &gEfiSmbiosTableGuid,
                   &InstallSmbiosEvent
                   );
-  ASSERT_EFI_ERROR (Status);  
+  ASSERT_EFI_ERROR (Status);
 
   //
   // Create callback to update status of EndOfDxe, which is needed by NULL
@@ -1296,9 +1193,9 @@ LegacyBiosInstall (
                   &Private->LegacyBios
                   );
   Private->Csm16PciInterfaceVersion = GetPciInterfaceVersion (Private);
-  
-  DEBUG ((EFI_D_INFO, "CSM16 PCI BIOS Interface Version: %02x.%02x\n", 
-          (UINT8) (Private->Csm16PciInterfaceVersion >> 8), 
+
+  DEBUG ((EFI_D_INFO, "CSM16 PCI BIOS Interface Version: %02x.%02x\n",
+          (UINT8) (Private->Csm16PciInterfaceVersion >> 8),
           (UINT8) Private->Csm16PciInterfaceVersion
         ));
   ASSERT (Private->Csm16PciInterfaceVersion != 0);

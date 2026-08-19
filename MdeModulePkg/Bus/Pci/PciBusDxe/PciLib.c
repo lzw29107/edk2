@@ -1,7 +1,7 @@
 /** @file
   Internal library implementation for PCI Bus module.
 
-Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
 (C) Copyright 2015 Hewlett Packard Enterprise Development LP<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
@@ -28,6 +28,43 @@ CHAR16 *mBarTypeStr[] = {
   L"   Mem",
   L"Unknow"
   };
+
+/**
+  Retrieve the max bus number that is assigned to the Root Bridge hierarchy.
+  It can support the case that there are multiple bus ranges.
+
+  @param  Bridge           Bridge device instance.
+
+  @retval                  The max bus number that is assigned to this Root Bridge hierarchy.
+
+**/
+UINT16
+PciGetMaxBusNumber (
+  IN PCI_IO_DEVICE                      *Bridge
+  )
+{
+  PCI_IO_DEVICE                      *RootBridge;
+  EFI_ACPI_ADDRESS_SPACE_DESCRIPTOR  *BusNumberRanges;
+  UINT64                             MaxNumberInRange;
+
+  //
+  // Get PCI Root Bridge device
+  //
+  RootBridge = Bridge;
+  while (RootBridge->Parent != NULL) {
+    RootBridge = RootBridge->Parent;
+  }
+  MaxNumberInRange = 0;
+  //
+  // Iterate the bus number ranges to get max PCI bus number
+  //
+  BusNumberRanges = RootBridge->BusNumberRanges;
+  while (BusNumberRanges->Desc != ACPI_END_TAG_DESCRIPTOR) {
+    MaxNumberInRange = BusNumberRanges->AddrRangeMin + BusNumberRanges->AddrLen - 1;
+    BusNumberRanges++;
+  }
+  return (UINT16) MaxNumberInRange;
+}
 
 /**
   Retrieve the PCI Card device BAR information via PciIo interface.
@@ -232,11 +269,11 @@ DumpBridgeResource (
 
 /**
   Find the corresponding resource node for the Device in child list of BridgeResource.
-  
+
   @param[in]  Device          Pointer to PCI_IO_DEVICE.
   @param[in]  BridgeResource  Pointer to PCI_RESOURCE_NODE.
   @param[out] DeviceResources Pointer to a buffer to receive resources for the Device.
-  
+
   @return Count of the resource descriptors returned.
 **/
 UINTN
@@ -269,7 +306,7 @@ FindResourceNode (
 
 /**
   Dump the resource map of all the devices under Bridge.
-  
+
   @param[in] Bridge        Bridge device instance.
   @param[in] Resources     Resource descriptors for the bridge device.
   @param[in] ResourceCount Count of resource descriptors.
@@ -1125,14 +1162,14 @@ PciScanBus (
           BusPadding = FALSE;
           if (gPciHotPlugInit != NULL) {
 
-            if (IsRootPciHotPlugBus (PciDevice->DevicePath, &HpIndex)) {
+            if (IsPciHotPlugBus (PciDevice)) {
 
               //
               // If it is initialized, get the padded bus range
               //
               Status = gPciHotPlugInit->GetResourcePadding (
                                           gPciHotPlugInit,
-                                          gPciRootHpcPool[HpIndex].HpbDevicePath,
+                                          PciDevice->DevicePath,
                                           PciAddress,
                                           &State,
                                           (VOID **) &Descriptors,
@@ -1154,11 +1191,14 @@ PciScanBus (
 
               FreePool (Descriptors);
 
-              if (EFI_ERROR (Status)) {
+              if (!EFI_ERROR (Status)) {
+                BusPadding = TRUE;
+              } else if (Status != EFI_NOT_FOUND) {
+                //
+                // EFI_NOT_FOUND is not a real error. It indicates no bus number padding requested.
+                //
                 return Status;
               }
-
-              BusPadding = TRUE;
             }
           }
         }
@@ -1190,7 +1230,7 @@ PciScanBus (
           // Temporarily initialize SubBusNumber to maximum bus number to ensure the
           // PCI configuration transaction to go through any PPB
           //
-          Register  = 0xFF;
+          Register  = PciGetMaxBusNumber (Bridge);
           Address   = EFI_PCI_ADDRESS (StartBusNumber, Device, Func, PCI_BRIDGE_SUBORDINATE_BUS_REGISTER_OFFSET);
           Status = PciRootBridgeIo->Pci.Write (
                                           PciRootBridgeIo,

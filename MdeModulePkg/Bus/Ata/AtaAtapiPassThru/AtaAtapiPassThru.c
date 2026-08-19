@@ -2,7 +2,7 @@
   This file implements ATA_PASSTHRU_PROCTOCOL and EXT_SCSI_PASSTHRU_PROTOCOL interfaces
   for managed ATA controllers.
 
-  Copyright (c) 2010 - 2016, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2010 - 2018, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -104,8 +104,7 @@ ATA_ATAPI_PASS_THRU_INSTANCE gAtaAtapiPassThruInstanceTemplate = {
   {                   // NonBlocking TaskList
     NULL,
     NULL
-  },
-  NULL,               // ExitBootEvent
+  }
 };
 
 ATAPI_DEVICE_PATH    mAtapiDevicePathTemplate = {
@@ -141,6 +140,15 @@ UINT8 mScsiId[TARGET_MAX_BYTES] = {
   0xFF, 0xFF, 0xFF, 0xFF,
   0xFF, 0xFF, 0xFF, 0xFF,
   0xFF, 0xFF, 0xFF, 0xFF
+};
+
+EDKII_ATA_ATAPI_POLICY_PROTOCOL *mAtaAtapiPolicy;
+EDKII_ATA_ATAPI_POLICY_PROTOCOL mDefaultAtaAtapiPolicy = {
+  EDKII_ATA_ATAPI_POLICY_VERSION,
+  2,  // PuisEnable
+  0,  // DeviceSleepEnable
+  0,  // AggressiveDeviceSleepEnable
+  0   // Reserved
 };
 
 /**
@@ -480,37 +488,6 @@ InitializeAtaAtapiPassThru (
 }
 
 /**
-  Disable Bus Master DMA on the device when exiting the boot services.
-
-  @param[in] Event    Event for which this notification function is being
-                      called.
-  @param[in] Context  Pointer to the ATA_ATAPI_PASS_THRU_INSTANCE that
-                      represents the HBA.
-**/
-VOID
-EFIAPI
-AtaPassThruExitBootServices (
-  IN EFI_EVENT Event,
-  IN VOID      *Context
-  )
-{
-  ATA_ATAPI_PASS_THRU_INSTANCE *Instance;
-  EFI_PCI_IO_PROTOCOL          *PciIo;
-
-  DEBUG ((DEBUG_VERBOSE, "%a: Context=0x%p\n", __FUNCTION__, Context));
-
-  Instance = Context;
-  PciIo = Instance->PciIo;
-
-  PciIo->Attributes (
-           PciIo,
-           EfiPciIoAttributeOperationDisable,
-           Instance->EnabledPciAttributes & EFI_PCI_IO_ATTRIBUTE_BUS_MASTER,
-           NULL
-           );
-}
-
-/**
   Tests to see if this driver supports a given controller. If a child device is provided,
   it further tests to see if this driver supports creating a handle for the specified child device.
 
@@ -771,6 +748,14 @@ AtaAtapiPassThruStart (
     goto ErrorExit;
   }
 
+  Status = gBS->LocateProtocol (&gEdkiiAtaAtapiPolicyProtocolGuid, NULL, (VOID **)&mAtaAtapiPolicy);
+  if (EFI_ERROR (Status)) {
+    //
+    // If there is no AtaAtapiPolicy exposed, use the default policy.
+    //
+    mAtaAtapiPolicy = &mDefaultAtaAtapiPolicy;
+  }
+
   //
   // Allocate a buffer to store the ATA_ATAPI_PASS_THRU_INSTANCE data structure
   //
@@ -788,17 +773,6 @@ AtaAtapiPassThruStart (
   Instance->ExtScsiPassThru.Mode  = &Instance->ExtScsiPassThruMode;
   InitializeListHead(&Instance->DeviceList);
   InitializeListHead(&Instance->NonBlockingTaskList);
-
-  Status = gBS->CreateEvent (
-                  EVT_SIGNAL_EXIT_BOOT_SERVICES,
-                  TPL_CALLBACK,
-                  AtaPassThruExitBootServices,
-                  Instance,
-                  &Instance->ExitBootEvent
-                  );
-  if (EFI_ERROR (Status)) {
-    goto ErrorExit;
-  }
 
   Instance->TimerEvent = NULL;
 
@@ -853,16 +827,11 @@ ErrorExit:
     gBS->CloseEvent (Instance->TimerEvent);
   }
 
-  if ((Instance != NULL) && (Instance->ExitBootEvent != NULL)) {
-    gBS->CloseEvent (Instance->ExitBootEvent);
-  }
-
-  //
-  // Remove all inserted ATA devices.
-  //
-  DestroyDeviceInfoList(Instance);
-
   if (Instance != NULL) {
+    //
+    // Remove all inserted ATA devices.
+    //
+    DestroyDeviceInfoList (Instance);
     FreePool (Instance);
   }
   return EFI_UNSUPPORTED;
@@ -955,15 +924,6 @@ AtaAtapiPassThruStop (
     Instance->TimerEvent = NULL;
   }
   DestroyAsynTaskList (Instance, FALSE);
-
-  //
-  // Close event signaled at gBS->ExitBootServices().
-  //
-  if (Instance->ExitBootEvent != NULL) {
-    gBS->CloseEvent (Instance->ExitBootEvent);
-    Instance->ExitBootEvent = NULL;
-  }
-
   //
   // Free allocated resource
   //

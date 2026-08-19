@@ -158,8 +158,8 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 //
 // Memory type to guard (matching the related PCD definition)
 //
-#define GUARD_HEAP_TYPE_POOL        BIT0
-#define GUARD_HEAP_TYPE_PAGE        BIT1
+#define GUARD_HEAP_TYPE_PAGE        BIT0
+#define GUARD_HEAP_TYPE_POOL        BIT1
 
 //
 // Debug message level
@@ -387,6 +387,24 @@ AdjustPoolHeadA (
 VOID *
 AdjustPoolHeadF (
   IN EFI_PHYSICAL_ADDRESS    Memory
+  );
+
+/**
+  Check to see if the heap guard is enabled for page and/or pool allocation.
+
+  @return TRUE/FALSE.
+**/
+BOOLEAN
+IsHeapGuardEnabled (
+  VOID
+  );
+
+/**
+  Notify function used to set all Guard pages after CPU Arch Protocol installed.
+**/
+VOID
+HeapGuardCpuArchProtocolNotify (
+  VOID
   );
 
 extern BOOLEAN mOnGuarding;

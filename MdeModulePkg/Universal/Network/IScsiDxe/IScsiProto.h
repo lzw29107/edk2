@@ -1,7 +1,7 @@
 /** @file
   The header file of iSCSI Protocol that defines many specific data structures.
 
-Copyright (c) 2004 - 2014, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2004 - 2018, Intel Corporation. All rights reserved.<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -41,6 +41,9 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #define ISCSI_VERSION_MAX                       0x00
 #define ISCSI_VERSION_MIN                       0x00
+
+#define ISCSI_CHECK_MEDIA_LOGIN_WAITING_TIME          EFI_TIMER_PERIOD_SECONDS(20)
+#define ISCSI_CHECK_MEDIA_GET_DHCP_WAITING_TIME       EFI_TIMER_PERIOD_SECONDS(20)
 
 #define ISCSI_KEY_AUTH_METHOD                   "AuthMethod"
 #define ISCSI_KEY_HEADER_DIGEST                 "HeaderDigest"
@@ -621,7 +624,7 @@ typedef struct _ISCSI_KEY_VALUE_PAIR {
 } ISCSI_KEY_VALUE_PAIR;
 
 /**
-  Attach the iSCSI connection to the iSCSI session. 
+  Attach the iSCSI connection to the iSCSI session.
 
   @param[in, out]  Session The iSCSI session.
   @param[in, out]  Conn    The iSCSI connection.
@@ -633,7 +636,7 @@ IScsiAttatchConnection (
   );
 
 /**
-  Detach the iSCSI connection from the session it belongs to. 
+  Detach the iSCSI connection from the session it belongs to.
 
   @param[in, out]  Conn The iSCSI connection.
 **/
@@ -649,7 +652,7 @@ IScsiDetatchConnection (
 
   @retval EFI_SUCCESS        The iSCSI connection is logged into the iSCSI target.
   @retval EFI_TIMEOUT        Timeout happened during the login procedure.
-  @retval Others             Other errors as indicated.  
+  @retval Others             Other errors as indicated.
 **/
 EFI_STATUS
 IScsiConnLogin (
@@ -716,7 +719,7 @@ IScsiSendLoginReq (
   Receive and process the iSCSI login response.
 
   @param[in]  Conn             The connection in the iSCSI login phase.
-  
+
   @retval EFI_SUCCESS          The iSCSI login response PDU is received and processed.
   @retval Others               Other errors as indicated.
 **/
@@ -785,7 +788,7 @@ IScsiProcessLoginRsp (
   @param[in]      Data         The data segment which should contain the
                                TargetAddress key-value list.
   @param[in]      Len          Length of the data.
-  
+
   @retval EFI_SUCCESS          The target address is updated.
   @retval EFI_OUT_OF_RESOURCES Failed to allocate memory.
   @retval EFI_NOT_FOUND        The TargetAddress key is not found.
@@ -945,8 +948,8 @@ IScsiNormalizeName (
   @param[in]       Lun       The LUN.
   @param[in, out]  Packet    The request packet containing IO request, SCSI command
                              buffer and buffers to read/write.
-                             
-  @retval EFI_SUCCES           The SCSI command is executed and the result is updated to 
+
+  @retval EFI_SUCCES           The SCSI command is executed and the result is updated to
                                the Packet.
   @retval EFI_DEVICE_ERROR     Session state was not as required.
   @retval EFI_OUT_OF_RESOURCES Failed to allocate memory.
@@ -985,7 +988,7 @@ IScsiSessionInit (
   IN OUT ISCSI_SESSION  *Session,
   IN BOOLEAN            Recovery
   );
-  
+
 /**
   Abort the iSCSI session, that is, reset all the connection and free the
   resources.

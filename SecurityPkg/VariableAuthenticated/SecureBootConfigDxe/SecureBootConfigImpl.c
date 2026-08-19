@@ -1,7 +1,8 @@
 /** @file
   HII Config Access protocol implementation of SecureBoot configuration module.
 
-Copyright (c) 2011 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2011 - 2018, Intel Corporation. All rights reserved.<BR>
+(C) Copyright 2018 Hewlett Packard Enterprise Development LP<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -1815,7 +1816,7 @@ LoadPeImage (
   Calculate hash of Pe/Coff image based on the authenticode image hashing in
   PE/COFF Specification 8.0 Appendix A
 
-  Notes: PE/COFF image has been checked by BasePeCoffLib PeCoffLoaderGetImageInfo() in 
+  Notes: PE/COFF image has been checked by BasePeCoffLib PeCoffLoaderGetImageInfo() in
   the function LoadPeImage ().
 
   @param[in]    HashAlg   Hash algorithm type.
@@ -3145,6 +3146,9 @@ DeleteSignatureEx (
   if (DelType == Delete_Signature_List_All) {
     VariableDataSize = 0;
   } else {
+    //
+    //  Traverse to target EFI_SIGNATURE_LIST but others will be skipped.
+    //
     while ((RemainingSize > 0) && (RemainingSize >= ListWalker->SignatureListSize) && ListIndex < PrivateData->ListIndex) {
       CopyMem ((UINT8 *)NewVariableData + Offset, ListWalker, ListWalker->SignatureListSize);
       Offset += ListWalker->SignatureListSize;
@@ -3154,15 +3158,17 @@ DeleteSignatureEx (
       ListIndex++;
     }
 
-    if (CheckedCount == SIGNATURE_DATA_COUNTS (ListWalker) || DelType == Delete_Signature_List_One) {
-      RemainingSize -= ListWalker->SignatureListSize;
-      ListWalker = (EFI_SIGNATURE_LIST *)((UINT8 *)ListWalker + ListWalker->SignatureListSize);
-    } else {
+    //
+    //  Handle the target EFI_SIGNATURE_LIST.
+    //  If CheckedCount == SIGNATURE_DATA_COUNTS (ListWalker) or DelType == Delete_Signature_List_One
+    //  it means delete the whole EFI_SIGNATURE_LIST, So we just skip this EFI_SIGNATURE_LIST.
+    //
+    if (CheckedCount < SIGNATURE_DATA_COUNTS (ListWalker) && DelType == Delete_Signature_Data) {
       NewCertList = (EFI_SIGNATURE_LIST *)(NewVariableData + Offset);
       //
       // Copy header.
       //
-      CopyMem ((UINT8 *)NewVariableData, ListWalker, sizeof (EFI_SIGNATURE_LIST) + ListWalker->SignatureHeaderSize);
+      CopyMem ((UINT8 *)NewVariableData + Offset, ListWalker, sizeof (EFI_SIGNATURE_LIST) + ListWalker->SignatureHeaderSize);
       Offset += sizeof (EFI_SIGNATURE_LIST) + ListWalker->SignatureHeaderSize;
 
       DataWalker = (EFI_SIGNATURE_DATA *)((UINT8 *)ListWalker + sizeof(EFI_SIGNATURE_LIST) + ListWalker->SignatureHeaderSize);
@@ -3181,9 +3187,10 @@ DeleteSignatureEx (
         }
         DataWalker = (EFI_SIGNATURE_DATA *)((UINT8 *)DataWalker + ListWalker->SignatureSize);
       }
-
-      RemainingSize -= ListWalker->SignatureListSize;
     }
+
+    RemainingSize -= ListWalker->SignatureListSize;
+    ListWalker = (EFI_SIGNATURE_LIST *)((UINT8 *)ListWalker + ListWalker->SignatureListSize);
 
     //
     // Copy remaining data, maybe 0.
@@ -3320,12 +3327,12 @@ SecureBootExtractConfigFromVariable (
   }
 
   //
-  // Check SecureBootEnable & Pk status, fix the inconsistence. 
+  // Check SecureBootEnable & Pk status, fix the inconsistence.
   // If the SecureBootEnable Variable doesn't exist, hide the SecureBoot Enable/Disable
   // Checkbox.
   //
   ConfigData->AttemptSecureBoot = FALSE;
-  GetVariable2 (EFI_SECURE_BOOT_ENABLE_NAME, &gEfiSecureBootEnableDisableGuid, (VOID**)&SecureBootEnable, NULL);  
+  GetVariable2 (EFI_SECURE_BOOT_ENABLE_NAME, &gEfiSecureBootEnableDisableGuid, (VOID**)&SecureBootEnable, NULL);
 
   //
   // Fix Pk, SecureBootEnable inconsistence
@@ -4313,6 +4320,7 @@ SecureBootCallback (
   UINTN                           NameLength;
   UINT16                          *FilePostFix;
   SECUREBOOT_CONFIG_PRIVATE_DATA  *PrivateData;
+  BOOLEAN                         GetBrowserDataResult;
 
   Status           = EFI_SUCCESS;
   SecureBootEnable = NULL;
@@ -4337,7 +4345,7 @@ SecureBootCallback (
     return EFI_OUT_OF_RESOURCES;
   }
 
-  HiiGetBrowserData (&gSecureBootConfigFormSetGuid, mSecureBootStorageName, BufferSize, (UINT8 *) IfrNvData);
+  GetBrowserDataResult = HiiGetBrowserData (&gSecureBootConfigFormSetGuid, mSecureBootStorageName, BufferSize, (UINT8 *) IfrNvData);
 
   if (Action == EFI_BROWSER_ACTION_FORM_OPEN) {
     if (QuestionId == KEY_SECURE_BOOT_MODE) {
@@ -4377,7 +4385,7 @@ SecureBootCallback (
         Value->u8 = SECURE_BOOT_MODE_STANDARD;
         Status = EFI_SUCCESS;
       }
-    } 
+    }
     goto EXIT;
   }
 
@@ -4883,7 +4891,7 @@ SecureBootCallback (
 
 EXIT:
 
-  if (!EFI_ERROR (Status)) {
+  if (!EFI_ERROR (Status) && GetBrowserDataResult) {
     BufferSize = sizeof (SECUREBOOT_CONFIGURATION);
     HiiSetBrowserData (&gSecureBootConfigFormSetGuid, mSecureBootStorageName, BufferSize, (UINT8*) IfrNvData, NULL);
   }

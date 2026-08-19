@@ -1,7 +1,7 @@
 /** @file
   This EFI_DHCP6_PROTOCOL interface implementation.
 
-  Copyright (c) 2009 - 2012, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
 
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
@@ -76,6 +76,7 @@ EfiDhcp6Start (
   EFI_TPL                      OldTpl;
   DHCP6_INSTANCE               *Instance;
   DHCP6_SERVICE                *Service;
+  EFI_STATUS                   MediaStatus;
 
   if (This == NULL) {
     return EFI_INVALID_PARAMETER;
@@ -101,6 +102,17 @@ EfiDhcp6Start (
   }
 
   OldTpl           = gBS->RaiseTPL (TPL_CALLBACK);
+
+  //
+  // Check Media Satus.
+  //
+  MediaStatus = EFI_SUCCESS;
+  NetLibDetectMediaWaitTimeout (Service->Controller, DHCP_CHECK_MEDIA_WAITING_TIME, &MediaStatus);
+  if (MediaStatus != EFI_SUCCESS) {
+    Status = EFI_NO_MEDIA;
+    goto ON_ERROR;
+  }
+
   Instance->UdpSts = EFI_ALREADY_STARTED;
 
   //
@@ -225,7 +237,7 @@ EfiDhcp6Stop (
     }
     Status = Instance->UdpSts;
   }
-  
+
 ON_EXIT:
   //
   // Clean up the session data for the released Ia.
@@ -666,7 +678,7 @@ EfiDhcp6InfoRequest (
       return Status;
     }
 
-    do {  
+    do {
       TimerStatus = gBS->CheckEvent (Timer);
       if (!EFI_ERROR (TimerStatus)) {
         Status = Dhcp6StartInfoRequest (
@@ -682,7 +694,7 @@ EfiDhcp6InfoRequest (
                    );
       }
     } while (TimerStatus == EFI_NOT_READY);
-    
+
     gBS->CloseEvent (Timer);
   }
   if (EFI_ERROR (Status)) {

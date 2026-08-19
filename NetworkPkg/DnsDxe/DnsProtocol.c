@@ -1,7 +1,7 @@
 /** @file
 Implementation of EFI_DNS4_PROTOCOL and EFI_DNS6_PROTOCOL interfaces.
 
-Copyright (c) 2015 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -59,14 +59,14 @@ Dns4GetModeData (
   )
 {
   DNS_INSTANCE         *Instance;
-  
+
   EFI_TPL              OldTpl;
 
   UINTN                Index;
-  
+
   LIST_ENTRY           *Entry;
   LIST_ENTRY           *Next;
-  
+
   DNS4_SERVER_IP       *ServerItem;
   EFI_IPv4_ADDRESS     *ServerList;
   DNS4_CACHE           *CacheItem;
@@ -78,24 +78,24 @@ Dns4GetModeData (
   CacheItem  = NULL;
   CacheList  = NULL;
   Status     = EFI_SUCCESS;
-  
-    
+
+
   if ((This == NULL) || (DnsModeData == NULL)) {
     return EFI_INVALID_PARAMETER;
   }
 
   OldTpl = gBS->RaiseTPL (TPL_CALLBACK);
-    
+
   Instance = DNS_INSTANCE_FROM_THIS_PROTOCOL4 (This);
   if (Instance->State == DNS_STATE_UNCONFIGED) {
     Status = EFI_NOT_STARTED;
     goto ON_EXIT;
   }
-  
+
   ZeroMem (DnsModeData, sizeof (EFI_DNS4_MODE_DATA));
 
   //
-  // Get the current configuration data of this instance. 
+  // Get the current configuration data of this instance.
   //
   Status = Dns4CopyConfigure (&DnsModeData->DnsConfigData, &Instance->Dns4CfgData);
   if (EFI_ERROR (Status)) {
@@ -116,7 +116,7 @@ Dns4GetModeData (
     Dns4CleanConfigure (&DnsModeData->DnsConfigData);
     goto ON_EXIT;
   }
-  
+
   Index = 0;
   NET_LIST_FOR_EACH_SAFE (Entry, Next, &mDriverData->Dns4ServerList) {
     ServerItem = NET_LIST_USER_STRUCT (Entry, DNS4_SERVER_IP, AllServerLink);
@@ -140,7 +140,7 @@ Dns4GetModeData (
     FreePool (ServerList);
     goto ON_EXIT;
   }
-  
+
   Index =0;
   NET_LIST_FOR_EACH_SAFE (Entry, Next, &mDriverData->Dns4CacheList) {
     CacheItem = NET_LIST_USER_STRUCT (Entry, DNS4_CACHE, AllCacheLink);
@@ -165,7 +165,7 @@ ON_EXIT:
   @retval EFI_SUCCESS             The operation completed successfully.
   @retval EFI_UNSUPPORTED         The designated protocol is not supported.
   @retval EFI_INVALID_PARAMTER    Thisis NULL.
-                                  The StationIp address provided in DnsConfigData is not a 
+                                  The StationIp address provided in DnsConfigData is not a
                                   valid unicast.
                                   DnsServerList is NULL while DnsServerListCount
                                   is not ZERO.
@@ -175,8 +175,8 @@ ON_EXIT:
                                   allocated.
   @retval EFI_DEVICE_ERROR        An unexpected system or network error occurred. The
                                   EFI DNSv4 Protocol instance is not configured.
-  @retval EFI_ALREADY_STARTED     Second call to Configure() with DnsConfigData. To 
-                                  reconfigure the instance the caller must call Configure() 
+  @retval EFI_ALREADY_STARTED     Second call to Configure() with DnsConfigData. To
+                                  reconfigure the instance the caller must call Configure()
                                   with NULL first to return driver to unconfigured state.
 **/
 EFI_STATUS
@@ -188,19 +188,19 @@ Dns4Configure (
 {
   EFI_STATUS                Status;
   DNS_INSTANCE              *Instance;
-  
+
   EFI_TPL                   OldTpl;
   IP4_ADDR                  Ip;
   IP4_ADDR                  Netmask;
 
   UINT32                    ServerListCount;
-  EFI_IPv4_ADDRESS          *ServerList;                  
+  EFI_IPv4_ADDRESS          *ServerList;
 
   Status     = EFI_SUCCESS;
   ServerList = NULL;
-    
-  if (This == NULL || 
-     (DnsConfigData != NULL && ((DnsConfigData->DnsServerListCount != 0 && DnsConfigData->DnsServerList == NULL) || 
+
+  if (This == NULL ||
+     (DnsConfigData != NULL && ((DnsConfigData->DnsServerListCount != 0 && DnsConfigData->DnsServerList == NULL) ||
                                 (DnsConfigData->DnsServerListCount == 0 && DnsConfigData->DnsServerList != NULL)))) {
     return EFI_INVALID_PARAMETER;
   }
@@ -215,7 +215,7 @@ Dns4Configure (
 
   if (DnsConfigData == NULL) {
     ZeroMem (&Instance->SessionDnsServer, sizeof (EFI_IP_ADDRESS));
-    
+
     //
     // Reset the Instance if ConfigData is NULL
     //
@@ -223,17 +223,15 @@ Dns4Configure (
       Dns4InstanceCancelToken(Instance, NULL);
     }
 
-    Instance->MaxRetry = 0;
-
     if (Instance->UdpIo != NULL){
       UdpIoCleanIo (Instance->UdpIo);
     }
-    
+
     if (Instance->Dns4CfgData.DnsServerList != NULL) {
       FreePool (Instance->Dns4CfgData.DnsServerList);
     }
     ZeroMem (&Instance->Dns4CfgData, sizeof (EFI_DNS4_CONFIG_DATA));
-    
+
     Instance->State = DNS_STATE_UNCONFIGED;
   } else {
     //
@@ -256,15 +254,15 @@ Dns4Configure (
       goto ON_EXIT;
     }
 
-    if (DnsConfigData->DnsServerListCount == 0 || DnsConfigData->DnsServerList == NULL) {
-      gBS->RestoreTPL (OldTpl); 
-      
+    if (DnsConfigData->DnsServerListCount == 0) {
+      gBS->RestoreTPL (OldTpl);
+
       //
       // The DNS instance will retrieve DNS server from DHCP Server
       //
       Status = GetDns4ServerFromDhcp4 (
                  Instance,
-                 &ServerListCount, 
+                 &ServerListCount,
                  &ServerList
                  );
       if (EFI_ERROR (Status)) {
@@ -272,7 +270,7 @@ Dns4Configure (
       }
 
       ASSERT(ServerList != NULL);
-      
+
       OldTpl = gBS->RaiseTPL (TPL_CALLBACK);
 
       CopyMem (&Instance->SessionDnsServer.v4, &ServerList[0], sizeof (EFI_IPv4_ADDRESS));
@@ -303,7 +301,7 @@ Dns4Configure (
       }
       goto ON_EXIT;
     }
-    
+
     Instance->State = DNS_STATE_CONFIGED;
   }
 
@@ -341,60 +339,66 @@ Dns4HostNameToIp (
   )
 {
   EFI_STATUS            Status;
-  
+
   DNS_INSTANCE          *Instance;
-  
+
   EFI_DNS4_CONFIG_DATA  *ConfigData;
-  
+
   UINTN                 Index;
   DNS4_CACHE            *Item;
   LIST_ENTRY            *Entry;
   LIST_ENTRY            *Next;
-  
+
   CHAR8                 *QueryName;
-  
+
   DNS4_TOKEN_ENTRY      *TokenEntry;
   NET_BUF               *Packet;
-  
+
   EFI_TPL               OldTpl;
-  
+
   Status     = EFI_SUCCESS;
   Item       = NULL;
   QueryName  = NULL;
   TokenEntry = NULL;
   Packet     = NULL;
-  
+
   //
   // Validate the parameters
   //
   if ((This == NULL) || (HostName == NULL) || Token == NULL) {
     return EFI_INVALID_PARAMETER;
   }
-  
+
   OldTpl   = gBS->RaiseTPL (TPL_CALLBACK);
-  
+
   Instance = DNS_INSTANCE_FROM_THIS_PROTOCOL4 (This);
-  
+
   ConfigData = &(Instance->Dns4CfgData);
-  
-  Instance->MaxRetry = ConfigData->RetryCount;
-  
-  Token->Status = EFI_NOT_READY;
-  Token->RetryCount = 0;
-  Token->RetryInterval = ConfigData->RetryInterval;
 
   if (Instance->State != DNS_STATE_CONFIGED) {
     Status = EFI_NOT_STARTED;
     goto ON_EXIT;
   }
 
+  Token->Status = EFI_NOT_READY;
+
   //
-  // Check the MaxRetry and RetryInterval values.
+  // If zero, use the parameter configured through Dns.Configure() interface.
   //
-  if (Instance->MaxRetry == 0) {
-    Instance->MaxRetry = DNS_DEFAULT_RETRY;
+  if (Token->RetryCount == 0) {
+    Token->RetryCount = ConfigData->RetryCount;
   }
 
+  //
+  // If zero, use the parameter configured through Dns.Configure() interface.
+  //
+  if (Token->RetryInterval == 0) {
+    Token->RetryInterval = ConfigData->RetryInterval;
+  }
+
+  //
+  // Minimum interval of retry is 2 second. If the retry interval is less than 2 second, then use the 2 second.
+  //
   if (Token->RetryInterval < DNS_DEFAULT_TIMEOUT) {
     Token->RetryInterval = DNS_DEFAULT_TIMEOUT;
   }
@@ -424,7 +428,7 @@ Dns4HostNameToIp (
         if (Token->RspData.H2AData != NULL) {
           FreePool (Token->RspData.H2AData);
         }
-        
+
         Status = EFI_OUT_OF_RESOURCES;
         goto ON_EXIT;
       }
@@ -434,12 +438,12 @@ Dns4HostNameToIp (
         Item = NET_LIST_USER_STRUCT (Entry, DNS4_CACHE, AllCacheLink);
         if ((UINT32)Index < Token->RspData.H2AData->IpCount && StrCmp (HostName, Item->DnsCache.HostName) == 0) {
           CopyMem ((Token->RspData.H2AData->IpList) + Index, Item->DnsCache.IpAddress, sizeof (EFI_IPv4_ADDRESS));
-          Index++; 
+          Index++;
         }
       }
-         
+
       Token->Status = EFI_SUCCESS;
-          
+
       if (Token->Event != NULL) {
         gBS->SignalEvent (Token->Event);
         DispatchDpc ();
@@ -447,7 +451,7 @@ Dns4HostNameToIp (
 
       Status = Token->Status;
       goto ON_EXIT;
-    } 
+    }
   }
 
   //
@@ -458,10 +462,16 @@ Dns4HostNameToIp (
     Status = EFI_OUT_OF_RESOURCES;
     goto ON_EXIT;
   }
-  
+
   TokenEntry->PacketToLive = Token->RetryInterval;
-  TokenEntry->QueryHostName = HostName;
   TokenEntry->Token = Token;
+  TokenEntry->QueryHostName = AllocateZeroPool (StrSize (HostName));
+  if (TokenEntry->QueryHostName == NULL) {
+    Status = EFI_OUT_OF_RESOURCES;
+    goto ON_EXIT;
+  }
+
+  CopyMem (TokenEntry->QueryHostName, HostName, StrSize (HostName));
 
   //
   // Construct QName.
@@ -471,16 +481,12 @@ Dns4HostNameToIp (
     Status = EFI_OUT_OF_RESOURCES;
     goto ON_EXIT;
   }
-  
+
   //
   // Construct DNS Query Packet.
   //
   Status = ConstructDNSQuery (Instance, QueryName, DNS_TYPE_A, DNS_CLASS_INET, &Packet);
   if (EFI_ERROR (Status)) {
-    if (TokenEntry != NULL) {
-      FreePool (TokenEntry);
-    }
-    
     goto ON_EXIT;
   }
 
@@ -491,34 +497,37 @@ Dns4HostNameToIp (
   //
   Status = NetMapInsertTail (&Instance->Dns4TxTokens, TokenEntry, Packet);
   if (EFI_ERROR (Status)) {
-    if (TokenEntry != NULL) {
-      FreePool (TokenEntry);
-    }
-    
-    NetbufFree (Packet);
-    
     goto ON_EXIT;
   }
-  
+
   //
   // Dns Query Ip
   //
   Status = DoDnsQuery (Instance, Packet);
   if (EFI_ERROR (Status)) {
     Dns4RemoveTokenEntry (&Instance->Dns4TxTokens, TokenEntry);
+  }
 
+ON_EXIT:
+
+  if (EFI_ERROR (Status)) {
     if (TokenEntry != NULL) {
+      if (TokenEntry->QueryHostName != NULL) {
+        FreePool (TokenEntry->QueryHostName);
+      }
+
       FreePool (TokenEntry);
     }
-    
-    NetbufFree (Packet);
+
+    if (Packet != NULL) {
+      NetbufFree (Packet);
+    }
   }
-  
-ON_EXIT:
+
   if (QueryName != NULL) {
     FreePool (QueryName);
   }
-  
+
   gBS->RestoreTPL (OldTpl);
   return Status;
 }
@@ -526,7 +535,7 @@ ON_EXIT:
 /**
   IPv4 address to host name translation also known as Reverse DNS lookup.
 
-  The IpToHostName() function is used to translate the host address to host name. A type PTR 
+  The IpToHostName() function is used to translate the host address to host name. A type PTR
   query is used to get the primary name of the host. Support of this function is optional.
 
   @param[in]  This                Pointer to EFI_DNS4_PROTOCOL instance.
@@ -557,7 +566,7 @@ Dns4IpToHostName (
 }
 
 /**
-  Retrieve arbitrary information from the DNS server. 
+  Retrieve arbitrary information from the DNS server.
 
   This GeneralLookup() function retrieves arbitrary information from the DNS. The caller
   supplies a QNAME, QTYPE, and QCLASS, and all of the matching RRs are returned. All
@@ -588,57 +597,63 @@ EFIAPI
 Dns4GeneralLookUp (
   IN  EFI_DNS4_PROTOCOL                *This,
   IN  CHAR8                            *QName,
-  IN  UINT16                           QType, 
+  IN  UINT16                           QType,
   IN  UINT16                           QClass,
   IN  EFI_DNS4_COMPLETION_TOKEN        *Token
   )
 {
   EFI_STATUS            Status;
-  
+
   DNS_INSTANCE          *Instance;
-  
+
   EFI_DNS4_CONFIG_DATA  *ConfigData;
-  
+
   DNS4_TOKEN_ENTRY      *TokenEntry;
   NET_BUF               *Packet;
-  
+
   EFI_TPL               OldTpl;
-  
+
   Status     = EFI_SUCCESS;
   TokenEntry = NULL;
   Packet     = NULL;
-  
+
   //
   // Validate the parameters
   //
   if ((This == NULL) || (QName == NULL) || Token == NULL) {
     return EFI_INVALID_PARAMETER;
   }
-  
+
   OldTpl   = gBS->RaiseTPL (TPL_CALLBACK);
-  
+
   Instance = DNS_INSTANCE_FROM_THIS_PROTOCOL4 (This);
-  
+
   ConfigData = &(Instance->Dns4CfgData);
-  
-  Instance->MaxRetry = ConfigData->RetryCount;
-  
-  Token->Status = EFI_NOT_READY;
-  Token->RetryCount = 0;
-  Token->RetryInterval = ConfigData->RetryInterval;
 
   if (Instance->State != DNS_STATE_CONFIGED) {
     Status = EFI_NOT_STARTED;
     goto ON_EXIT;
   }
 
+  Token->Status = EFI_NOT_READY;
+
   //
-  // Check the MaxRetry and RetryInterval values.
+  // If zero, use the parameter configured through Dns.Configure() interface.
   //
-  if (Instance->MaxRetry == 0) {
-    Instance->MaxRetry = DNS_DEFAULT_RETRY;
+  if (Token->RetryCount == 0) {
+    Token->RetryCount = ConfigData->RetryCount;
   }
 
+  //
+  // If zero, use the parameter configured through Dns.Configure() interface.
+  //
+  if (Token->RetryInterval == 0) {
+    Token->RetryInterval = ConfigData->RetryInterval;
+  }
+
+  //
+  // Minimum interval of retry is 2 second. If the retry interval is less than 2 second, then use the 2 second.
+  //
   if (Token->RetryInterval < DNS_DEFAULT_TIMEOUT) {
     Token->RetryInterval = DNS_DEFAULT_TIMEOUT;
   }
@@ -651,7 +666,7 @@ Dns4GeneralLookUp (
     Status = EFI_OUT_OF_RESOURCES;
     goto ON_EXIT;
   }
-  
+
   TokenEntry->PacketToLive = Token->RetryInterval;
   TokenEntry->GeneralLookUp = TRUE;
   TokenEntry->Token = Token;
@@ -664,7 +679,7 @@ Dns4GeneralLookUp (
     if (TokenEntry != NULL) {
       FreePool (TokenEntry);
     }
-    
+
     goto ON_EXIT;
   }
 
@@ -678,12 +693,12 @@ Dns4GeneralLookUp (
     if (TokenEntry != NULL) {
       FreePool (TokenEntry);
     }
-    
+
     NetbufFree (Packet);
-    
+
     goto ON_EXIT;
   }
-  
+
   //
   // Dns Query Ip
   //
@@ -694,10 +709,10 @@ Dns4GeneralLookUp (
     if (TokenEntry != NULL) {
       FreePool (TokenEntry);
     }
-    
+
     NetbufFree (Packet);
   }
-  
+
 ON_EXIT:
   gBS->RestoreTPL (OldTpl);
   return Status;
@@ -738,15 +753,15 @@ Dns4UpdateDnsCache (
   IN EFI_DNS4_CACHE_ENTRY   DnsCacheEntry
   )
 {
-  EFI_STATUS    Status; 
+  EFI_STATUS    Status;
   EFI_TPL       OldTpl;
 
   Status = EFI_SUCCESS;
-  
+
   if (DnsCacheEntry.HostName == NULL || DnsCacheEntry.IpAddress == NULL || DnsCacheEntry.Timeout == 0) {
-    return EFI_INVALID_PARAMETER; 
+    return EFI_INVALID_PARAMETER;
   }
-  
+
   OldTpl = gBS->RaiseTPL (TPL_CALLBACK);
 
   //
@@ -755,7 +770,7 @@ Dns4UpdateDnsCache (
   Status = UpdateDns4Cache (&mDriverData->Dns4CacheList, DeleteFlag, Override, DnsCacheEntry);
 
   gBS->RestoreTPL (OldTpl);
-  
+
   return Status;
 }
 
@@ -802,7 +817,7 @@ Dns4Poll (
   }
 
   Udp = Instance->UdpIo->Protocol.Udp4;
-  
+
   return Udp->Poll (Udp);
 }
 
@@ -875,7 +890,7 @@ Dns4Cancel (
   This function is used to retrieve DNS mode data for this DNS instance.
 
   @param[in]   This                Pointer to EFI_DNS6_PROTOCOL instance.
-  @param[out]  DnsModeData         Pointer to the caller-allocated storage for the 
+  @param[out]  DnsModeData         Pointer to the caller-allocated storage for the
                                    EFI_DNS6_MODE_DATA data.
 
   @retval EFI_SUCCESS             The operation completed successfully.
@@ -893,11 +908,11 @@ Dns6GetModeData (
   )
 {
   DNS_INSTANCE         *Instance;
-  
+
   EFI_TPL              OldTpl;
 
   UINTN                Index;
-  
+
   LIST_ENTRY           *Entry;
   LIST_ENTRY           *Next;
 
@@ -918,7 +933,7 @@ Dns6GetModeData (
   }
 
   OldTpl = gBS->RaiseTPL (TPL_CALLBACK);
-    
+
   Instance  = DNS_INSTANCE_FROM_THIS_PROTOCOL6 (This);
   if (Instance->State == DNS_STATE_UNCONFIGED) {
     Status =  EFI_NOT_STARTED;
@@ -928,13 +943,13 @@ Dns6GetModeData (
   ZeroMem (DnsModeData, sizeof (EFI_DNS6_MODE_DATA));
 
   //
-  // Get the current configuration data of this instance. 
+  // Get the current configuration data of this instance.
   //
   Status = Dns6CopyConfigure (&DnsModeData->DnsConfigData, &Instance->Dns6CfgData);
   if (EFI_ERROR (Status)) {
     goto ON_EXIT;
   }
-  
+
   //
   // Get the DnsServerCount and DnsServerList
   //
@@ -949,7 +964,7 @@ Dns6GetModeData (
     Dns6CleanConfigure (&DnsModeData->DnsConfigData);
     goto ON_EXIT;
   }
-  
+
   Index = 0;
   NET_LIST_FOR_EACH_SAFE (Entry, Next, &mDriverData->Dns6ServerList) {
     ServerItem = NET_LIST_USER_STRUCT (Entry, DNS6_SERVER_IP, AllServerLink);
@@ -973,7 +988,7 @@ Dns6GetModeData (
     FreePool (ServerList);
     goto ON_EXIT;
   }
-  
+
   Index =0;
   NET_LIST_FOR_EACH_SAFE (Entry, Next, &mDriverData->Dns6CacheList) {
     CacheItem = NET_LIST_USER_STRUCT (Entry, DNS6_CACHE, AllCacheLink);
@@ -981,7 +996,7 @@ Dns6GetModeData (
     Index++;
   }
   DnsModeData->DnsCacheList = CacheList;
-  
+
 ON_EXIT:
   gBS->RestoreTPL (OldTpl);
   return Status;
@@ -994,7 +1009,7 @@ ON_EXIT:
   EFI DNSv6 Protocol driver instance. Reset the DNS instance if DnsConfigData is NULL.
 
   @param[in]  This                Pointer to EFI_DNS6_PROTOCOL instance.
-  @param[in]  DnsConfigData       Pointer to the configuration data structure. All associated 
+  @param[in]  DnsConfigData       Pointer to the configuration data structure. All associated
                                   storage to be allocated and released by caller.
 
   @retval EFI_SUCCESS             The operation completed successfully.
@@ -1006,8 +1021,8 @@ ON_EXIT:
   @retval EFI_DEVICE_ERROR        An unexpected system or network error occurred. The
                                   EFI DNSv6 Protocol instance is not configured.
   @retval EFI_UNSUPPORTED         The designated protocol is not supported.
-  @retval EFI_ALREADY_STARTED     Second call to Configure() with DnsConfigData. To 
-                                  reconfigure the instance the caller must call Configure() with 
+  @retval EFI_ALREADY_STARTED     Second call to Configure() with DnsConfigData. To
+                                  reconfigure the instance the caller must call Configure() with
                                   NULL first to return driver to unconfigured state.
 **/
 EFI_STATUS
@@ -1019,17 +1034,17 @@ Dns6Configure (
 {
   EFI_STATUS                Status;
   DNS_INSTANCE              *Instance;
-  
+
   EFI_TPL                   OldTpl;
 
   UINT32                    ServerListCount;
-  EFI_IPv6_ADDRESS          *ServerList; 
+  EFI_IPv6_ADDRESS          *ServerList;
 
   Status     = EFI_SUCCESS;
   ServerList = NULL;
 
-  if (This == NULL || 
-     (DnsConfigData != NULL && ((DnsConfigData->DnsServerCount != 0 && DnsConfigData->DnsServerList == NULL) || 
+  if (This == NULL ||
+     (DnsConfigData != NULL && ((DnsConfigData->DnsServerCount != 0 && DnsConfigData->DnsServerList == NULL) ||
                                 (DnsConfigData->DnsServerCount == 0 && DnsConfigData->DnsServerList != NULL)))) {
     return EFI_INVALID_PARAMETER;
   }
@@ -1052,8 +1067,6 @@ Dns6Configure (
       Dns6InstanceCancelToken(Instance, NULL);
     }
 
-    Instance->MaxRetry = 0;
-
     if (Instance->UdpIo != NULL){
       UdpIoCleanIo (Instance->UdpIo);
     }
@@ -1062,7 +1075,7 @@ Dns6Configure (
       FreePool (Instance->Dns6CfgData.DnsServerList);
     }
     ZeroMem (&Instance->Dns6CfgData, sizeof (EFI_DNS6_CONFIG_DATA));
-    
+
     Instance->State = DNS_STATE_UNCONFIGED;
   } else {
     //
@@ -1078,7 +1091,7 @@ Dns6Configure (
       goto ON_EXIT;
     }
 
-    if (DnsConfigData->DnsServerCount == 0 || DnsConfigData->DnsServerList == NULL) {
+    if (DnsConfigData->DnsServerCount == 0) {
       gBS->RestoreTPL (OldTpl);
 
       //
@@ -1086,14 +1099,14 @@ Dns6Configure (
       //
       Status = GetDns6ServerFromDhcp6 (
                  Instance->Service->ImageHandle,
-                 Instance->Service->ControllerHandle, 
-                 &ServerListCount, 
+                 Instance->Service->ControllerHandle,
+                 &ServerListCount,
                  &ServerList
                  );
       if (EFI_ERROR (Status)) {
         goto ON_EXIT;
       }
-      
+
       ASSERT(ServerList != NULL);
 
       OldTpl = gBS->RaiseTPL (TPL_CALLBACK);
@@ -1128,7 +1141,7 @@ Dns6Configure (
       }
       goto ON_EXIT;
     }
-    
+
     Instance->State = DNS_STATE_CONFIGED;
   }
 
@@ -1168,23 +1181,23 @@ Dns6HostNameToIp (
   )
 {
   EFI_STATUS            Status;
-  
+
   DNS_INSTANCE          *Instance;
 
   EFI_DNS6_CONFIG_DATA  *ConfigData;
-  
-  UINTN                 Index; 
+
+  UINTN                 Index;
   DNS6_CACHE            *Item;
   LIST_ENTRY            *Entry;
   LIST_ENTRY            *Next;
-  
+
   CHAR8                 *QueryName;
-  
+
   DNS6_TOKEN_ENTRY      *TokenEntry;
   NET_BUF               *Packet;
-  
+
   EFI_TPL               OldTpl;
-  
+
   Status     = EFI_SUCCESS;
   Item       = NULL;
   QueryName  = NULL;
@@ -1199,32 +1212,38 @@ Dns6HostNameToIp (
   }
 
   OldTpl   = gBS->RaiseTPL (TPL_CALLBACK);
-  
-  Instance = DNS_INSTANCE_FROM_THIS_PROTOCOL6 (This);
-  
-  ConfigData = &(Instance->Dns6CfgData);
-  
-  Instance->MaxRetry = ConfigData->RetryCount;
 
-  Token->Status = EFI_NOT_READY;
-  Token->RetryCount = 0;
-  Token->RetryInterval = ConfigData->RetryInterval;
+  Instance = DNS_INSTANCE_FROM_THIS_PROTOCOL6 (This);
+
+  ConfigData = &(Instance->Dns6CfgData);
 
   if (Instance->State != DNS_STATE_CONFIGED) {
     Status = EFI_NOT_STARTED;
     goto ON_EXIT;
   }
 
+  Token->Status = EFI_NOT_READY;
+
   //
-  // Check the MaxRetry and RetryInterval values.
+  // If zero, use the parameter configured through Dns.Configure() interface.
   //
-  if (Instance->MaxRetry == 0) {
-    Instance->MaxRetry = DNS_DEFAULT_RETRY;
+  if (Token->RetryCount == 0) {
+    Token->RetryCount = ConfigData->RetryCount;
   }
 
+  //
+  // If zero, use the parameter configured through Dns.Configure() interface.
+  //
+  if (Token->RetryInterval == 0) {
+    Token->RetryInterval = ConfigData->RetryInterval;
+  }
+
+  //
+  // Minimum interval of retry is 2 second. If the retry interval is less than 2 second, then use the 2 second.
+  //
   if (Token->RetryInterval < DNS_DEFAULT_TIMEOUT) {
     Token->RetryInterval = DNS_DEFAULT_TIMEOUT;
-  } 
+  }
 
   //
   // Check cache
@@ -1251,7 +1270,7 @@ Dns6HostNameToIp (
         if (Token->RspData.H2AData != NULL) {
           FreePool (Token->RspData.H2AData);
         }
-        
+
         Status = EFI_OUT_OF_RESOURCES;
         goto ON_EXIT;
       }
@@ -1264,17 +1283,17 @@ Dns6HostNameToIp (
           Index++;
         }
       }
-         
+
       Token->Status = EFI_SUCCESS;
-          
+
       if (Token->Event != NULL) {
         gBS->SignalEvent (Token->Event);
         DispatchDpc ();
       }
-      
+
       Status = Token->Status;
       goto ON_EXIT;
-    } 
+    }
   }
 
   //
@@ -1285,11 +1304,16 @@ Dns6HostNameToIp (
     Status = EFI_OUT_OF_RESOURCES;
     goto ON_EXIT;
   }
-  
-  TokenEntry->PacketToLive = Token->RetryInterval;
-  TokenEntry->QueryHostName = HostName;
-  TokenEntry->Token = Token;
 
+  TokenEntry->PacketToLive = Token->RetryInterval;
+  TokenEntry->Token = Token;
+  TokenEntry->QueryHostName = AllocateZeroPool (StrSize (HostName));
+  if (TokenEntry->QueryHostName == NULL) {
+    Status = EFI_OUT_OF_RESOURCES;
+    goto ON_EXIT;
+  }
+
+  CopyMem (TokenEntry->QueryHostName, HostName, StrSize (HostName));
 
   //
   // Construct QName.
@@ -1299,16 +1323,12 @@ Dns6HostNameToIp (
     Status = EFI_OUT_OF_RESOURCES;
     goto ON_EXIT;
   }
-  
+
   //
   // Construct DNS Query Packet.
   //
   Status = ConstructDNSQuery (Instance, QueryName, DNS_TYPE_AAAA, DNS_CLASS_INET, &Packet);
   if (EFI_ERROR (Status)) {
-    if (TokenEntry != NULL) {
-      FreePool (TokenEntry);
-    }
-    
     goto ON_EXIT;
   }
 
@@ -1319,34 +1339,37 @@ Dns6HostNameToIp (
   //
   Status = NetMapInsertTail (&Instance->Dns6TxTokens, TokenEntry, Packet);
   if (EFI_ERROR (Status)) {
-    if (TokenEntry != NULL) {
-      FreePool (TokenEntry);
-    }
-    
-    NetbufFree (Packet);
-    
     goto ON_EXIT;
   }
-  
+
   //
   // Dns Query Ip
   //
   Status = DoDnsQuery (Instance, Packet);
   if (EFI_ERROR (Status)) {
     Dns6RemoveTokenEntry (&Instance->Dns6TxTokens, TokenEntry);
-    
+  }
+
+ON_EXIT:
+
+  if (EFI_ERROR (Status)) {
     if (TokenEntry != NULL) {
+      if (TokenEntry->QueryHostName != NULL) {
+        FreePool (TokenEntry->QueryHostName);
+      }
+
       FreePool (TokenEntry);
     }
-    
-    NetbufFree (Packet);
+
+    if (Packet != NULL) {
+      NetbufFree (Packet);
+    }
   }
-  
-ON_EXIT:
+
   if (QueryName != NULL) {
     FreePool (QueryName);
   }
-  
+
   gBS->RestoreTPL (OldTpl);
   return Status;
 }
@@ -1419,57 +1442,63 @@ EFIAPI
 Dns6GeneralLookUp (
   IN  EFI_DNS6_PROTOCOL                 *This,
   IN  CHAR8                             *QName,
-  IN  UINT16                            QType, 
+  IN  UINT16                            QType,
   IN  UINT16                            QClass,
   IN  EFI_DNS6_COMPLETION_TOKEN         *Token
   )
 {
   EFI_STATUS            Status;
-  
+
   DNS_INSTANCE          *Instance;
-  
+
   EFI_DNS6_CONFIG_DATA  *ConfigData;
-  
+
   DNS6_TOKEN_ENTRY      *TokenEntry;
   NET_BUF               *Packet;
-  
+
   EFI_TPL               OldTpl;
-  
+
   Status     = EFI_SUCCESS;
   TokenEntry = NULL;
   Packet     = NULL;
-  
+
   //
   // Validate the parameters
   //
   if ((This == NULL) || (QName == NULL) || Token == NULL) {
     return EFI_INVALID_PARAMETER;
   }
-  
+
   OldTpl   = gBS->RaiseTPL (TPL_CALLBACK);
-  
+
   Instance = DNS_INSTANCE_FROM_THIS_PROTOCOL6 (This);
-  
+
   ConfigData = &(Instance->Dns6CfgData);
-  
-  Instance->MaxRetry = ConfigData->RetryCount;
-  
-  Token->Status = EFI_NOT_READY;
-  Token->RetryCount = 0;
-  Token->RetryInterval = ConfigData->RetryInterval;
 
   if (Instance->State != DNS_STATE_CONFIGED) {
     Status = EFI_NOT_STARTED;
     goto ON_EXIT;
   }
 
+  Token->Status = EFI_NOT_READY;
+
   //
-  // Check the MaxRetry and RetryInterval values.
+  // If zero, use the parameter configured through Dns.Configure() interface.
   //
-  if (Instance->MaxRetry == 0) {
-    Instance->MaxRetry = DNS_DEFAULT_RETRY;
+  if (Token->RetryCount == 0) {
+    Token->RetryCount = ConfigData->RetryCount;
   }
 
+  //
+  // If zero, use the parameter configured through Dns.Configure() interface.
+  //
+  if (Token->RetryInterval == 0) {
+    Token->RetryInterval = ConfigData->RetryInterval;
+  }
+
+  //
+  // Minimum interval of retry is 2 second. If the retry interval is less than 2 second, then use the 2 second.
+  //
   if (Token->RetryInterval < DNS_DEFAULT_TIMEOUT) {
     Token->RetryInterval = DNS_DEFAULT_TIMEOUT;
   }
@@ -1482,7 +1511,7 @@ Dns6GeneralLookUp (
     Status = EFI_OUT_OF_RESOURCES;
     goto ON_EXIT;
   }
-  
+
   TokenEntry->PacketToLive = Token->RetryInterval;
   TokenEntry->GeneralLookUp = TRUE;
   TokenEntry->Token = Token;
@@ -1495,7 +1524,7 @@ Dns6GeneralLookUp (
     if (TokenEntry != NULL) {
       FreePool (TokenEntry);
     }
-    
+
     goto ON_EXIT;
   }
 
@@ -1509,12 +1538,12 @@ Dns6GeneralLookUp (
     if (TokenEntry != NULL) {
       FreePool (TokenEntry);
     }
-    
+
     NetbufFree (Packet);
-    
+
     goto ON_EXIT;
   }
-  
+
   //
   // Dns Query Ip
   //
@@ -1525,10 +1554,10 @@ Dns6GeneralLookUp (
     if (TokenEntry != NULL) {
       FreePool (TokenEntry);
     }
-    
+
     NetbufFree (Packet);
   }
-  
+
 ON_EXIT:
   gBS->RestoreTPL (OldTpl);
   return Status;
@@ -1570,24 +1599,24 @@ Dns6UpdateDnsCache (
   IN EFI_DNS6_CACHE_ENTRY   DnsCacheEntry
   )
 {
-  EFI_STATUS    Status; 
+  EFI_STATUS    Status;
   EFI_TPL       OldTpl;
 
   Status = EFI_SUCCESS;
-  
+
   if (DnsCacheEntry.HostName == NULL || DnsCacheEntry.IpAddress == NULL || DnsCacheEntry.Timeout == 0) {
-    return EFI_INVALID_PARAMETER; 
+    return EFI_INVALID_PARAMETER;
   }
-  
+
   OldTpl = gBS->RaiseTPL (TPL_CALLBACK);
 
   //
   // Update Dns6Cache here.
   //
   Status = UpdateDns6Cache (&mDriverData->Dns6CacheList, DeleteFlag, Override, DnsCacheEntry);
-  
+
   gBS->RestoreTPL (OldTpl);
-  
+
   return Status;
 }
 
@@ -1636,7 +1665,7 @@ Dns6Poll (
   }
 
   Udp = Instance->UdpIo->Protocol.Udp6;
-  
+
   return Udp->Poll (Udp);
 }
 

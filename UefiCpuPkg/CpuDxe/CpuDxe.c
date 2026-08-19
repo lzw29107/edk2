@@ -1,7 +1,7 @@
 /** @file
   CPU DXE Module to produce CPU ARCH Protocol.
 
-  Copyright (c) 2008 - 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2008 - 2018, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -25,6 +25,7 @@
 BOOLEAN                   InterruptState = FALSE;
 EFI_HANDLE                mCpuHandle = NULL;
 BOOLEAN                   mIsFlushingGCD;
+BOOLEAN                   mIsAllocatingPageTable = FALSE;
 UINT64                    mValidMtrrAddressMask;
 UINT64                    mValidMtrrBitsMask;
 UINT64                    mTimerPeriod = 0;
@@ -407,6 +408,20 @@ CpuSetMemoryAttributes (
     return EFI_SUCCESS;
   }
 
+  //
+  // During memory attributes updating, new pages may be allocated to setup
+  // smaller granularity of page table. Page allocation action might then cause
+  // another calling of CpuSetMemoryAttributes() recursively, due to memory
+  // protection policy configured (such as PcdDxeNxMemoryProtectionPolicy).
+  // Since this driver will always protect memory used as page table by itself,
+  // there's no need to apply protection policy requested from memory service.
+  // So it's safe to just return EFI_SUCCESS if this time of calling is caused
+  // by page table memory allocation.
+  //
+  if (mIsAllocatingPageTable) {
+    DEBUG((DEBUG_VERBOSE, "  Allocating page table memory\n"));
+    return EFI_SUCCESS;
+  }
 
   CacheAttributes = Attributes & CACHE_ATTRIBUTE_MASK;
   MemoryAttributes = Attributes & MEMORY_ATTRIBUTE_MASK;
@@ -487,7 +502,7 @@ CpuSetMemoryAttributes (
   //
   // Set memory attribute by page table
   //
-  return AssignMemoryPageAttributes (NULL, BaseAddress, Length, MemoryAttributes, AllocatePages);
+  return AssignMemoryPageAttributes (NULL, BaseAddress, Length, MemoryAttributes, NULL);
 }
 
 /**
@@ -1092,7 +1107,7 @@ FreeMemorySpaceMap:
 }
 
 /**
-  Add and allocate CPU local APIC memory mapped space. 
+  Add and allocate CPU local APIC memory mapped space.
 
   @param[in]ImageHandle     Image handle this driver.
 
@@ -1110,7 +1125,7 @@ AddLocalApicMemorySpace (
   ASSERT_EFI_ERROR (Status);
 
   //
-  // Try to allocate APIC memory mapped space, does not check return 
+  // Try to allocate APIC memory mapped space, does not check return
   // status because it may be allocated by other driver, or DXE Core if
   // this range is built into Memory Allocation HOB.
   //
@@ -1149,7 +1164,7 @@ InitializeCpu (
 {
   EFI_STATUS  Status;
   EFI_EVENT   IdleLoopEvent;
-  
+
   InitializePageTableLib();
 
   InitializeFloatingPointUnits ();

@@ -1,7 +1,7 @@
 /** @file
   TCP output process routines.
 
-  Copyright (c) 2009 - 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
 
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
@@ -292,7 +292,11 @@ TcpTransmitSegment (
   BOOLEAN   Syn;
   UINT32    DataLen;
 
-  ASSERT ((Nbuf != NULL) && (Nbuf->Tcp == NULL) && (TcpVerifySegment (Nbuf) != 0));
+  ASSERT ((Nbuf != NULL) && (Nbuf->Tcp == NULL));
+
+  if (TcpVerifySegment (Nbuf) == 0) {
+    return -1;
+  }
 
   DataLen = Nbuf->TotalSize;
 
@@ -634,7 +638,11 @@ TcpGetSegment (
     Nbuf = TcpGetSegmentSock (Tcb, Seq, Len);
   }
 
-  ASSERT (TcpVerifySegment (Nbuf) != 0);
+  if (TcpVerifySegment (Nbuf) == 0) {
+    NetbufFree (Nbuf);
+    return NULL;
+  }
+
   return Nbuf;
 }
 
@@ -680,10 +688,10 @@ TcpRetransmit (
       "TcpRetransmit: retransmission without regard to the receiver window for TCB %p\n",
       Tcb)
       );
-    
+
   } else if (TCP_SEQ_GEQ (Tcb->SndWl2 + Tcb->SndWnd, Seq)) {
     Len = TCP_SUB_SEQ (Tcb->SndWl2 + Tcb->SndWnd, Seq);
-    
+
   } else {
     DEBUG (
       (EFI_D_WARN,
@@ -701,7 +709,9 @@ TcpRetransmit (
     return -1;
   }
 
-  ASSERT (TcpVerifySegment (Nbuf) != 0);
+  if (TcpVerifySegment (Nbuf) == 0) {
+    goto OnError;
+  }
 
   if (TcpTransmitSegment (Tcb, Nbuf) != 0) {
     goto OnError;
@@ -886,8 +896,14 @@ TcpToSendData (
     Seg->End  = End;
     Seg->Flag = Flag;
 
-    ASSERT (TcpVerifySegment (Nbuf) != 0);
-    ASSERT (TcpCheckSndQue (&Tcb->SndQue) != 0);
+    if (TcpVerifySegment (Nbuf) == 0 || TcpCheckSndQue (&Tcb->SndQue) == 0) {
+      DEBUG (
+        (EFI_D_ERROR,
+        "TcpToSendData: discard a broken segment for TCB %p\n",
+        Tcb)
+        );
+      goto OnError;
+    }
 
     //
     // Don't send an empty segment here.
@@ -899,8 +915,7 @@ TcpToSendData (
         Tcb)
         );
 
-      NetbufFree (Nbuf);
-      return Sent;
+      goto OnError;
     }
 
     if (TcpTransmitSegment (Tcb, Nbuf) != 0) {

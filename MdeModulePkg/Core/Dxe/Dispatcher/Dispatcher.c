@@ -26,7 +26,7 @@
   Depex - Dependency Expresion.
   SOR   - Schedule On Request - Don't schedule if this bit is set.
 
-Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -335,13 +335,13 @@ CoreSchedule (
       CoreReleaseDispatcherLock ();
 
       DEBUG ((DEBUG_DISPATCH, "Schedule FFS(%g) - EFI_SUCCESS\n", DriverName));
-      
+
       return EFI_SUCCESS;
     }
   }
-  
+
   DEBUG ((DEBUG_DISPATCH, "Schedule FFS(%g) - EFI_NOT_FOUND\n", DriverName));
-  
+
   return EFI_NOT_FOUND;
 }
 
@@ -418,7 +418,8 @@ CoreDispatcher (
   EFI_CORE_DRIVER_ENTRY           *DriverEntry;
   BOOLEAN                         ReadyToRun;
   EFI_EVENT                       DxeDispatchEvent;
-  
+
+  PERF_FUNCTION_BEGIN ();
 
   if (gDispatcherRunning) {
     //
@@ -511,10 +512,10 @@ CoreDispatcher (
 
       CoreReleaseDispatcherLock ();
 
- 
+
       if (DriverEntry->IsFvImage) {
         //
-        // Produce a firmware volume block protocol for FvImage so it gets dispatched from. 
+        // Produce a firmware volume block protocol for FvImage so it gets dispatched from.
         //
         Status = CoreProcessFvImageFile (DriverEntry->Fv, DriverEntry->FvHandle, &DriverEntry->FileName);
       } else {
@@ -525,9 +526,9 @@ CoreDispatcher (
           sizeof (DriverEntry->ImageHandle)
           );
         ASSERT (DriverEntry->ImageHandle != NULL);
-  
+
         Status = CoreStartImage (DriverEntry->ImageHandle, NULL, NULL);
-  
+
         REPORT_STATUS_CODE_WITH_EXTENDED_DATA (
           EFI_PROGRESS_CODE,
           (EFI_SOFTWARE_DXE_CORE | EFI_SW_PC_INIT_END),
@@ -583,6 +584,8 @@ CoreDispatcher (
   CoreCloseEvent (DxeDispatchEvent);
 
   gDispatcherRunning = FALSE;
+
+  PERF_FUNCTION_END ();
 
   return ReturnStatus;
 }
@@ -689,17 +692,17 @@ FvHasBeenProcessed (
 
 /**
   Remember that Fv protocol on FvHandle has had it's drivers placed on the
-  mDiscoveredList. This fucntion adds entries on the mFvHandleList if new 
+  mDiscoveredList. This fucntion adds entries on the mFvHandleList if new
   entry is different from one in mFvHandleList by checking FvImage Guid.
   Items are never removed/freed from the mFvHandleList.
 
   @param  FvHandle              The handle of a FV that has been processed
 
   @return A point to new added FvHandle entry. If FvHandle with the same FvImage guid
-          has been added, NULL will return. 
+          has been added, NULL will return.
 
 **/
-KNOWN_HANDLE * 
+KNOWN_HANDLE *
 FvIsBeingProcesssed (
   IN  EFI_HANDLE    FvHandle
   )
@@ -938,7 +941,67 @@ FvFoundInHobFv2 (
   return FALSE;
 }
 
+/**
+  Find USED_SIZE FV_EXT_TYPE entry in FV extension header and get the FV used size.
 
+  @param[in]  FvHeader      Pointer to FV header.
+  @param[out] FvUsedSize    Pointer to FV used size returned,
+                            only valid if USED_SIZE FV_EXT_TYPE entry is found.
+  @param[out] EraseByte     Pointer to erase byte returned,
+                            only valid if USED_SIZE FV_EXT_TYPE entry is found.
+
+  @retval TRUE              USED_SIZE FV_EXT_TYPE entry is found,
+                            FV used size and erase byte are returned.
+  @retval FALSE             No USED_SIZE FV_EXT_TYPE entry found.
+
+**/
+BOOLEAN
+GetFvUsedSize (
+  IN EFI_FIRMWARE_VOLUME_HEADER     *FvHeader,
+  OUT UINT32                        *FvUsedSize,
+  OUT UINT8                         *EraseByte
+  )
+{
+  UINT16                                        ExtHeaderOffset;
+  EFI_FIRMWARE_VOLUME_EXT_HEADER                *ExtHeader;
+  EFI_FIRMWARE_VOLUME_EXT_ENTRY                 *ExtEntryList;
+  EFI_FIRMWARE_VOLUME_EXT_ENTRY_USED_SIZE_TYPE  *ExtEntryUsedSize;
+
+  ExtHeaderOffset = ReadUnaligned16 (&FvHeader->ExtHeaderOffset);
+  if (ExtHeaderOffset != 0) {
+    ExtHeader    = (EFI_FIRMWARE_VOLUME_EXT_HEADER *) ((UINT8 *) FvHeader + ExtHeaderOffset);
+    ExtEntryList = (EFI_FIRMWARE_VOLUME_EXT_ENTRY *) (ExtHeader + 1);
+    while ((UINTN) ExtEntryList < ((UINTN) ExtHeader + ReadUnaligned32 (&ExtHeader->ExtHeaderSize))) {
+      if (ReadUnaligned16 (&ExtEntryList->ExtEntryType) == EFI_FV_EXT_TYPE_USED_SIZE_TYPE) {
+        //
+        // USED_SIZE FV_EXT_TYPE entry is found.
+        //
+        ExtEntryUsedSize = (EFI_FIRMWARE_VOLUME_EXT_ENTRY_USED_SIZE_TYPE *) ExtEntryList;
+        *FvUsedSize = ReadUnaligned32 (&ExtEntryUsedSize->UsedSize);
+        if ((ReadUnaligned32 (&FvHeader->Attributes) & EFI_FVB2_ERASE_POLARITY) != 0) {
+          *EraseByte = 0xFF;
+        } else {
+          *EraseByte = 0;
+        }
+        DEBUG ((
+          DEBUG_INFO,
+          "FV at 0x%x has 0x%x used size, and erase byte is 0x%02x\n",
+          FvHeader,
+          *FvUsedSize,
+          *EraseByte
+          ));
+        return TRUE;
+      }
+      ExtEntryList = (EFI_FIRMWARE_VOLUME_EXT_ENTRY *)
+                     ((UINT8 *) ExtEntryList + ReadUnaligned16 (&ExtEntryList->ExtEntrySize));
+    }
+  }
+
+  //
+  // No USED_SIZE FV_EXT_TYPE entry found.
+  //
+  return FALSE;
+}
 
 /**
   Get the driver from the FV through driver name, and produce a FVB protocol on FvHandle.
@@ -968,6 +1031,8 @@ CoreProcessFvImageFile (
   EFI_FIRMWARE_VOLUME_HEADER          *FvHeader;
   UINT32                              FvAlignment;
   EFI_DEVICE_PATH_PROTOCOL            *FvFileDevicePath;
+  UINT32                              FvUsedSize;
+  UINT8                               EraseByte;
 
   //
   // Read the first (and only the first) firmware volume section
@@ -1023,32 +1088,58 @@ CoreProcessFvImageFile (
     // can be aligned on any power-of-two boundary. A weakly aligned volume can not be moved from
     // its initial linked location and maintain its alignment.
     //
-    if ((FvHeader->Attributes & EFI_FVB2_WEAK_ALIGNMENT) != EFI_FVB2_WEAK_ALIGNMENT) {
+    if ((ReadUnaligned32 (&FvHeader->Attributes) & EFI_FVB2_WEAK_ALIGNMENT) != EFI_FVB2_WEAK_ALIGNMENT) {
       //
       // Get FvHeader alignment
       //
-      FvAlignment = 1 << ((FvHeader->Attributes & EFI_FVB2_ALIGNMENT) >> 16);
+      FvAlignment = 1 << ((ReadUnaligned32 (&FvHeader->Attributes) & EFI_FVB2_ALIGNMENT) >> 16);
       //
       // FvAlignment must be greater than or equal to 8 bytes of the minimum FFS alignment value.
       //
       if (FvAlignment < 8) {
         FvAlignment = 8;
       }
+
+      DEBUG ((
+        DEBUG_INFO,
+        "%a() FV at 0x%x, FvAlignment required is 0x%x\n",
+        __FUNCTION__,
+        FvHeader,
+        FvAlignment
+        ));
+
       //
-      // Allocate the aligned buffer for the FvImage.
+      // Check FvImage alignment.
       //
-      AlignedBuffer = AllocateAlignedPages (EFI_SIZE_TO_PAGES (BufferSize), (UINTN) FvAlignment);
-      if (AlignedBuffer == NULL) {
-        FreePool (Buffer);
-        return EFI_OUT_OF_RESOURCES;
-      } else {
+      if ((UINTN) FvHeader % FvAlignment != 0) {
         //
-        // Move FvImage into the aligned buffer and release the original buffer.
+        // Allocate the aligned buffer for the FvImage.
         //
-        CopyMem (AlignedBuffer, Buffer, BufferSize);
-        FvHeader = (EFI_FIRMWARE_VOLUME_HEADER *) AlignedBuffer;
-        CoreFreePool (Buffer);
-        Buffer = NULL;
+        AlignedBuffer = AllocateAlignedPages (EFI_SIZE_TO_PAGES (BufferSize), (UINTN) FvAlignment);
+        if (AlignedBuffer == NULL) {
+          FreePool (Buffer);
+          return EFI_OUT_OF_RESOURCES;
+        } else {
+          //
+          // Move FvImage into the aligned buffer and release the original buffer.
+          //
+          if (GetFvUsedSize (FvHeader, &FvUsedSize, &EraseByte)) {
+            //
+            // Copy the used bytes and fill the rest with the erase value.
+            //
+            CopyMem (AlignedBuffer, FvHeader, (UINTN) FvUsedSize);
+            SetMem (
+              (UINT8 *) AlignedBuffer + FvUsedSize,
+              (UINTN) (BufferSize - FvUsedSize),
+              EraseByte
+              );
+          } else {
+            CopyMem (AlignedBuffer, Buffer, BufferSize);
+          }
+          FvHeader = (EFI_FIRMWARE_VOLUME_HEADER *) AlignedBuffer;
+          CoreFreePool (Buffer);
+          Buffer = NULL;
+        }
       }
     }
     //
@@ -1156,7 +1247,7 @@ CoreFwVolEventProtocolNotify (
     KnownHandle = FvIsBeingProcesssed (FvHandle);
     if (KnownHandle == NULL) {
       //
-      // The FV with the same FV name guid has already been processed. 
+      // The FV with the same FV name guid has already been processed.
       // So lets skip it!
       //
       continue;
@@ -1246,7 +1337,7 @@ CoreFwVolEventProtocolNotify (
             if (!EFI_ERROR (Status)) {
               //
               // If SMM depex section is found, this FV image is invalid to be supported.
-              // ASSERT FALSE to report this FV image.  
+              // ASSERT FALSE to report this FV image.
               //
               FreePool (DepexBuffer);
               ASSERT (FALSE);
@@ -1268,7 +1359,7 @@ CoreFwVolEventProtocolNotify (
                            );
             if (EFI_ERROR (Status)) {
               //
-              // If no depex section, produce a firmware volume block protocol for it so it gets dispatched from. 
+              // If no depex section, produce a firmware volume block protocol for it so it gets dispatched from.
               //
               CoreProcessFvImageFile (Fv, FvHandle, &NameGuid);
             } else {
@@ -1349,6 +1440,8 @@ CoreInitializeDispatcher (
   VOID
   )
 {
+  PERF_FUNCTION_BEGIN ();
+
   mFwVolEvent = EfiCreateProtocolNotifyEvent (
                   &gEfiFirmwareVolume2ProtocolGuid,
                   TPL_CALLBACK,
@@ -1356,6 +1449,8 @@ CoreInitializeDispatcher (
                   NULL,
                   &mFwVolEventRegistration
                   );
+
+  PERF_FUNCTION_END ();
 }
 
 //

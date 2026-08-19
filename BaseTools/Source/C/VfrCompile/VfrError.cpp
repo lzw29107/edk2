@@ -1,15 +1,15 @@
 /** @file
-  
+
   VfrCompiler error handler.
 
-Copyright (c) 2004 - 2017, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials                          
-are licensed and made available under the terms and conditions of the BSD License         
-which accompanies this distribution.  The full text of the license may be found at        
-http://opensource.org/licenses/bsd-license.php                                            
-                                                                                          
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+Copyright (c) 2004 - 2018, Intel Corporation. All rights reserved.<BR>
+This program and the accompanying materials
+are licensed and made available under the terms and conditions of the BSD License
+which accompanies this distribution.  The full text of the license may be found at
+http://opensource.org/licenses/bsd-license.php
+
+THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 **/
 
@@ -67,6 +67,7 @@ CVfrErrorHandle::CVfrErrorHandle (
   mScopeRecordListTail   = NULL;
   mVfrErrorHandleTable   = VFR_ERROR_HANDLE_TABLE;
   mVfrWarningHandleTable = VFR_WARNING_HANDLE_TABLE;
+  mWarningAsError        = FALSE;
 }
 
 CVfrErrorHandle::~CVfrErrorHandle (
@@ -76,7 +77,7 @@ CVfrErrorHandle::~CVfrErrorHandle (
   SVfrFileScopeRecord *pNode = NULL;
 
   if (mInputFileName != NULL) {
-    delete mInputFileName;
+    delete[] mInputFileName;
   }
 
   while (mScopeRecordListHead != NULL) {
@@ -111,7 +112,7 @@ CVfrErrorHandle::SetInputFile (
 }
 
 SVfrFileScopeRecord::SVfrFileScopeRecord (
-  IN CHAR8    *Record, 
+  IN CHAR8    *Record,
   IN UINT32   LineNum
   )
 {
@@ -152,7 +153,7 @@ SVfrFileScopeRecord::~SVfrFileScopeRecord (
 
 VOID
 CVfrErrorHandle::ParseFileScopeRecord (
-  IN CHAR8     *Record, 
+  IN CHAR8     *Record,
   IN UINT32    WholeScopeLine
   )
 {
@@ -221,7 +222,7 @@ CVfrErrorHandle::PrintMsg (
 {
   CHAR8                  *FileName = NULL;
   UINT32                 FileLine;
-  
+
   if (strncmp ("Warning", MsgType, strlen ("Warning")) == 0) {
     VerboseMsg ((CHAR8 *) ErrorMsg);
     return;

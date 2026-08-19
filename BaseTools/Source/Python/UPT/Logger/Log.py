@@ -1,11 +1,11 @@
 ## @file
 # This file implements the log mechanism for Python tools.
 #
-# Copyright (c) 2011, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2011 - 2018, Intel Corporation. All rights reserved.<BR>
 #
-# This program and the accompanying materials are licensed and made available 
-# under the terms and conditions of the BSD License which accompanies this 
-# distribution. The full text of the license may be found at 
+# This program and the accompanying materials are licensed and made available
+# under the terms and conditions of the BSD License which accompanies this
+# distribution. The full text of the license may be found at
 # http://opensource.org/licenses/bsd-license.php
 #
 # THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
@@ -134,7 +134,7 @@ def Debug(Level, Message, ExtraData=None):
         "msg"       : Message,
     }
 
-    if ExtraData != None:
+    if ExtraData is not None:
         LogText = _DEBUG_MESSAGE_TEMPLATE % TemplateDict + "\n    %s" % ExtraData
     else:
         LogText = _DEBUG_MESSAGE_TEMPLATE % TemplateDict
@@ -165,10 +165,10 @@ def Warn(ToolName, Message, File=None, Line=None, ExtraData=None):
     #
     # if no tool name given, use caller's source file name as tool name
     #
-    if ToolName == None or ToolName == "":
+    if ToolName is None or ToolName == "":
         ToolName = os.path.basename(extract_stack()[-2][0])
 
-    if Line == None:
+    if Line is None:
         Line = "..."
     else:
         Line = "%d" % Line
@@ -180,12 +180,12 @@ def Warn(ToolName, Message, File=None, Line=None, ExtraData=None):
         "msg"       : Message,
     }
 
-    if File != None:
+    if File is not None:
         LogText = _WARNING_MESSAGE_TEMPLATE % TemplateDict
     else:
         LogText = _WARNING_MESSAGE_TEMPLATE_WITHOUT_FILE % TemplateDict
 
-    if ExtraData != None:
+    if ExtraData is not None:
         LogText += "\n    %s" % ExtraData
 
     _INFO_LOGGER.log(WARN, LogText)
@@ -197,8 +197,8 @@ def Warn(ToolName, Message, File=None, Line=None, ExtraData=None):
 
 ## Log ERROR message
 #
-# Once an error messages is logged, the tool's execution will be broken by 
-# raising an execption. If you don't want to break the execution later, you 
+# Once an error messages is logged, the tool's execution will be broken by
+# raising an execption. If you don't want to break the execution later, you
 # can give "RaiseError" with "False" value.
 #
 #   @param  ToolName    The name of the tool. If not given, the name of caller
@@ -215,18 +215,18 @@ def Error(ToolName, ErrorCode, Message=None, File=None, Line=None, \
           ExtraData=None, RaiseError=IS_RAISE_ERROR):
     if ToolName:
         pass
-    if Line == None:
+    if Line is None:
         Line = "..."
     else:
         Line = "%d" % Line
 
-    if Message == None:
+    if Message is None:
         if ErrorCode in gERROR_MESSAGE:
             Message = gERROR_MESSAGE[ErrorCode]
         else:
             Message = gERROR_MESSAGE[UNKNOWN_ERROR]
 
-    if ExtraData == None:
+    if ExtraData is None:
         ExtraData = ""
 
     TemplateDict = {
@@ -238,7 +238,7 @@ def Error(ToolName, ErrorCode, Message=None, File=None, Line=None, \
         "extra"     : ExtraData
     }
 
-    if File != None:
+    if File is not None:
         LogText =  _ERROR_MESSAGE_TEMPLATE % TemplateDict
     else:
         LogText = __ERROR_MESSAGE_TEMPLATE_WITHOUT_FILE % TemplateDict
@@ -248,13 +248,13 @@ def Error(ToolName, ErrorCode, Message=None, File=None, Line=None, \
     if RaiseError:
         raise FatalError(ErrorCode)
 
-    
+
 ## Initialize log system
 #
 def Initialize():
     #
-    # Since we use different format to log different levels of message into 
-    # different place (stdout or stderr), we have to use different "Logger" 
+    # Since we use different format to log different levels of message into
+    # different place (stdout or stderr), we have to use different "Logger"
     # objects to do this.
     #
     # For DEBUG level (All DEBUG_0~9 are applicable)

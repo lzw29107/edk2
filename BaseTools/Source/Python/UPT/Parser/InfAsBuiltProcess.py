@@ -1,11 +1,11 @@
 ## @file
 # This file is used to provide method for process AsBuilt INF file. It will consumed by InfParser
 #
-# Copyright (c) 2011 - 2014, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2011 - 2018, Intel Corporation. All rights reserved.<BR>
 #
-# This program and the accompanying materials are licensed and made available 
-# under the terms and conditions of the BSD License which accompanies this 
-# distribution. The full text of the license may be found at 
+# This program and the accompanying materials are licensed and made available
+# under the terms and conditions of the BSD License which accompanies this
+# distribution. The full text of the license may be found at
 # http://opensource.org/licenses/bsd-license.php
 #
 # THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
@@ -23,7 +23,7 @@ import Logger.Log as Logger
 from Logger import StringTable as ST
 from Logger import ToolError
 
-from Library.String import GetSplitValueList
+from Library.StringUtils import GetSplitValueList
 from Library.Misc import GetHelpStringByRemoveHashKey
 from Library.Misc import ValidFile
 from Library.Misc import ProcessLineExtender
@@ -133,7 +133,7 @@ def GetPackageListInfo(FileNameString, WorkSpace, LineNo):
             continue
 
         #
-        # Found [Packages] section 
+        # Found [Packages] section
         #
         if RePackageHeader.match(Line):
             PackageHederFlag = True
@@ -155,7 +155,7 @@ def GetPackageListInfo(FileNameString, WorkSpace, LineNo):
                                       DT.MODEL_META_DATA_HEADER,
                                       DefineSectionMacros)
 
-            if Name != None:
+            if Name is not None:
                 DefineSectionMacros[Name] = Value
                 continue
 
@@ -168,13 +168,13 @@ def GetPackageListInfo(FileNameString, WorkSpace, LineNo):
                                       FileNameString,
                                       DT.MODEL_META_DATA_PACKAGE,
                                       DefineSectionMacros)
-            if Name != None:
+            if Name is not None:
                 PackageSectionMacros[Name] = Value
                 continue
 
             #
             # Replace with Local section Macro and [Defines] section Macro.
-            #            
+            #
             Line = InfExpandMacro(Line, (FileNameString, Line, LineNo), DefineSectionMacros, PackageSectionMacros, True)
 
             Line = GetSplitValueList(Line, "#", 1)[0]

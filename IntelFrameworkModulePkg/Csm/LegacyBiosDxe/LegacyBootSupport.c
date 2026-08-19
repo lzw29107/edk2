@@ -1,6 +1,6 @@
 /** @file
 
-Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
 
 This program and the accompanying materials
 are licensed and made available under the terms and conditions
@@ -791,15 +791,15 @@ CreateSmbiosTableInReservedMemory (
   )
 {
   SMBIOS_TABLE_ENTRY_POINT    *EntryPointStructure;
-  
-  if ((mRuntimeSmbiosEntryPoint == NULL) || 
-      (mReserveSmbiosEntryPoint == 0) || 
+
+  if ((mRuntimeSmbiosEntryPoint == NULL) ||
+      (mReserveSmbiosEntryPoint == 0) ||
       (mStructureTableAddress == 0)) {
     return;
   }
-  
+
   EntryPointStructure = (SMBIOS_TABLE_ENTRY_POINT *) mRuntimeSmbiosEntryPoint;
-  
+
   //
   // Copy SMBIOS Entry Point Structure
   //
@@ -808,7 +808,7 @@ CreateSmbiosTableInReservedMemory (
     EntryPointStructure,
     EntryPointStructure->EntryPointLength
   );
-  
+
   //
   // Copy SMBIOS Structure Table into EfiReservedMemoryType memory
   //
@@ -817,22 +817,22 @@ CreateSmbiosTableInReservedMemory (
     (VOID *)(UINTN) EntryPointStructure->TableAddress,
     EntryPointStructure->TableLength
   );
-  
+
   //
   // Update TableAddress in Entry Point Structure
   //
   EntryPointStructure = (SMBIOS_TABLE_ENTRY_POINT *)(UINTN) mReserveSmbiosEntryPoint;
   EntryPointStructure->TableAddress = (UINT32)(UINTN) mStructureTableAddress;
-  
+
   //
   // Fixup checksums in the Entry Point Structure
   //
   EntryPointStructure->IntermediateChecksum = 0;
   EntryPointStructure->EntryPointStructureChecksum = 0;
 
-  EntryPointStructure->IntermediateChecksum = 
+  EntryPointStructure->IntermediateChecksum =
     CalculateCheckSum8 (
-      (UINT8 *) EntryPointStructure + OFFSET_OF (SMBIOS_TABLE_ENTRY_POINT, IntermediateAnchorString), 
+      (UINT8 *) EntryPointStructure + OFFSET_OF (SMBIOS_TABLE_ENTRY_POINT, IntermediateAnchorString),
       EntryPointStructure->EntryPointLength - OFFSET_OF (SMBIOS_TABLE_ENTRY_POINT, IntermediateAnchorString)
       );
   EntryPointStructure->EntryPointStructureChecksum =
@@ -898,7 +898,7 @@ GenericLegacyBoot (
 
   EfiToLegacy16BootTable->MajorVersion = EFI_TO_LEGACY_MAJOR_VERSION;
   EfiToLegacy16BootTable->MinorVersion = EFI_TO_LEGACY_MINOR_VERSION;
-  
+
   //
   // If booting to a legacy OS then force HDD drives to the appropriate
   // boot mode by calling GetIdeHandle.
@@ -916,7 +916,7 @@ GenericLegacyBoot (
                                   );
     if (!EFI_ERROR (Status)) {
       IdeController = HandleBuffer[0];
-    }   
+    }
   }
   //
   // Unlock the Legacy BIOS region
@@ -1041,7 +1041,9 @@ GenericLegacyBoot (
   //
   // Setup BDA and EBDA standard areas before Legacy Boot
   //
-  LegacyBiosCompleteBdaBeforeBoot (Private);
+  ACCESS_PAGE0_CODE (
+    LegacyBiosCompleteBdaBeforeBoot (Private);
+  );
   LegacyBiosCompleteStandardCmosBeforeBoot (Private);
 
   //
@@ -1073,10 +1075,10 @@ GenericLegacyBoot (
   // Use 182/10 to avoid floating point math.
   //
   LocalTime = (LocalTime * 182) / 10;
-  DisableNullDetection ();
-  BdaPtr    = (UINT32 *) (UINTN)0x46C;
-  *BdaPtr   = LocalTime;
-  EnableNullDetection ();
+  ACCESS_PAGE0_CODE (
+    BdaPtr    = (UINT32 *) (UINTN)0x46C;
+    *BdaPtr   = LocalTime;
+  );
 
   //
   // Shadow PCI ROMs. We must do this near the end since this will kick
@@ -1293,7 +1295,7 @@ GenericLegacyBoot (
     // Disable DXE Timer while executing in real mode
     //
     Private->Timer->SetTimerPeriod (Private->Timer, 0);
-    
+
     //
     // Save and disable interrupt of debug timer
     //
@@ -1322,15 +1324,15 @@ GenericLegacyBoot (
     //          set of TIANO vectors) or takes it over.
     //
     //
-    DisableNullDetection ();
-    BaseVectorMaster = (UINT32 *) (sizeof (UINT32) * PROTECTED_MODE_BASE_VECTOR_MASTER);
-    for (Index = 0; Index < 8; Index++) {
-      Private->ThunkSavedInt[Index] = BaseVectorMaster[Index];
-      if (Private->ThunkSeg == (UINT16) (BaseVectorMaster[Index] >> 16)) {
-        BaseVectorMaster[Index] = (UINT32) (Private->BiosUnexpectedInt);
+    ACCESS_PAGE0_CODE (
+      BaseVectorMaster = (UINT32 *) (sizeof (UINT32) * PROTECTED_MODE_BASE_VECTOR_MASTER);
+      for (Index = 0; Index < 8; Index++) {
+        Private->ThunkSavedInt[Index] = BaseVectorMaster[Index];
+        if (Private->ThunkSeg == (UINT16) (BaseVectorMaster[Index] >> 16)) {
+          BaseVectorMaster[Index] = (UINT32) (Private->BiosUnexpectedInt);
+        }
       }
-    }
-    EnableNullDetection ();
+    );
 
     ZeroMem (&Regs, sizeof (EFI_IA32_REGISTER_SET));
     Regs.X.AX = Legacy16Boot;
@@ -1344,12 +1346,12 @@ GenericLegacyBoot (
       0
       );
 
-    DisableNullDetection ();
-    BaseVectorMaster = (UINT32 *) (sizeof (UINT32) * PROTECTED_MODE_BASE_VECTOR_MASTER);
-    for (Index = 0; Index < 8; Index++) {
-      BaseVectorMaster[Index] = Private->ThunkSavedInt[Index];
-    }
-    EnableNullDetection ();
+    ACCESS_PAGE0_CODE (
+      BaseVectorMaster = (UINT32 *) (sizeof (UINT32) * PROTECTED_MODE_BASE_VECTOR_MASTER);
+      for (Index = 0; Index < 8; Index++) {
+        BaseVectorMaster[Index] = Private->ThunkSavedInt[Index];
+      }
+    );
   }
   Private->LegacyBootEntered = TRUE;
   if ((mBootMode == BOOT_LEGACY_OS) || (mBootMode == BOOT_UNCONVENTIONAL_DEVICE)) {
@@ -1462,8 +1464,8 @@ LegacyBiosBootUnconventionalDevice (
   }
 
   UcdTable = (UD_TABLE *) AllocatePool (
-														sizeof (UD_TABLE)
-														);
+                            sizeof (UD_TABLE)
+                            );
   if (NULL == UcdTable) {
     return EFI_OUT_OF_RESOURCES;
   }
@@ -1737,11 +1739,11 @@ LegacyBiosBuildE820 (
   //
   // First entry is 0 to (640k - EBDA)
   //
-  DisableNullDetection ();
-  E820Table[0].BaseAddr  = 0;
-  E820Table[0].Length    = (UINT64) ((*(UINT16 *) (UINTN)0x40E) << 4);
-  E820Table[0].Type      = EfiAcpiAddressRangeMemory;
-  EnableNullDetection ();
+  ACCESS_PAGE0_CODE (
+    E820Table[0].BaseAddr  = 0;
+    E820Table[0].Length    = (UINT64) ((*(UINT16 *) (UINTN)0x40E) << 4);
+    E820Table[0].Type      = EfiAcpiAddressRangeMemory;
+  );
 
   //
   // Second entry is (640k - EBDA) to 640k
@@ -1975,8 +1977,6 @@ LegacyBiosCompleteBdaBeforeBoot (
   UINT16                      MachineConfig;
   DEVICE_PRODUCER_DATA_HEADER *SioPtr;
 
-  DisableNullDetection ();
-
   Bda           = (BDA_STRUC *) ((UINTN) 0x400);
   MachineConfig = 0;
 
@@ -2035,8 +2035,6 @@ LegacyBiosCompleteBdaBeforeBoot (
   MachineConfig       = (UINT16) (MachineConfig + 0x00 + 0x02 + (SioPtr->MousePresent * 0x04));
   Bda->MachineConfig  = MachineConfig;
 
-  EnableNullDetection ();
-
   return EFI_SUCCESS;
 }
 
@@ -2063,17 +2061,15 @@ LegacyBiosUpdateKeyboardLedStatus (
 
   Private             = LEGACY_BIOS_INSTANCE_FROM_THIS (This);
 
-  DisableNullDetection ();
-
-  Bda                 = (BDA_STRUC *) ((UINTN) 0x400);
-  LocalLeds           = Leds;
-  Bda->LedStatus      = (UINT8) ((Bda->LedStatus &~0x07) | LocalLeds);
-  LocalLeds           = (UINT8) (LocalLeds << 4);
-  Bda->ShiftStatus    = (UINT8) ((Bda->ShiftStatus &~0x70) | LocalLeds);
-  LocalLeds           = (UINT8) (Leds & 0x20);
-  Bda->KeyboardStatus = (UINT8) ((Bda->KeyboardStatus &~0x20) | LocalLeds);
-
-  EnableNullDetection ();
+  ACCESS_PAGE0_CODE (
+    Bda                 = (BDA_STRUC *) ((UINTN) 0x400);
+    LocalLeds           = Leds;
+    Bda->LedStatus      = (UINT8) ((Bda->LedStatus &~0x07) | LocalLeds);
+    LocalLeds           = (UINT8) (LocalLeds << 4);
+    Bda->ShiftStatus    = (UINT8) ((Bda->ShiftStatus &~0x70) | LocalLeds);
+    LocalLeds           = (UINT8) (Leds & 0x20);
+    Bda->KeyboardStatus = (UINT8) ((Bda->KeyboardStatus &~0x20) | LocalLeds);
+  );
 
   //
   // Call into Legacy16 code to allow it to do any processing
@@ -2119,9 +2115,9 @@ LegacyBiosCompleteStandardCmosBeforeBoot (
   //            to large capacity drives
   // CMOS 14 = BDA 40:10 plus bit 3(display enabled)
   //
-  DisableNullDetection ();
-  Bda = (UINT8)(*((UINT8 *)((UINTN)0x410)) | BIT3);
-  EnableNullDetection ();
+  ACCESS_PAGE0_CODE (
+    Bda = (UINT8)(*((UINT8 *)((UINTN)0x410)) | BIT3);
+  );
 
   //
   // Force display enabled

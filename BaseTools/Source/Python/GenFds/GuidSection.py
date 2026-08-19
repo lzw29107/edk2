@@ -1,7 +1,8 @@
 ## @file
 # process GUIDed section generation
 #
-#  Copyright (c) 2007 - 2016, Intel Corporation. All rights reserved.<BR>
+#  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+#  Copyright (c) 2018, Hewlett Packard Enterprise Development, L.P.<BR>
 #
 #  This program and the accompanying materials
 #  are licensed and made available under the terms and conditions of the BSD License
@@ -28,6 +29,7 @@ from Common.BuildToolError import *
 from FvImageSection import FvImageSection
 from Common.LongFilePathSupport import OpenLongFilePath as open
 from GenFds import FindExtendTool
+from Common.DataType import *
 
 ## generate GUIDed section
 #
@@ -54,13 +56,13 @@ class GuidSection(GuidSectionClassObject) :
     #   @param  Dict        dictionary contains macro and its value
     #   @retval tuple       (Generated file name, section alignment)
     #
-    def GenSection(self, OutputPath, ModuleName, SecNum, KeyStringList, FfsInf=None, Dict={}):
+    def GenSection(self, OutputPath, ModuleName, SecNum, KeyStringList, FfsInf=None, Dict={}, IsMakefile=False):
         #
         # Generate all section
         #
         self.KeyStringList = KeyStringList
         self.CurrentArchList = GenFdsGlobalVariable.ArchList
-        if FfsInf != None:
+        if FfsInf is not None:
             self.Alignment = FfsInf.__ExtendMacro__(self.Alignment)
             self.NameGuid = FfsInf.__ExtendMacro__(self.NameGuid)
             self.SectionType = FfsInf.__ExtendMacro__(self.SectionType)
@@ -74,12 +76,12 @@ class GuidSection(GuidSectionClassObject) :
             FvAddrIsSet = True
         else:
             FvAddrIsSet = False
-        
+
         if self.ProcessRequired in ("TRUE", "1"):
             if self.FvAddr != []:
                 #no use FvAddr when the image is processed.
                 self.FvAddr = []
-            if self.FvParentAddr != None:
+            if self.FvParentAddr is not None:
                 #no use Parent Addr when the image is processed.
                 self.FvParentAddr = None
 
@@ -94,25 +96,25 @@ class GuidSection(GuidSectionClassObject) :
             elif isinstance(Sect, GuidSection):
                 Sect.FvAddr = self.FvAddr
                 Sect.FvParentAddr = self.FvParentAddr
-            ReturnSectList, align = Sect.GenSection(OutputPath, ModuleName, SecIndex, KeyStringList, FfsInf, Dict)
+            ReturnSectList, align = Sect.GenSection(OutputPath, ModuleName, SecIndex, KeyStringList, FfsInf, Dict, IsMakefile=IsMakefile)
             if isinstance(Sect, GuidSection):
                 if Sect.IncludeFvSection:
                     self.IncludeFvSection = Sect.IncludeFvSection
 
-            if align != None:
-                if MaxAlign == None:
+            if align is not None:
+                if MaxAlign is None:
                     MaxAlign = align
                 if GenFdsGlobalVariable.GetAlignment (align) > GenFdsGlobalVariable.GetAlignment (MaxAlign):
                     MaxAlign = align
             if ReturnSectList != []:
-                if align == None:
+                if align is None:
                     align = "1"
                 for file in ReturnSectList:
                     SectFile += (file,)
                     SectAlign.append(align)
 
-        if MaxAlign != None:
-            if self.Alignment == None:
+        if MaxAlign is not None:
+            if self.Alignment is None:
                 self.Alignment = MaxAlign
             else:
                 if GenFdsGlobalVariable.GetAlignment (MaxAlign) > GenFdsGlobalVariable.GetAlignment (self.Alignment):
@@ -121,42 +123,42 @@ class GuidSection(GuidSectionClassObject) :
         OutputFile = OutputPath + \
                      os.sep + \
                      ModuleName + \
-                     'SEC' + \
+                     SUP_MODULE_SEC + \
                      SecNum + \
                      Ffs.SectionSuffix['GUIDED']
         OutputFile = os.path.normpath(OutputFile)
 
         ExternalTool = None
         ExternalOption = None
-        if self.NameGuid != None:
+        if self.NameGuid is not None:
             ExternalTool, ExternalOption = FindExtendTool(self.KeyStringList, self.CurrentArchList, self.NameGuid)
 
         #
         # If not have GUID , call default
         # GENCRC32 section
         #
-        if self.NameGuid == None :
+        if self.NameGuid is None :
             GenFdsGlobalVariable.VerboseLogger("Use GenSection function Generate CRC32 Section")
-            GenFdsGlobalVariable.GenerateSection(OutputFile, SectFile, Section.Section.SectionType[self.SectionType], InputAlign=SectAlign)
+            GenFdsGlobalVariable.GenerateSection(OutputFile, SectFile, Section.Section.SectionType[self.SectionType], InputAlign=SectAlign, IsMakefile=IsMakefile)
             OutputFileList = []
             OutputFileList.append(OutputFile)
             return OutputFileList, self.Alignment
         #or GUID not in External Tool List
-        elif ExternalTool == None:
+        elif ExternalTool is None:
             EdkLogger.error("GenFds", GENFDS_ERROR, "No tool found with GUID %s" % self.NameGuid)
         else:
             DummyFile = OutputFile + ".dummy"
             #
             # Call GenSection with DUMMY section type.
             #
-            GenFdsGlobalVariable.GenerateSection(DummyFile, SectFile, InputAlign=SectAlign)
+            GenFdsGlobalVariable.GenerateSection(DummyFile, SectFile, InputAlign=SectAlign, IsMakefile=IsMakefile)
             #
             # Use external tool process the Output
             #
             TempFile = OutputPath + \
                        os.sep + \
                        ModuleName + \
-                       'SEC' + \
+                       SUP_MODULE_SEC + \
                        SecNum + \
                        '.tmp'
             TempFile = os.path.normpath(TempFile)
@@ -170,77 +172,101 @@ class GuidSection(GuidSectionClassObject) :
 
             FirstCall = False
             CmdOption = '-e'
-            if ExternalOption != None:
+            if ExternalOption is not None:
                 CmdOption = CmdOption + ' ' + ExternalOption
-            if self.ProcessRequired not in ("TRUE", "1") and self.IncludeFvSection and not FvAddrIsSet and self.FvParentAddr != None:
-                #FirstCall is only set for the encapsulated flash FV image without process required attribute.
-                FirstCall = True
-            #
-            # Call external tool
-            #
-            ReturnValue = [1]
-            if FirstCall:
-                #first try to call the guided tool with -z option and CmdOption for the no process required guided tool.
-                GenFdsGlobalVariable.GuidTool(TempFile, [DummyFile], ExternalTool, '-z' + ' ' + CmdOption, ReturnValue)
+            if not GenFdsGlobalVariable.EnableGenfdsMultiThread:
+                if self.ProcessRequired not in ("TRUE", "1") and self.IncludeFvSection and not FvAddrIsSet and self.FvParentAddr is not None:
+                    #FirstCall is only set for the encapsulated flash FV image without process required attribute.
+                    FirstCall = True
+                #
+                # Call external tool
+                #
+                ReturnValue = [1]
+                if FirstCall:
+                    #first try to call the guided tool with -z option and CmdOption for the no process required guided tool.
+                    GenFdsGlobalVariable.GuidTool(TempFile, [DummyFile], ExternalTool, '-z' + ' ' + CmdOption, ReturnValue)
 
-            #
-            # when no call or first call failed, ReturnValue are not 1.
-            # Call the guided tool with CmdOption
-            #
-            if ReturnValue[0] != 0:
-                FirstCall = False
-                ReturnValue[0] = 0
-                GenFdsGlobalVariable.GuidTool(TempFile, [DummyFile], ExternalTool, CmdOption)
-            #
-            # There is external tool which does not follow standard rule which return nonzero if tool fails
-            # The output file has to be checked
-            #
-            if not os.path.exists(TempFile):
-                EdkLogger.error("GenFds", COMMAND_FAILURE, 'Fail to call %s, no output file was generated' % ExternalTool)
+                #
+                # when no call or first call failed, ReturnValue are not 1.
+                # Call the guided tool with CmdOption
+                #
+                if ReturnValue[0] != 0:
+                    FirstCall = False
+                    ReturnValue[0] = 0
+                    GenFdsGlobalVariable.GuidTool(TempFile, [DummyFile], ExternalTool, CmdOption)
+                #
+                # There is external tool which does not follow standard rule which return nonzero if tool fails
+                # The output file has to be checked
+                #
 
-            FileHandleIn = open(DummyFile, 'rb')
-            FileHandleIn.seek(0, 2)
-            InputFileSize = FileHandleIn.tell()
+                if not os.path.exists(TempFile) :
+                    EdkLogger.error("GenFds", COMMAND_FAILURE, 'Fail to call %s, no output file was generated' % ExternalTool)
 
-            FileHandleOut = open(TempFile, 'rb')
-            FileHandleOut.seek(0, 2)
-            TempFileSize = FileHandleOut.tell()
+                FileHandleIn = open(DummyFile, 'rb')
+                FileHandleIn.seek(0, 2)
+                InputFileSize = FileHandleIn.tell()
 
-            Attribute = []
-            HeaderLength = None
-            if self.ExtraHeaderSize != -1:
-                HeaderLength = str(self.ExtraHeaderSize)
+                FileHandleOut = open(TempFile, 'rb')
+                FileHandleOut.seek(0, 2)
+                TempFileSize = FileHandleOut.tell()
 
-            if self.ProcessRequired == "NONE" and HeaderLength == None:
-                if TempFileSize > InputFileSize:
-                    FileHandleIn.seek(0)
-                    BufferIn = FileHandleIn.read()
-                    FileHandleOut.seek(0)
-                    BufferOut = FileHandleOut.read()
-                    if BufferIn == BufferOut[TempFileSize - InputFileSize:]:
-                        HeaderLength = str(TempFileSize - InputFileSize)
-                #auto sec guided attribute with process required
-                if HeaderLength == None:
-                    Attribute.append('PROCESSING_REQUIRED')
+                Attribute = []
+                HeaderLength = None
+                if self.ExtraHeaderSize != -1:
+                    HeaderLength = str(self.ExtraHeaderSize)
 
-            FileHandleIn.close()
-            FileHandleOut.close()
+                if self.ProcessRequired == "NONE" and HeaderLength is None:
+                    if TempFileSize > InputFileSize:
+                        FileHandleIn.seek(0)
+                        BufferIn = FileHandleIn.read()
+                        FileHandleOut.seek(0)
+                        BufferOut = FileHandleOut.read()
+                        if BufferIn == BufferOut[TempFileSize - InputFileSize:]:
+                            HeaderLength = str(TempFileSize - InputFileSize)
+                    #auto sec guided attribute with process required
+                    if HeaderLength is None:
+                        Attribute.append('PROCESSING_REQUIRED')
 
-            if FirstCall and 'PROCESSING_REQUIRED' in Attribute:
-                # Guided data by -z option on first call is the process required data. Call the guided tool with the real option.
-                GenFdsGlobalVariable.GuidTool(TempFile, [DummyFile], ExternalTool, CmdOption)
+                FileHandleIn.close()
+                FileHandleOut.close()
 
-            #
-            # Call Gensection Add Section Header
-            #
-            if self.ProcessRequired in ("TRUE", "1"):
-                if 'PROCESSING_REQUIRED' not in Attribute:
-                    Attribute.append('PROCESSING_REQUIRED')
+                if FirstCall and 'PROCESSING_REQUIRED' in Attribute:
+                    # Guided data by -z option on first call is the process required data. Call the guided tool with the real option.
+                    GenFdsGlobalVariable.GuidTool(TempFile, [DummyFile], ExternalTool, CmdOption)
 
-            if self.AuthStatusValid in ("TRUE", "1"):
-                Attribute.append('AUTH_STATUS_VALID')
-            GenFdsGlobalVariable.GenerateSection(OutputFile, [TempFile], Section.Section.SectionType['GUIDED'],
-                                                 Guid=self.NameGuid, GuidAttr=Attribute, GuidHdrLen=HeaderLength)
+                #
+                # Call Gensection Add Section Header
+                #
+                if self.ProcessRequired in ("TRUE", "1"):
+                    if 'PROCESSING_REQUIRED' not in Attribute:
+                        Attribute.append('PROCESSING_REQUIRED')
+
+                if self.AuthStatusValid in ("TRUE", "1"):
+                    Attribute.append('AUTH_STATUS_VALID')
+                GenFdsGlobalVariable.GenerateSection(OutputFile, [TempFile], Section.Section.SectionType['GUIDED'],
+                                                     Guid=self.NameGuid, GuidAttr=Attribute, GuidHdrLen=HeaderLength)
+
+            else:
+                #add input file for GenSec get PROCESSING_REQUIRED
+                GenFdsGlobalVariable.GuidTool(TempFile, [DummyFile], ExternalTool, CmdOption, IsMakefile=IsMakefile)
+                Attribute = []
+                HeaderLength = None
+                if self.ExtraHeaderSize != -1:
+                    HeaderLength = str(self.ExtraHeaderSize)
+                if self.AuthStatusValid in ("TRUE", "1"):
+                    Attribute.append('AUTH_STATUS_VALID')
+                if self.ProcessRequired == "NONE" and HeaderLength is None:
+                    GenFdsGlobalVariable.GenerateSection(OutputFile, [TempFile], Section.Section.SectionType['GUIDED'],
+                                                         Guid=self.NameGuid, GuidAttr=Attribute,
+                                                         GuidHdrLen=HeaderLength, DummyFile=DummyFile, IsMakefile=IsMakefile)
+                else:
+                    if self.ProcessRequired in ("TRUE", "1"):
+                        if 'PROCESSING_REQUIRED' not in Attribute:
+                            Attribute.append('PROCESSING_REQUIRED')
+                    GenFdsGlobalVariable.GenerateSection(OutputFile, [TempFile], Section.Section.SectionType['GUIDED'],
+                                                         Guid=self.NameGuid, GuidAttr=Attribute,
+                                                         GuidHdrLen=HeaderLength, IsMakefile=IsMakefile)
+
             OutputFileList = []
             OutputFileList.append(OutputFile)
             if 'PROCESSING_REQUIRED' in Attribute:
@@ -248,6 +274,8 @@ class GuidSection(GuidSectionClassObject) :
                 self.Alignment = None
                 self.IncludeFvSection = False
                 self.ProcessRequired = "TRUE"
+            if IsMakefile and self.Alignment is not None and self.Alignment.strip() == '0':
+                self.Alignment = '1'
             return OutputFileList, self.Alignment
 
 

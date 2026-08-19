@@ -1,7 +1,7 @@
 /** @file
   Ia32-specific functionality for DxeLoad.
 
-Copyright (c) 2006 - 2015, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
 Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
 
 This program and the accompanying materials
@@ -73,7 +73,7 @@ Create4GPageTablesIa32Pae (
   IN EFI_PHYSICAL_ADDRESS   StackBase,
   IN UINTN                  StackSize
   )
-{  
+{
   UINT8                                         PhysicalAddressBits;
   EFI_PHYSICAL_ADDRESS                          PhysicalAddress;
   UINTN                                         IndexOfPdpEntries;
@@ -99,7 +99,7 @@ Create4GPageTablesIa32Pae (
   NumberOfPdpEntriesNeeded = (UINT32) LShiftU64 (1, (PhysicalAddressBits - 30));
 
   TotalPagesNum = NumberOfPdpEntriesNeeded + 1;
-  PageAddress = (UINTN) AllocatePages (TotalPagesNum);
+  PageAddress = (UINTN) AllocatePageTableMemory (TotalPagesNum);
   ASSERT (PageAddress != 0);
 
   PageMap = (VOID *) PageAddress;
@@ -112,7 +112,7 @@ Create4GPageTablesIa32Pae (
     //
     // Each Directory Pointer entries points to a page of Page Directory entires.
     // So allocate space for them and fill them in in the IndexOfPageDirectoryEntries loop.
-    //       
+    //
     PageDirectoryEntry = (VOID *) PageAddress;
     PageAddress += SIZE_4KB;
 
@@ -148,6 +148,12 @@ Create4GPageTablesIa32Pae (
       sizeof (PAGE_MAP_AND_DIRECTORY_POINTER)
       );
   }
+
+  //
+  // Protect the page table by marking the memory used for page table to be
+  // read-only.
+  //
+  EnablePageTableProtection ((UINTN)PageMap, FALSE);
 
   return (UINTN) PageMap;
 }
@@ -232,6 +238,10 @@ ToBuildPageTable (
   }
 
   if (PcdGet8 (PcdHeapGuardPropertyMask) != 0) {
+    return TRUE;
+  }
+
+  if (PcdGetBool (PcdCpuStackGuard)) {
     return TRUE;
   }
 

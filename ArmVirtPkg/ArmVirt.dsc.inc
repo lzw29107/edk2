@@ -415,7 +415,6 @@
       gEfiMdePkgTokenSpaceGuid.PcdUefiLibMaxPrintBufferSize|8000
   }
 
-[Components.AARCH64]
   #
   # ACPI Support
   #
@@ -424,6 +423,7 @@
       NULL|EmbeddedPkg/Library/PlatformHasAcpiLib/PlatformHasAcpiLib.inf
   }
 
+[Components.AARCH64]
   #
   # EBC support
   #

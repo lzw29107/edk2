@@ -103,6 +103,7 @@
 
 [LibraryClasses.common.DXE_DRIVER]
   ReportStatusCodeLib|MdeModulePkg/Library/DxeReportStatusCodeLib/DxeReportStatusCodeLib.inf
+  NonDiscoverableDeviceRegistrationLib|MdeModulePkg/Library/NonDiscoverableDeviceRegistrationLib/NonDiscoverableDeviceRegistrationLib.inf
 
 !if $(TPM2_ENABLE) == TRUE
   Tpm2DeviceLib|SecurityPkg/Library/Tpm2DeviceLibTcg2/Tpm2DeviceLibTcg2.inf
@@ -503,9 +504,21 @@
   #
   # Video support
   #
+  OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf
   OvmfPkg/QemuRamfbDxe/QemuRamfbDxe.inf
   OvmfPkg/VirtioGpuDxe/VirtioGpu.inf
   OvmfPkg/PlatformDxe/Platform.inf
+
+  #
+  # SD/eMMC Support
+  #
+  MdeModulePkg/Bus/Pci/SdMmcPciHcDxe/SdMmcPciHcDxe.inf
+  MdeModulePkg/Bus/Sd/EmmcDxe/EmmcDxe.inf
+  MdeModulePkg/Bus/Sd/SdDxe/SdDxe.inf
+
+  # NonDiscoverableDevices  
+  ArmVirtPkg/VirtPlatformDxe/VirtPlatformDxe.inf
+  MdeModulePkg/Bus/Pci/NonDiscoverablePciDeviceDxe/NonDiscoverablePciDeviceDxe.inf
 
   #
   # USB Support
@@ -541,7 +554,6 @@
   # ACPI Support
   #
   ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.inf
-[Components.AARCH64]
   MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
   OvmfPkg/AcpiPlatformDxe/AcpiPlatformDxe.inf {
     <LibraryClasses>

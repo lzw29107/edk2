@@ -142,11 +142,11 @@ READ_LOCK_STATUS   = TRUE
   # ACPI Support
   #
   INF ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.inf
-!if $(ARCH) == AARCH64
   INF MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
   INF MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
   INF OvmfPkg/AcpiPlatformDxe/AcpiPlatformDxe.inf
 
+!if $(ARCH) == AARCH64
   #
   # EBC support
   #
@@ -166,6 +166,7 @@ READ_LOCK_STATUS   = TRUE
   #
   # Video support
   #
+  INF OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf
   INF OvmfPkg/QemuRamfbDxe/QemuRamfbDxe.inf
   INF OvmfPkg/VirtioGpuDxe/VirtioGpu.inf
   INF OvmfPkg/PlatformDxe/Platform.inf
@@ -179,6 +180,17 @@ READ_LOCK_STATUS   = TRUE
   INF MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
   INF MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf
   INF MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
+
+  #
+  # SD/eMMC Support
+  #
+  INF MdeModulePkg/Bus/Pci/SdMmcPciHcDxe/SdMmcPciHcDxe.inf
+  INF MdeModulePkg/Bus/Sd/EmmcDxe/EmmcDxe.inf
+  INF MdeModulePkg/Bus/Sd/SdDxe/SdDxe.inf
+
+  # NonDiscoverableDevices
+  INF ArmVirtPkg/VirtPlatformDxe/VirtPlatformDxe.inf
+  INF MdeModulePkg/Bus/Pci/NonDiscoverablePciDeviceDxe/NonDiscoverablePciDeviceDxe.inf
 
   #
   # TPM2 support

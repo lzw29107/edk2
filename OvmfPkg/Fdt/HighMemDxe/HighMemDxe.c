@@ -101,12 +101,10 @@ InitializeHighMemDxe (
       }
 
       if (GcdDescriptor.GcdMemoryType == EfiGcdMemoryTypeNonExistent) {
-        Status = gDS->AddMemorySpace (
-                        EfiGcdMemoryTypeSystemMemory,
-                        CurBase,
-                        CurSize,
-                        EFI_MEMORY_WB
-                        );
+        Status = gDS->AddMemorySpace (EfiGcdMemoryTypeSystemMemory,
+                          CurBase, CurSize,
+                          EFI_MEMORY_WB | EFI_MEMORY_WC |
+                          EFI_MEMORY_WT | EFI_MEMORY_UC);
 
         if (EFI_ERROR (Status)) {
           DEBUG ((

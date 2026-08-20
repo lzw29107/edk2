@@ -1,0 +1,38 @@
+## @file
+#  This driver effectuates Qemu Virt platform configuration settings
+#
+#  Copyright (c) 2024, Linaro Ltd. All rights reserved.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001c
+  BASE_NAME                      = VirtPlatformDxe
+  FILE_GUID                      = 7c6718ec-4ddd-9ef7-92e7-5f61c4fb6cb6
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+
+  ENTRY_POINT                    = InitializeVirtPlatformDxe
+
+[Sources]
+  VirtPlatformDxe.c
+
+[Packages]
+  ArmVirtPkg/ArmVirtPkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  PcdLib
+  DebugLib
+  NonDiscoverableDeviceRegistrationLib
+  UefiDriverEntryPoint
+
+[Protocols]
+  gFdtClientProtocolGuid                                ## CONSUMES
+
+[Depex]
+  gFdtClientProtocolGuid

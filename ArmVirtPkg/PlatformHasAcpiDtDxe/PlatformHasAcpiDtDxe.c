@@ -31,8 +31,7 @@ PlatformHasAcpiDt (
   // unbootable anyway (due to lacking hardware description), so tolerate no
   // errors here.
   //
-  if ((MAX_UINTN == MAX_UINT64) &&
-      !PcdGetBool (PcdForceNoAcpi) &&
+  if (!PcdGetBool (PcdForceNoAcpi) &&
       !EFI_ERROR (
          QemuFwCfgFindFile (
            "etc/table-loader",

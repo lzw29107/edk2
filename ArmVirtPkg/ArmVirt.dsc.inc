@@ -438,7 +438,7 @@
   # build command line you can allow code execution in EfiLoaderData. This is
   # required when using some outdated GRUB versions.
   #
-  gEfiMdeModulePkgTokenSpaceGuid.PcdDxeNxMemoryProtectionPolicy|0xC000000000007FD5
+  gEfiMdeModulePkgTokenSpaceGuid.PcdDxeNxMemoryProtectionPolicy|0xC000000000007FD1
 
   gEfiMdeModulePkgTokenSpaceGuid.PcdCpuStackGuard|TRUE
 

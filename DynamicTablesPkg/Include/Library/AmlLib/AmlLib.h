@@ -36,6 +36,7 @@
   @}
 */
 
+#include <AmlCpcInfo.h>
 #include <IndustryStandard/Acpi.h>
 
 #ifndef AML_HANDLE
@@ -1278,6 +1279,115 @@ AmlAddLpiState (
   IN  EFI_ACPI_6_3_GENERIC_ADDRESS_STRUCTURE  *UsageCounterRegister        OPTIONAL,
   IN  CHAR8                                   *StateName                   OPTIONAL,
   IN  AML_OBJECT_NODE_HANDLE                  LpiNode
+  );
+
+/** AML code generation for a _DSD device data object.
+
+  AmlAddDeviceDataDescriptorPackage (Uuid, DsdNode, PackageNode) is
+  equivalent of the following ASL code:
+    ToUUID(Uuid),
+    Package () {}
+
+  Cf ACPI 6.4 specification, s6.2.5 "_DSD (Device Specific Data)".
+
+  _DSD (Device Specific Data) Implementation Guide
+  https://github.com/UEFI/DSD-Guide
+  Per s3. "'Well-Known _DSD UUIDs and Data Structure Formats'"
+  If creating a Device Properties data then UUID daffd814-6eba-4d8c-8a91-bc9bbf4aa301 should be used.
+
+  @param [in]  Uuid           The Uuid of the descriptor to be created
+  @param [in]  DsdNode        Node of the DSD Package.
+  @param [out] PackageNode    If success, contains the created package node.
+
+  @retval EFI_SUCCESS             Success.
+  @retval EFI_INVALID_PARAMETER   Invalid parameter.
+  @retval EFI_OUT_OF_RESOURCES    Failed to allocate memory.
+**/
+EFI_STATUS
+EFIAPI
+AmlAddDeviceDataDescriptorPackage (
+  IN  CONST EFI_GUID                *Uuid,
+  IN        AML_OBJECT_NODE_HANDLE  DsdNode,
+  OUT       AML_OBJECT_NODE_HANDLE  *PackageNode
+  );
+
+/** AML code generation to add a package with a name and value,
+    to a parent package.
+    This is useful to build the _DSD package but can be used in other cases.
+
+  AmlAddNameIntegerPackage ("Name", Value, PackageNode) is
+  equivalent of the following ASL code:
+    Package (2) {"Name", Value}
+
+  Cf ACPI 6.4 specification, s6.2.5 "_DSD (Device Specific Data)".
+
+  @param [in]  Name           String to place in first entry of package
+  @param [in]  Value          Integer to place in second entry of package
+  @param [in]  PackageNode    Package to add new sub package to.
+
+  @retval EFI_SUCCESS             Success.
+  @retval EFI_INVALID_PARAMETER   Invalid parameter.
+  @retval EFI_OUT_OF_RESOURCES    Failed to allocate memory.
+**/
+EFI_STATUS
+EFIAPI
+AmlAddNameIntegerPackage (
+  IN CHAR8                   *Name,
+  IN UINT64                  Value,
+  IN AML_OBJECT_NODE_HANDLE  PackageNode
+  );
+
+/** Create a _CPC node.
+
+  Creates and optionally adds the following node
+   Name(_CPC, Package()
+   {
+    NumEntries,                              // Integer
+    Revision,                                // Integer
+    HighestPerformance,                      // Integer or Buffer (Resource Descriptor)
+    NominalPerformance,                      // Integer or Buffer (Resource Descriptor)
+    LowestNonlinearPerformance,              // Integer or Buffer (Resource Descriptor)
+    LowestPerformance,                       // Integer or Buffer (Resource Descriptor)
+    GuaranteedPerformanceRegister,           // Buffer (Resource Descriptor)
+    DesiredPerformanceRegister ,             // Buffer (Resource Descriptor)
+    MinimumPerformanceRegister ,             // Buffer (Resource Descriptor)
+    MaximumPerformanceRegister ,             // Buffer (Resource Descriptor)
+    PerformanceReductionToleranceRegister,   // Buffer (Resource Descriptor)
+    TimeWindowRegister,                      // Buffer (Resource Descriptor)
+    CounterWraparoundTime,                   // Integer or Buffer (Resource Descriptor)
+    ReferencePerformanceCounterRegister,     // Buffer (Resource Descriptor)
+    DeliveredPerformanceCounterRegister,     // Buffer (Resource Descriptor)
+    PerformanceLimitedRegister,              // Buffer (Resource Descriptor)
+    CPPCEnableRegister                       // Buffer (Resource Descriptor)
+    AutonomousSelectionEnable,               // Integer or Buffer (Resource Descriptor)
+    AutonomousActivityWindowRegister,        // Buffer (Resource Descriptor)
+    EnergyPerformancePreferenceRegister,     // Buffer (Resource Descriptor)
+    ReferencePerformance                     // Integer or Buffer (Resource Descriptor)
+    LowestFrequency,                         // Integer or Buffer (Resource Descriptor)
+    NominalFrequency                         // Integer or Buffer (Resource Descriptor)
+  })
+
+  If resource buffer is NULL then integer will be used.
+
+  Cf. ACPI 6.4, s8.4.7.1 _CPC (Continuous Performance Control)
+
+  @ingroup CodeGenApis
+
+  @param [in]  CpcInfo               CpcInfo object
+  @param [in]  ParentNode            If provided, set ParentNode as the parent
+                                     of the node created.
+  @param [out] NewCpcNode            If success and provided, contains the created node.
+
+  @retval EFI_SUCCESS             The function completed successfully.
+  @retval EFI_INVALID_PARAMETER   Invalid parameter.
+  @retval EFI_OUT_OF_RESOURCES    Failed to allocate memory.
+**/
+EFI_STATUS
+EFIAPI
+AmlCreateCpcNode (
+  IN  AML_CPC_INFO            *CpcInfo,
+  IN  AML_NODE_HANDLE         ParentNode   OPTIONAL,
+  OUT AML_OBJECT_NODE_HANDLE  *NewCpcNode   OPTIONAL
   );
 
 // DEPRECATED APIS

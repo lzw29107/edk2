@@ -146,13 +146,6 @@ READ_LOCK_STATUS   = TRUE
   INF MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
   INF OvmfPkg/AcpiPlatformDxe/AcpiPlatformDxe.inf
 
-!if $(ARCH) == AARCH64
-  #
-  # EBC support
-  #
-  INF MdeModulePkg/Universal/EbcDxe/EbcDxe.inf
-!endif
-
   #
   # PCI support
   #

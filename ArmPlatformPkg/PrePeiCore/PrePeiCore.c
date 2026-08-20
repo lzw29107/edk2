@@ -11,8 +11,6 @@
 #include <Library/CacheMaintenanceLib.h>
 #include <Library/DebugAgentLib.h>
 #include <Library/ArmLib.h>
-#include <Library/PrintLib.h>
-#include <Library/SerialPortLib.h>
 
 #include "PrePeiCore.h"
 
@@ -52,31 +50,6 @@ CreatePpiList (
 
   *PpiList     = (EFI_PEI_PPI_DESCRIPTOR *)ListBase;
   *PpiListSize = sizeof (gCommonPpiTable) + PlatformPpiListSize;
-}
-
-/**
-
- Prints firmware version and build time to serial console.
-
-**/
-STATIC
-VOID
-PrintFirmwareVersion (
-  VOID
-  )
-{
-  CHAR8  Buffer[100];
-  UINTN  CharCount;
-
-  CharCount = AsciiSPrint (
-                Buffer,
-                sizeof (Buffer),
-                "UEFI firmware (version %s built at %a on %a)\n\r",
-                (CHAR16 *)PcdGetPtr (PcdFirmwareVersionString),
-                __TIME__,
-                __DATE__
-                );
-  SerialPortWrite ((UINT8 *)Buffer, CharCount);
 }
 
 VOID
@@ -122,8 +95,6 @@ CEntryPoint (
     // Invoke "ProcessLibraryConstructorList" to have all library constructors
     // called.
     ProcessLibraryConstructorList ();
-
-    PrintFirmwareVersion ();
 
     // Initialize the Debug Agent for Source Level Debugging
     InitializeDebugAgent (DEBUG_AGENT_INIT_POSTMEM_SEC, NULL, NULL);

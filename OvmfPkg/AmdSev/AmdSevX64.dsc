@@ -93,14 +93,6 @@
   XCODE:*_*_*_MTOC_FLAGS = -align 0x1000
   CLANGPDB:*_*_*_DLINK_FLAGS = /ALIGN:4096
 
-# Force PE/COFF sections to be aligned at 4KB boundaries to support page level
-# protection of DXE_SMM_DRIVER/SMM_CORE modules
-[BuildOptions.common.EDKII.DXE_SMM_DRIVER, BuildOptions.common.EDKII.SMM_CORE]
-  GCC:*_*_*_DLINK_FLAGS = -z common-page-size=0x1000
-  XCODE:*_*_*_DLINK_FLAGS = -seg1addr 0x1000 -segalign 0x1000
-  XCODE:*_*_*_MTOC_FLAGS = -align 0x1000
-  CLANGPDB:*_*_*_DLINK_FLAGS = /ALIGN:4096
-
 ################################################################################
 #
 # SKU Identification section - list of all SKU IDs supported by this Platform.
@@ -149,6 +141,7 @@
   PciCapLib|OvmfPkg/Library/BasePciCapLib/BasePciCapLib.inf
   PciCapPciSegmentLib|OvmfPkg/Library/BasePciCapPciSegmentLib/BasePciCapPciSegmentLib.inf
   PciCapPciIoLib|OvmfPkg/Library/UefiPciCapPciIoLib/UefiPciCapPciIoLib.inf
+  CcProbeLib|MdePkg/Library/CcProbeLibNull/CcProbeLibNull.inf
   IoLib|MdePkg/Library/BaseIoLibIntrinsic/BaseIoLibIntrinsicSev.inf
   OemHookStatusCodeLib|MdeModulePkg/Library/OemHookStatusCodeLibNull/OemHookStatusCodeLibNull.inf
   SerialPortLib|PcAtChipsetPkg/Library/SerialIoLib/SerialIoLib.inf
@@ -174,6 +167,9 @@
   CustomizedDisplayLib|MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.inf
   FrameBufferBltLib|MdeModulePkg/Library/FrameBufferBltLib/FrameBufferBltLib.inf
   BlobVerifierLib|OvmfPkg/AmdSev/BlobVerifierLibSevHashes/BlobVerifierLibSevHashes.inf
+  MemEncryptTdxLib|OvmfPkg/Library/BaseMemEncryptTdxLib/BaseMemEncryptTdxLib.inf
+  PeiHardwareInfoLib|OvmfPkg/Library/HardwareInfoLib/PeiHardwareInfoLib.inf
+  DxeHardwareInfoLib|OvmfPkg/Library/HardwareInfoLib/DxeHardwareInfoLib.inf
 
 !if $(SOURCE_DEBUG_ENABLE) == TRUE
   PeCoffExtraActionLib|SourceLevelDebugPkg/Library/PeCoffExtraActionLibDebug/PeCoffExtraActionLibDebug.inf
@@ -194,6 +190,7 @@
   VarCheckLib|MdeModulePkg/Library/VarCheckLib/VarCheckLib.inf
   VariablePolicyLib|MdeModulePkg/Library/VariablePolicyLib/VariablePolicyLib.inf
   VariablePolicyHelperLib|MdeModulePkg/Library/VariablePolicyHelperLib/VariablePolicyHelperLib.inf
+  VariableFlashInfoLib|MdeModulePkg/Library/BaseVariableFlashInfoLib/BaseVariableFlashInfoLib.inf
 
 !if $(BUILD_SHELL) == TRUE
   ShellLib|ShellPkg/Library/UefiShellLib/UefiShellLib.inf
@@ -208,6 +205,7 @@
 [LibraryClasses.common]
   BaseCryptLib|CryptoPkg/Library/BaseCryptLib/BaseCryptLib.inf
   VmgExitLib|OvmfPkg/Library/VmgExitLib/VmgExitLib.inf
+  TdxLib|MdePkg/Library/TdxLib/TdxLib.inf
 
 [LibraryClasses.common.SEC]
   TimerLib|OvmfPkg/Library/AcpiTimerLib/BaseRomAcpiTimerLib.inf
@@ -277,9 +275,8 @@
   PcdLib|MdePkg/Library/PeiPcdLib/PeiPcdLib.inf
   QemuFwCfgLib|OvmfPkg/Library/QemuFwCfgLib/QemuFwCfgPeiLib.inf
 
-!include OvmfPkg/OvmfTpmLibsPeim.dsc.inc
-
   MemEncryptSevLib|OvmfPkg/Library/BaseMemEncryptSevLib/PeiMemEncryptSevLib.inf
+  PlatformInitLib|OvmfPkg/Library/PlatformInitLib/PlatformInitLib.inf
 
 [LibraryClasses.common.DXE_CORE]
   HobLib|MdePkg/Library/DxeCoreHobLib/DxeCoreHobLib.inf
@@ -359,8 +356,6 @@
   QemuFwCfgS3Lib|OvmfPkg/Library/QemuFwCfgS3Lib/DxeQemuFwCfgS3LibFwCfg.inf
   QemuLoadImageLib|OvmfPkg/Library/GenericQemuLoadImageLib/GenericQemuLoadImageLib.inf
 
-!include OvmfPkg/OvmfTpmLibsDxe.dsc.inc
-
 [LibraryClasses.common.UEFI_APPLICATION]
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
@@ -368,45 +363,6 @@
   HobLib|MdePkg/Library/DxeHobLib/DxeHobLib.inf
   MemoryAllocationLib|MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf
   ReportStatusCodeLib|MdeModulePkg/Library/DxeReportStatusCodeLib/DxeReportStatusCodeLib.inf
-!ifdef $(DEBUG_ON_SERIAL_PORT)
-  DebugLib|MdePkg/Library/BaseDebugLibSerialPort/BaseDebugLibSerialPort.inf
-!else
-  DebugLib|OvmfPkg/Library/PlatformDebugLibIoPort/PlatformDebugLibIoPort.inf
-!endif
-  PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
-
-[LibraryClasses.common.DXE_SMM_DRIVER]
-  PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
-  TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
-  ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
-  MemoryAllocationLib|MdePkg/Library/SmmMemoryAllocationLib/SmmMemoryAllocationLib.inf
-  ReportStatusCodeLib|MdeModulePkg/Library/DxeReportStatusCodeLib/DxeReportStatusCodeLib.inf
-  HobLib|MdePkg/Library/DxeHobLib/DxeHobLib.inf
-  SmmMemLib|MdePkg/Library/SmmMemLib/SmmMemLib.inf
-  MmServicesTableLib|MdePkg/Library/MmServicesTableLib/MmServicesTableLib.inf
-  SmmServicesTableLib|MdePkg/Library/SmmServicesTableLib/SmmServicesTableLib.inf
-!ifdef $(DEBUG_ON_SERIAL_PORT)
-  DebugLib|MdePkg/Library/BaseDebugLibSerialPort/BaseDebugLibSerialPort.inf
-!else
-  DebugLib|OvmfPkg/Library/PlatformDebugLibIoPort/PlatformDebugLibIoPort.inf
-!endif
-  CpuExceptionHandlerLib|UefiCpuPkg/Library/CpuExceptionHandlerLib/SmmCpuExceptionHandlerLib.inf
-!if $(SOURCE_DEBUG_ENABLE) == TRUE
-  DebugAgentLib|SourceLevelDebugPkg/Library/DebugAgent/SmmDebugAgentLib.inf
-!endif
-  BaseCryptLib|CryptoPkg/Library/BaseCryptLib/SmmCryptLib.inf
-  PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
-
-[LibraryClasses.common.SMM_CORE]
-  PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
-  TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
-  ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
-  SmmCorePlatformHookLib|MdeModulePkg/Library/SmmCorePlatformHookLibNull/SmmCorePlatformHookLibNull.inf
-  MemoryAllocationLib|MdeModulePkg/Library/PiSmmCoreMemoryAllocationLib/PiSmmCoreMemoryAllocationLib.inf
-  ReportStatusCodeLib|MdeModulePkg/Library/DxeReportStatusCodeLib/DxeReportStatusCodeLib.inf
-  HobLib|MdePkg/Library/DxeHobLib/DxeHobLib.inf
-  SmmMemLib|MdePkg/Library/SmmMemLib/SmmMemLib.inf
-  SmmServicesTableLib|MdeModulePkg/Library/PiSmmCoreSmmServicesTableLib/PiSmmCoreSmmServicesTableLib.inf
 !ifdef $(DEBUG_ON_SERIAL_PORT)
   DebugLib|MdePkg/Library/BaseDebugLibSerialPort/BaseDebugLibSerialPort.inf
 !else
@@ -526,6 +482,8 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase|0
   gEfiMdeModulePkgTokenSpaceGuid.PcdVideoHorizontalResolution|1280
   gEfiMdeModulePkgTokenSpaceGuid.PcdVideoVerticalResolution|800
+  gEfiMdeModulePkgTokenSpaceGuid.PcdConOutRow|0
+  gEfiMdeModulePkgTokenSpaceGuid.PcdConOutColumn|0
   gEfiMdeModulePkgTokenSpaceGuid.PcdAcpiS3Enable|FALSE
   gUefiOvmfPkgTokenSpaceGuid.PcdVideoResolutionSource|0
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfHostBridgePciDevId|0
@@ -556,6 +514,9 @@
   # Set memory encryption mask
   gEfiMdeModulePkgTokenSpaceGuid.PcdPteMemoryEncryptionAddressOrMask|0x0
 
+  # Set Tdx shared bit mask
+  gEfiMdeModulePkgTokenSpaceGuid.PcdTdxSharedBitMask|0x0
+
   # Set SEV-ES defaults
   gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbBase|0
   gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbSize|0
@@ -567,6 +528,8 @@
   gEfiMdePkgTokenSpaceGuid.PcdConfidentialComputingGuestAttr|0
 
 !include OvmfPkg/OvmfTpmPcds.dsc.inc
+
+  gEfiMdePkgTokenSpaceGuid.PcdFSBClock|1000000000
 
 [PcdsDynamicHii]
 !include OvmfPkg/OvmfTpmPcdsHii.dsc.inc
@@ -636,10 +599,9 @@
   }
 
   MdeModulePkg/Universal/EbcDxe/EbcDxe.inf
-  OvmfPkg/8259InterruptControllerDxe/8259.inf
   UefiCpuPkg/CpuIo2Dxe/CpuIo2Dxe.inf
   UefiCpuPkg/CpuDxe/CpuDxe.inf
-  OvmfPkg/8254TimerDxe/8254Timer.inf
+  OvmfPkg/LocalApicTimerDxe/LocalApicTimerDxe.inf
   OvmfPkg/IncompatiblePciDeviceSupportDxe/IncompatiblePciDeviceSupport.inf
   OvmfPkg/PciHotPlugInitDxe/PciHotPlugInit.inf
   MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridgeDxe.inf {

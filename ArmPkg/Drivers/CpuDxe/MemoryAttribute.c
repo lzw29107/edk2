@@ -256,9 +256,11 @@ ClearMemoryAttributes (
         return EFI_UNSUPPORTED;
       }
 
+#ifdef MDE_CPU_AARCH64
       if ((RegionAttributes & TT_ATTR_INDX_MASK) == TT_ATTR_INDX_DEVICE_MEMORY) {
         return EFI_UNSUPPORTED;
       }
+#endif
     }
   }
 

@@ -216,8 +216,17 @@ IsArmAttributeCacheable (
   IN UINT64  Attributes
   )
 {
+#if defined (MDE_CPU_AARCH64)
   return ((Attributes & TT_ATTR_INDX_MASK) == TT_ATTR_INDX_MEMORY_WRITE_THROUGH) ||
          ((Attributes & TT_ATTR_INDX_MASK) == TT_ATTR_INDX_MEMORY_WRITE_BACK);
+
+#elif defined (MDE_CPU_ARM)
+  //
+  // ARMv7/AArch32: cacheability is not represented using TT_ATTR_INDX.
+  // Assume non-device normal memory is cacheable.
+  //
+  return TRUE;
+#endif
 }
 
 /**

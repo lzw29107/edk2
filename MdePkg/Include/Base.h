@@ -577,7 +577,7 @@ struct _LIST_ENTRY {
 **/
 #define _INT_SIZE_OF(n)  ((sizeof (n) + sizeof (UINTN) - 1) &~(sizeof (UINTN) - 1))
 
-#if defined (_M_ARM64)
+#if defined (_M_ARM) || defined (_M_ARM64)
 //
 // MSVC AARCH64 and CLANGPDB AARCH64 hit this path. By default, they use the MS ABI for VA_LIST and
 // friends. However, this is against the AAPCS64 ABI and cause interop issues with GCC and CLANGDWARF.

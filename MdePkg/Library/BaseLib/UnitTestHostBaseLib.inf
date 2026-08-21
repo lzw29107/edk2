@@ -23,7 +23,7 @@
   LIBRARY_CLASS                  = UnitTestHostBaseLib|HOST_APPLICATION
 
 #
-#  VALID_ARCHITECTURES           = IA32 X64 AARCH64
+#  VALID_ARCHITECTURES           = IA32 X64 ARM AARCH64
 #
 
 [Sources]
@@ -172,8 +172,26 @@
   IntelTdxNull.c
   AmdSevNull.c
 
+[Sources.ARM]
+  Arm/InternalSwitchStack.c
+  Math64.c                   | MSFT
+
+  Arm/SwitchStack.asm        | MSFT
+  Arm/SetJumpLongJump.asm    | MSFT
+  Arm/CpuPause.asm           | MSFT
+  Arm/CpuBreakpoint.asm      | MSFT
+  Arm/MemoryFence.asm        | MSFT
+  Arm/SpeculationBarrier.asm | MSFT
+
+  Arm/Math64.S                  | GCC
+  Arm/SwitchStack.S             | GCC
+  Arm/SetJumpLongJump.S         | GCC
+  Arm/CpuBreakpoint.S           | GCC
+  Arm/MemoryFence.S             | GCC
+  Arm/SpeculationBarrier.S      | GCC
+
 [Sources.AARCH64]
-  AArch64/InternalSwitchStack.c
+  Arm/InternalSwitchStack.c
   Math64.c
 
   AArch64/MemoryFence.S             | GCC

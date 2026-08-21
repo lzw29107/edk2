@@ -50,8 +50,11 @@
   !error QEMU_PV_VARS=TRUE is not supported for this platform.
 !endif
 
-# Various builds now exceed 2MB so choose 3MB as the default.
-DEFINE FD_SIZE_IN_MB    = 3
+!if $(TARGET) != NOOPT && $(ARCH) == ARM
+  DEFINE FD_SIZE_IN_MB    = 2
+!else
+  DEFINE FD_SIZE_IN_MB    = 3
+!endif
 
 !if $(FD_SIZE_IN_MB) == 2
   DEFINE FD_SIZE          = 0x200000
@@ -68,9 +71,12 @@ DEFINE FD_SIZE_IN_MB    = 3
   CLANGPDB:*_*_*_DLINK_FLAGS = /ALIGN:0x1000
 
 [BuildOptions.common.EDKII.DXE_RUNTIME_DRIVER]
-  GCC:*_GCC_*_DLINK_FLAGS = -z common-page-size=0x10000
-  GCC:*_CLANGDWARF_*_DLINK_FLAGS = -z common-page-size=0x10000
-  CLANGPDB:*_*_*_DLINK_FLAGS = /ALIGN:0x10000
+  GCC:*_GCC_ARM_DLINK_FLAGS = -z common-page-size=0x1000
+  GCC:*_GCC_AARCH64_DLINK_FLAGS = -z common-page-size=0x10000
+  GCC:*_CLANGDWARF_ARM_DLINK_FLAGS = -z common-page-size=0x1000
+  GCC:*_CLANGDWARF_AARCH64_DLINK_FLAGS = -z common-page-size=0x10000
+  CLANGPDB:*_*_ARM_DLINK_FLAGS = /ALIGN:0x1000
+  CLANGPDB:*_*_AARCH64_DLINK_FLAGS = /ALIGN:0x10000
 
 [LibraryClasses.common]
   GptLib|MdeModulePkg/Library/GptLib/GptLib.inf
@@ -129,6 +135,9 @@ DEFINE FD_SIZE_IN_MB    = 3
 
   # Networking Requirements
 !include NetworkPkg/NetworkLibs.dsc.inc
+!if ($(NETWORK_TLS_ENABLE) == TRUE) AND ($(ARCH) == ARM)
+  !error "NETWORK_TLS_ENABLE is not supported on ARM build!"
+!endif
 
   # ARM Architectural Libraries
   ArmLib|MdePkg/Library/ArmLib/ArmBaseLib.inf
@@ -318,7 +327,23 @@ DEFINE FD_SIZE_IN_MB    = 3
 !endif
   VariablePolicyLib|MdeModulePkg/Library/VariablePolicyLib/VariablePolicyLibRuntimeDxe.inf
 
+[LibraryClasses.AARCH64.DXE_RUNTIME_DRIVER]
   BaseCryptLib|CryptoPkg/Library/BaseCryptLib/RuntimeCryptLib.inf
+
+[LibraryClasses.ARM.DXE_RUNTIME_DRIVER]
+  BaseCryptLib|CryptoPkg/Library/BaseCryptLibMbedTls/RuntimeCryptLib.inf
+
+[LibraryClasses.AARCH64]
+  BaseCryptLib|CryptoPkg/Library/BaseCryptLib/BaseCryptLib.inf
+  TlsLib|CryptoPkg/Library/TlsLib/TlsLib.inf
+
+[LibraryClasses.ARM]
+  BaseCryptLib|CryptoPkg/Library/BaseCryptLibMbedTls/BaseCryptLib.inf
+  MbedTlsLib|CryptoPkg/Library/MbedTlsLib/MbedTlsLib.inf
+  RngLib|MdePkg/Library/BaseRngLibTimerLib/BaseRngLibTimerLib.inf
+  UefiDriverEntryPoint|MdePkg/Library/UefiDriverEntryPoint/UefiDriverEntryPoint.inf
+  UefiApplicationEntryPoint|MdePkg/Library/UefiApplicationEntryPoint/UefiApplicationEntryPoint.inf
+  DxeCoreEntryPoint|MdePkg/Library/DxeCoreEntryPoint/DxeCoreEntryPoint.inf
 
 [BuildOptions]
   GCC:RELEASE_*_*_CC_FLAGS  = -DMDEPKG_NDEBUG
@@ -339,6 +364,7 @@ DEFINE FD_SIZE_IN_MB    = 3
 
   gEmbeddedTokenSpaceGuid.PcdPrePiProduceMemoryTypeInformationHob|TRUE
 
+[PcdsFeatureFlag.AARCH64]
   #
   # Activate AcpiSdtProtocol
   #
@@ -666,6 +692,7 @@ DEFINE FD_SIZE_IN_MB    = 3
   #
   MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf
 
+[Components.AARCH64]
   #
   # ACPI Support
   #

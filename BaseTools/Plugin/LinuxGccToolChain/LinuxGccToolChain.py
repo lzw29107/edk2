@@ -1,5 +1,5 @@
 # @file LinuxGccToolChain.py
-# Plugin to configures paths for GCC AARCH64/RISCV/LOONGARCH64 Toolchain
+# Plugin to configures paths for GCC ARM/AARCH64/RISCV/LOONGARCH64 Toolchain
 ##
 # This plugin sets environment variables used in tools_def.template to specify the GCC compiler
 # for the requested build architecture.
@@ -34,6 +34,12 @@ class LinuxGccToolChain(IUefiBuildPlugin):
                     self.Logger.critical("Failed in check aarch64")
                     return ret
 
+            # Check arm compiler
+            ret = self._check_arm()
+            if ret != 0:
+                self.Logger.critical("Failed in check arm")
+                return ret
+
             # Check RISCV64 compiler
             if "RISCV64" in thebuilder.env.GetValue("TARGET_ARCH", "RISCV64"):
                 ret = self._check_riscv64()
@@ -47,6 +53,28 @@ class LinuxGccToolChain(IUefiBuildPlugin):
                 if ret != 0:
                     self.Logger.critical("Failed in check loongarch64")
                     return ret
+
+        return 0
+
+    def _check_arm(self):
+        # check to see if full path already configured
+        if shell_environment.GetEnvironment().get_shell_var("GCC_ARM_PREFIX") is not None:
+            self.Logger.info("GCC_ARM_PREFIX is already set.")
+
+        else:
+            # now check for install dir.  If set then set the Prefix
+            install_path = shell_environment.GetEnvironment().get_shell_var("GCC_ARM_INSTALL")
+            if install_path is None:
+                return 0
+
+            # make the PREFIX to align with tools_def.txt
+            prefix = os.path.join(install_path, "bin", "arm-none-linux-gnueabihf-")
+            shell_environment.GetEnvironment().set_shell_var("GCC_ARM_PREFIX", prefix)
+
+        # now confirm it exists
+        if not os.path.exists(shell_environment.GetEnvironment().get_shell_var("GCC_ARM_PREFIX") + "gcc"):
+            self.Logger.error("Path for GCC_ARM_PREFIX toolchain is invalid")
+            return -2
 
         return 0
 

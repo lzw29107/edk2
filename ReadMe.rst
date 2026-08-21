@@ -58,6 +58,7 @@ Ubuntu GCC
  Toolchain                    CONFIG            DEBUG         RELEASE       NOOPT
 ============================= ================= ============= ============= ==============
 ArmVirtPkg_Ubuntu_GCC_        | AARCH64         |avAArch64du| |avAArch64ru| |avAArch64nu|
+|                             | ARM             |avArmdu|     |avArmru|     |avArmnu|
 EmulatorPkg_Ubuntu_GCC_       | X64             |em64du|      |em64ru|      |em64nu|
 |                             | X64 FULL        |em64fdu|     |em64fru|     |em64fnu|
 OvmfPkg_Ubuntu_GCC_           | X64             |op64du|      |op64ru|      |op64nu|

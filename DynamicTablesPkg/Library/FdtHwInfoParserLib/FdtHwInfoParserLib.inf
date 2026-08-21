@@ -30,7 +30,7 @@
   Serial/SerialPortParser.c
   Serial/SerialPortParser.h
 
-[Sources.AARCH64]
+[Sources.ARM, Sources.AARCH64]
   Arm/ArmFdtInterrupt.c
   Arm/ArmFdtHwInfoParser.c
   Arm/BootArch/ArmBootArchParser.c

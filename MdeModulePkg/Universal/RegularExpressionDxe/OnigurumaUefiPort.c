@@ -110,6 +110,7 @@ realloc (
   return NULL;
 }
 
+#if !defined (MDE_CPU_ARM)
 void *
 memcpy (
   void          *dest,
@@ -119,6 +120,8 @@ memcpy (
 {
   return CopyMem (dest, src, (UINTN)count);
 }
+
+#endif
 
 void *
 memset (

@@ -692,7 +692,6 @@
   #
   MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf
 
-[Components.AARCH64]
   #
   # ACPI Support
   #

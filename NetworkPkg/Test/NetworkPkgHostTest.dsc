@@ -88,6 +88,9 @@
   DebugLib|MdePkg/Library/UefiDebugLibStdErr/UefiDebugLibStdErr.inf
   ShellLib|ShellPkg/Library/UefiShellLib/UefiShellLib.inf
 
+[LibraryClasses.ARM]
+  RngLib|MdePkg/Library/BaseRngLibTimerLib/BaseRngLibTimerLib.inf
+
 [LibraryClasses.RISCV64]
   RngLib|MdePkg/Library/BaseRngLibTimerLib/BaseRngLibTimerLib.inf
 

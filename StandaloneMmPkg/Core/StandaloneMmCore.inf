@@ -97,7 +97,11 @@
 # are built with these flags and support this scenario.
 #
 [BuildOptions]
+  GCC:*_*_ARM_CC_FLAGS = -fpie
+  GCC:*_*_ARM_DLINK_FLAGS = -Wl,-z,text,-Bsymbolic,-pie
   GCC:*_GCC_AARCH64_CC_FLAGS = -fpie
   GCC:*_GCC_AARCH64_DLINK_FLAGS = -Wl,-z,text,-Bsymbolic,-pie
+  GCC:*_CLANGDWARF_ARM_CC_FLAGS = -fpie
+  GCC:*_CLANGDWARF_ARM_DLINK_FLAGS = -Wl,-z,text,-Bsymbolic,-pie
   GCC:*_CLANGDWARF_AARCH64_CC_FLAGS = -fpie
   GCC:*_CLANGDWARF_AARCH64_DLINK_FLAGS = -Wl,-z,text,-Bsymbolic,-pie

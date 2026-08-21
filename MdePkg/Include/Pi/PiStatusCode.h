@@ -14,7 +14,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #pragma once
 
 //
-// Required for IA32, X64, IPF, and EBC defines for CPU exception types
+// Required for IA32, X64, IPF, ARM and EBC defines for CPU exception types
 //
 #include <Protocol/DebugSupport.h>
 

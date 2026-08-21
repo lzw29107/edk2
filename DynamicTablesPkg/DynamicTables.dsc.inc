@@ -32,7 +32,7 @@
   ArmSmcccSocIdLib|ArmPkg/Library/ArmSmcccSocIdLib/ArmSmcccSocIdLib.inf
   DynamicTablesScmiInfoLib|DynamicTablesPkg/Library/DynamicTablesScmiInfoLib/DynamicTablesScmiInfoLib.inf
 
-[Components.ARM, Components.AARCH64, Components.X64, Components.RISCV64, Components.LOONGARCH64]
+[Components.ARM, Components.AARCH64, Components.IA32, Components.X64, Components.RISCV64, Components.LOONGARCH64]
   #
   # Generators (Common)
   #
@@ -84,9 +84,9 @@
   #
   DynamicTablesPkg/Drivers/DynamicTableManagerDxe/DynamicTableManagerDxe.inf
 
-[Components.X64]
+[Components.IA32, Components.X64]
   #
-  # Generators (X64 specific)
+  # Generators (IA32/X64 specific)
   #
   DynamicTablesPkg/Library/Acpi/X64/AcpiFacsLib/AcpiFacsLib.inf
   DynamicTablesPkg/Library/Acpi/X64/AcpiHpetLib/AcpiHpetLib.inf

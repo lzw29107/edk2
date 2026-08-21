@@ -32,7 +32,7 @@
 [Sources.ARM, Sources.AARCH64]
   Arm/ArmDynamicTableManager.c
 
-[Sources.X64]
+[Sources.IA32, Sources.X64]
   X64/X64DynamicTableManager.c
 
 [Sources.RISCV64]

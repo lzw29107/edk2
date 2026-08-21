@@ -21,7 +21,7 @@
 #
 # The following information is for reference only and not required by the build tools.
 #
-#  VALID_ARCHITECTURES           = IA32 X64 LOONGARCH64 RISCV64 AARCH64
+#  VALID_ARCHITECTURES           = IA32 X64 LOONGARCH64 RISCV64 ARM AARCH64
 #
 
 [Sources.Ia32]
@@ -48,7 +48,7 @@
   LoongArch/LoongArch64/ArchExceptionHandler.c
   LoongArch/LoongArch64/ExceptionHandlerAsm.S | GCC
 
-[Sources.AARCH64, Sources.RISCV64]
+[Sources.ARM, Sources.AARCH64, Sources.RISCV64]
   CpuExceptionHelpers.h
   DxeCpuExceptionHelpers.c
 
@@ -59,9 +59,16 @@
   RiscV/ExceptionHandler.h
   RiscV/ExceptionHandlerAsm.S | GCC
 
+[Sources.ARM]
+  Arm/CpuExceptionHandlerLib.c
+  Arm/ExceptionSupport.S | GCC
+
 [Sources.AARCH64]
   AArch64/CpuExceptionHandlerLib.c
   AArch64/ExceptionSupport.S | GCC
+
+[Sources.ARM, Sources.AARCH64]
+  ArmExceptionLib.c
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdCpuStackGuard
@@ -93,10 +100,10 @@
 [LibraryClasses.LoongArch64]
   CpuLib
 
-[LibraryClasses.AARCH64]
+[LibraryClasses.ARM, LibraryClasses.AARCH64]
   ArmLib
 
-[Guids.RISCV64, Guids.AARCH64]
+[Guids.RISCV64, Guids.ARM, Guids.AARCH64]
   gEfiDebugImageInfoTableGuid
 
 [BuildOptions]

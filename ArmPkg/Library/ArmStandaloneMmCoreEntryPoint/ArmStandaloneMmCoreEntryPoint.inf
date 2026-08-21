@@ -18,7 +18,7 @@
   LIBRARY_CLASS                  = StandaloneMmCoreEntryPoint|MM_CORE_STANDALONE
 
 #
-#  VALID_ARCHITECTURES           = AARCH64
+#  VALID_ARCHITECTURES           = ARM AARCH64
 #
 
 [Sources]
@@ -27,6 +27,9 @@
 
 [Sources.AARCH64]
   AArch64/ModuleEntryPoint.S
+
+[Sources.ARM]
+  Arm/ModuleEntryPoint.S
 
 [Packages]
   ArmPkg/ArmPkg.dec
@@ -65,5 +68,7 @@
 # for this use case. However, PE targets do not support PIE, so only ELF targets^M
 # are built with these flags and support this scenario.
 [BuildOptions]
+  GCC:*_GCC_ARM_CC_FLAGS = -fpie
   GCC:*_GCC_AARCH64_CC_FLAGS = -fpie
+  CLANGDWARF:*_CLANGDWARF_ARM_CC_FLAGS = -fpie
   CLANGDWARF:*_CLANGDWARF_AARCH64_CC_FLAGS = -fpie

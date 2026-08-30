@@ -19,7 +19,7 @@
 #include <Library/FdtLib.h>
 
 // Number of Virtual Memory Map Descriptors
-#define MAX_VIRTUAL_MEMORY_MAP_DESCRIPTORS  (5)
+#define MAX_VIRTUAL_MEMORY_MAP_DESCRIPTORS  (7)
 
 /** A macro to trace the memory map.
 **/
@@ -102,23 +102,25 @@ GetUartBase (
 }
 
 /**
-  Get the QEMU fw_cfg MMIO region from the device tree.
+  Get an MMIO region from the device tree.
 
   @param[in]  DeviceTreeBase        Base address of the Device Tree.
-  @param[out] FwCfgBase             Base address of the fw_cfg MMIO region.
-  @param[out] FwCfgSize             Size of the fw_cfg MMIO region.
+  @param[in]  Compatible        placeholder
+  @param[out] Base             Base address of the MMIO region.
+  @param[out] Size             Size of the MMIO region.
 
   @retval RETURN_INVALID_PARAMETER  Device Tree Base address is invalid.
-  @retval RETURN_NOT_FOUND          No fw_cfg MMIO node has been found.
-  @retval RETURN_SUCCESS            FwCfgBase and FwCfgSize have been populated.
+  @retval RETURN_NOT_FOUND          No specific MMIO node has been found.
+  @retval RETURN_SUCCESS            Base and Size have been populated.
 **/
 STATIC
 RETURN_STATUS
 EFIAPI
-GetFwCfgMmioRegion (
-  IN  VOID    *DeviceTreeBase,
-  OUT UINT64  *FwCfgBase,
-  OUT UINT64  *FwCfgSize
+GetMmioRegion (
+  IN  VOID          *DeviceTreeBase,
+  IN  CONST CHAR8  *Compatible,
+  OUT UINT64        *Base,
+  OUT UINT64        *Size
   )
 {
   RETURN_STATUS  Status;
@@ -135,6 +137,7 @@ GetFwCfgMmioRegion (
   Status = RETURN_NOT_FOUND;
   for (Prev = 0; ; Prev = Node) {
     Node = FdtNextNode (DeviceTreeBase, Prev, NULL);
+
     if (Node < 0) {
       break;
     }
@@ -144,23 +147,25 @@ GetFwCfgMmioRegion (
     //
     Type = FdtGetProp (DeviceTreeBase, Node, "compatible", &Len);
     if ((Type != NULL) &&
-        (AsciiStrnCmp (Type, "qemu,fw-cfg-mmio", Len) == 0))
+        (AsciiStrnCmp (Type, Compatible, Len) == 0))
     {
       //
       // Get the 'reg' property of this node. For now, we will assume
       // two 8 byte quantities for base and size, respectively.
       //
       Reg = FdtGetProp (DeviceTreeBase, Node, "reg", &Len);
-      if ((Reg != 0) && (Len == (2 * sizeof (UINT64)))) {
-        *FwCfgBase = SwapBytes64 (ReadUnaligned64 ((VOID *)&Reg[0]));
-        *FwCfgSize = SwapBytes64 (ReadUnaligned64 ((VOID *)&Reg[1]));
+
+      if ((Reg != NULL) && (Len == (2 * sizeof (UINT64)))) {
+        *Base = SwapBytes64 (ReadUnaligned64 ((VOID *)&Reg[0]));
+        *Size = SwapBytes64 (ReadUnaligned64 ((VOID *)&Reg[1]));
         Status     = RETURN_SUCCESS;
         break;
       } else {
         DEBUG ((
           DEBUG_ERROR,
-          "%a: Failed to parse FDT QemuCfg node\n",
-          __func__
+          "%a: Failed to parse FDT %a node\n",
+          __func__,
+          Compatible
           ));
         break;
       }
@@ -198,6 +203,10 @@ ArmVirtGetMemoryMap (
   UINT64                        UartBase;
   UINT64                        FwCfgBase;
   UINT64                        FwCfgSize;
+  UINT64                        UsbBase;
+  UINT64                        UsbSize;
+  UINT64                        SdhciBase;
+  UINT64                        SdhciSize;
 
   ASSERT (VirtualMemoryMap != NULL);
 
@@ -221,13 +230,29 @@ ArmVirtGetMemoryMap (
     return;
   }
 
-  RetStatus = GetFwCfgMmioRegion (DeviceTreeBase, &FwCfgBase, &FwCfgSize);
+  RetStatus = GetMmioRegion (DeviceTreeBase, "qemu,fw-cfg-mmio", &FwCfgBase, &FwCfgSize);
   if (RETURN_ERROR (RetStatus) ||
       (FwCfgBase == 0) ||
       (FwCfgSize == 0))
   {
     ASSERT_RETURN_ERROR (RetStatus);
     return;
+  }
+
+  RetStatus = GetMmioRegion (DeviceTreeBase, "generic-xhci", &UsbBase, &UsbSize);
+  if (RETURN_ERROR (RetStatus)) {
+    RetStatus = GetMmioRegion (DeviceTreeBase, "generic-ehci", &UsbBase, &UsbSize);
+  }
+  if (RETURN_ERROR (RetStatus)) {
+    UsbBase = 0;
+    UsbSize = 0;
+  }
+
+  RetStatus = GetMmioRegion (DeviceTreeBase, "sdhci", &SdhciBase, &SdhciSize);
+  if (RETURN_ERROR (RetStatus)) {
+
+    SdhciBase = 0;
+    SdhciSize = 0;
   }
 
   VirtualMemoryTable = AllocatePool (
@@ -285,6 +310,35 @@ ArmVirtGetMemoryMap (
   VirtualMemoryTable[Idx].Attributes   = ARM_MEMORY_REGION_ATTRIBUTE_DEVICE;
   LOG_MEM_MAP ("FwCfg");
   Idx++;
+
+  // Map the USB MMIO region
+  if (UsbSize != 0) {
+    MappingBase = UsbBase & ~(UINT64)EFI_PAGE_MASK;
+    MappingSize = EFI_PAGES_TO_SIZE (
+                    EFI_SIZE_TO_PAGES (UsbBase - MappingBase + UsbSize)
+                    );
+    VirtualMemoryTable[Idx].PhysicalBase = MappingBase;
+    VirtualMemoryTable[Idx].VirtualBase  = MappingBase;
+    VirtualMemoryTable[Idx].Length       = MappingSize;
+    VirtualMemoryTable[Idx].Attributes   = ARM_MEMORY_REGION_ATTRIBUTE_DEVICE;
+    LOG_MEM_MAP ("USB");
+    Idx++;
+  }
+
+  // Map the SDHCI MMIO region
+  if (SdhciSize != 0) {
+    MappingBase = SdhciBase & ~(UINT64)EFI_PAGE_MASK;
+    MappingSize = EFI_PAGES_TO_SIZE (
+                    EFI_SIZE_TO_PAGES (SdhciBase - MappingBase + SdhciSize)
+                    );
+
+    VirtualMemoryTable[Idx].PhysicalBase = MappingBase;
+    VirtualMemoryTable[Idx].VirtualBase  = MappingBase;
+    VirtualMemoryTable[Idx].Length       = MappingSize;
+    VirtualMemoryTable[Idx].Attributes   = ARM_MEMORY_REGION_ATTRIBUTE_DEVICE;
+    LOG_MEM_MAP ("SDHCI");
+    Idx++;
+  }
 
   // End of Table
   ZeroMem (&VirtualMemoryTable[Idx], sizeof (ARM_MEMORY_REGION_DESCRIPTOR));

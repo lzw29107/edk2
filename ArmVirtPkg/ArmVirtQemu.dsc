@@ -101,11 +101,7 @@
   MemDebugLogLib|OvmfPkg/Library/MemDebugLogLib/MemDebugLogLibNull.inf
 !endif
 
-[LibraryClasses.AARCH64]
   ArmPlatformLib|ArmVirtPkg/Library/ArmPlatformLibQemu/ArmPlatformLibQemu.inf
-
-[LibraryClasses.ARM]
-  ArmPlatformLib|ArmPlatformPkg/Library/ArmPlatformLibNull/ArmPlatformLibNull.inf
 
 [LibraryClasses.common.PEIM]
   ArmVirtMemInfoLib|ArmVirtPkg/Library/QemuVirtMemInfoLib/QemuVirtMemInfoPeiLib.inf
@@ -224,6 +220,15 @@
 
   # System Memory Size -- 128 MB initially, actual size will be fetched from DT
   gArmTokenSpaceGuid.PcdSystemMemorySize|0x8000000
+
+  #
+  # ARM General Interrupt Controller
+  #
+  gArmPlatformTokenSpaceGuid.PcdCpuGicDistributorBase|0x08000000
+  gArmPlatformTokenSpaceGuid.PcdCpuGicInterruptInterfaceBase|0x08010000
+
+  ## Mailbox Base Address
+  gArmPlatformTokenSpaceGuid.PcdCpuMailboxBase|0x09ff8000
 
 [PcdsFixedAtBuild.AARCH64]
   # Clearing BIT0 in this PCD prevents installing a 32-bit SMBIOS entry point,

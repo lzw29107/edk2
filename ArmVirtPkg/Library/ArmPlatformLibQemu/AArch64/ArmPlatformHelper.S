@@ -46,7 +46,18 @@
  .set    ID_AA64MMFR0_TG4_52,   0xf << 28
  .set    TCR_DS,                0x1 << 59
 
+
 ASM_FUNC(ArmPlatformPeiBootAction)
+  mov    x19,x30
+  bl     ArmPlatformIsPrimaryCore
+  cmp    x0,#1
+  b.eq   .Lprimary
+  bl     ArmPlatformIsGicV2OrLower
+  cmp    x0,#1
+  b.eq   ArmPlatformSecondaryParking
+
+.Lprimary:
+  mov    x30,x19
 #ifdef CAVIUM_ERRATUM_27456
   /*
    * On Cavium ThunderX, using non-global mappings that are executable at EL1
@@ -120,4 +131,81 @@ ASM_FUNC(ArmPlatformPeiBootAction)
   msr    sctlr_el1, x3           // enable MMU and caches
   isb
 
-0:b      ArmEnableVFP            // enable SIMD before entering C code
+0:
+  b      ArmEnableVFP
+
+ASM_FUNC(ArmPlatformIsPrimaryCore)
+  mrs    x0, mpidr_el1
+  and    x0, x0, #0xff
+  cmp    x0, #0
+  cset   x0, eq
+  ret
+
+ASM_FUNC(ArmPlatformIsGicV2OrLower)
+  mov_i  x1, FixedPcdGet32 (PcdCpuGicDistributorBase)
+  ldr    w0, [x1, #4]
+  and    w0, w0, #0x1f
+  cmp    w0, #0x1f
+  cset   w0, ne
+  ret
+
+ASM_FUNC(ArmPlatformSecondaryParking)
+  mrs    x0, CurrentEL
+  cmp    x0, #0x8
+  b.ne   .Lparking_el1
+  mrs    x0, hcr_el2
+  mov    x1, #1
+  lsl    x1, x1, #34          // HCR_EL2.E2H
+  orr    x0, x0, x1
+  msr    hcr_el2, x0
+  isb
+.Lparking_el1:
+  msr    daifset, #0xf
+  mrs    x0, CurrentEL
+  cmp    x0, #0x8
+  b.ne   .Ldisable_el1
+  mrs    x1, sctlr_el2
+  bic    x1, x1, #(1 << 12)   // I
+  bic    x1, x1, #(1 << 2)    // C
+  bic    x1, x1, #1           // M
+  msr    sctlr_el2, x1
+  isb
+  b      .Lsctlr_done
+.Ldisable_el1:
+  mrs    x1, sctlr_el1
+  bic    x1, x1, #(1 << 12)
+  bic    x1, x1, #(1 << 2)
+  bic    x1, x1, #1
+  msr    sctlr_el1, x1
+  isb
+.Lsctlr_done:
+  mov_i  x1, FixedPcdGet32 (PcdCpuGicInterruptInterfaceBase)
+  mov    w0, #1
+  str    w0, [x1, #0]
+  mov    w0, #0xff
+  str    w0, [x1, #4]
+  dsb    sy
+  isb
+  mrs    x0, mpidr_el1
+  and    x0, x0, #0xff
+  mov    x4, x0
+  mov_i  x5, FixedPcdGet32 (PcdCpuMailboxBase)
+  add    x5, x5, x0, lsl #12
+  str    x4, [x5, #0]
+  mov    x0, #0
+  str    x0, [x5, #8]
+  dsb    sy
+  isb
+.Lparking_wait:
+  wfi
+  ldr    x3, [x5, #0]
+  cmp    x3, x4
+  b.ne   .Lparking_wait
+  ldr    x3, [x5, #8]
+  cbz    x3, .Lparking_wait
+  mov    x0, #0
+  str    x0, [x5, #8]
+  dsb    sy
+  isb
+  mov    x0, x5
+  br     x3

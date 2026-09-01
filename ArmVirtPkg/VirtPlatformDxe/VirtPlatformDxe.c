@@ -10,6 +10,7 @@
 
 #include <Library/BaseLib.h>
 #include <Library/DebugLib.h>
+#include <Library/DxeServicesTableLib.h>
 #include <Library/NonDiscoverableDeviceRegistrationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiDriverEntryPoint.h>
@@ -35,8 +36,58 @@ STATIC CONST VIRT_PLATFORM_DEVICE mDevices[] = {
   }
 };
 
-STATIC
 EFI_STATUS
+EFIAPI
+RegisterMmioRegion (
+  IN UINT64  Base,
+  IN UINT64  Size
+  )
+{
+  EFI_STATUS Status;
+
+  Status = gDS->AddMemorySpace (
+                  EfiGcdMemoryTypeMemoryMappedIo,
+                  Base,
+                  Size,
+                  EFI_MEMORY_UC
+                  );
+
+  if (EFI_ERROR (Status) &&
+      (Status != EFI_ALREADY_STARTED)) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: AddMemorySpace failed: Base=%llx Size=%llx %r\n",
+      __FUNCTION__,
+      Base,
+      Size,
+      Status
+      ));
+
+    return Status;
+  }
+
+  Status = gDS->SetMemorySpaceAttributes (
+                  Base,
+                  Size,
+                  EFI_MEMORY_UC
+                  );
+
+  if (EFI_ERROR (Status)) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: SetMemorySpaceAttributes failed: Base=%llx Size=%llx %r\n",
+      __FUNCTION__,
+      Base,
+      Size,
+      Status
+      ));
+  }
+
+  return Status;
+}
+
+EFI_STATUS
+EFIAPI
 RegisterFdtDevice (
   IN FDT_CLIENT_PROTOCOL          *FdtClient,
   IN CONST VIRT_PLATFORM_DEVICE  *Device
@@ -78,12 +129,8 @@ RegisterFdtDevice (
   ASSERT (SizeCells == 2);
   ASSERT (RegSize == sizeof (UINT64) * 2);
 
-  Base = SwapBytes64 (
-              ReadUnaligned64 ((VOID *)&Reg[0])
-              );
-  Size = SwapBytes64 (
-              ReadUnaligned64 ((VOID *)&Reg[1])
-              );
+  Base = SwapBytes64 (ReadUnaligned64 ((VOID *)&Reg[0]));
+  Size = SwapBytes64 (ReadUnaligned64 ((VOID *)&Reg[1]));
 
   DEBUG ((
     DEBUG_INFO,
@@ -93,6 +140,15 @@ RegisterFdtDevice (
     Base,
     Size
     ));
+
+  Status = RegisterMmioRegion (
+             Base,
+             Size
+             );
+
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
 
   Status = RegisterNonDiscoverableMmioDevice (
              Device->Type,
@@ -117,8 +173,8 @@ RegisterFdtDevice (
   return Status;
 }
 
-STATIC
 EFI_STATUS
+EFIAPI
 RegisterPlatformDevices (
   IN FDT_CLIENT_PROTOCOL  *FdtClient
   )
